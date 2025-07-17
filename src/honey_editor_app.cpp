@@ -6,7 +6,8 @@
 namespace Honey {
     class HoneyEditor : public Application {
     public:
-        HoneyEditor() {
+        HoneyEditor()
+            : Application("Honey Editor") {
             push_layer(new EditorLayer());
         }
 

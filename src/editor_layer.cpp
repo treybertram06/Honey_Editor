@@ -16,7 +16,7 @@ namespace Honey {
 
     void EditorLayer::on_attach() {
 
-        Honey::FramebufferSpecification fb_spec;
+        FramebufferSpecification fb_spec;
         fb_spec.width = 1280;
         fb_spec.height = 720;
         m_framebuffer = Honey::Framebuffer::create(fb_spec);
@@ -249,7 +249,7 @@ namespace Honey {
             }
         }
 
-        // Object Properties Section
+        /* Object Properties Section
         if (ImGui::CollapsingHeader("Object Properties")) {
             ImGui::Text("Texture Settings");
 
@@ -269,9 +269,9 @@ namespace Honey {
             ImGui::DragFloat3("Test Position", glm::value_ptr(test_position), 0.1f);
             ImGui::DragFloat2("Test Scale", glm::value_ptr(test_scale), 0.1f, 0.1f, 10.0f);
             ImGui::SliderFloat("Test Rotation", &test_rotation, -180.0f, 180.0f);
-        }
+        }*/
 
-        // Lighting Section
+        /* Lighting Section
         if (ImGui::CollapsingHeader("Lighting")) {
             static glm::vec3 light_direction = {-0.2f, -1.0f, -0.3f};
             static glm::vec3 light_color = {1.0f, 1.0f, 1.0f};
@@ -282,9 +282,9 @@ namespace Honey {
             ImGui::ColorEdit3("Light Color", glm::value_ptr(light_color));
             ImGui::SliderFloat("Light Intensity", &light_intensity, 0.0f, 5.0f);
             ImGui::ColorEdit3("Ambient Color", glm::value_ptr(ambient_color));
-        }
+        }*/
 
-        // Post-Processing Section
+        /* Post-Processing Section
         if (ImGui::CollapsingHeader("Post-Processing")) {
             static float gamma = 2.2f;
             static float exposure = 1.0f;
@@ -297,7 +297,7 @@ namespace Honey {
             ImGui::SliderFloat("Contrast", &contrast, 0.0f, 3.0f);
             ImGui::SliderFloat("Brightness", &brightness, -1.0f, 1.0f);
             ImGui::SliderFloat("Saturation", &saturation, 0.0f, 3.0f);
-        }
+        }*/
 
         // Debug Section
         if (ImGui::CollapsingHeader("Debug")) {
@@ -323,7 +323,7 @@ namespace Honey {
             ImGui::Text("Version: 4.6"); // You can query this from OpenGL
         }
 
-        // Texture Manager Section
+        /* Texture Manager Section
         if (ImGui::CollapsingHeader("Texture Manager")) {
             ImGui::Text("Loaded Textures:");
             ImGui::BulletText("Chuck Texture: %s", m_chuck_texture ? "Loaded" : "Not Loaded");
@@ -334,16 +334,22 @@ namespace Honey {
                 on_attach(); // Quick way to reload textures
             }
         }
-
+*/
         ImGui::End();
 
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
         ImGui::Begin("Viewport");
+        ImVec2 viewport_panel_size = ImGui::GetContentRegionAvail();
+        if (m_viewport_size != *((glm::vec2*)&viewport_panel_size)) {
+            m_viewport_size = {viewport_panel_size.x, viewport_panel_size.y};
+            m_framebuffer->resize((uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y);
+        }
 
         uint32_t texture_id = m_framebuffer->get_color_attachment_renderer_id();
-        ImVec2 size = ImVec2(1280.0f, 720.0f);
-        ImGui::Image(ImTextureID((void*)(intptr_t)texture_id), size, ImVec2(0,1), ImVec2(1,0));
+        ImGui::Image(ImTextureID((void*)(intptr_t)texture_id), ImVec2(m_viewport_size.x, m_viewport_size.y), ImVec2(0,1), ImVec2(1,0));
 
         ImGui::End();
+        ImGui::PopStyleVar();
 
 
 
