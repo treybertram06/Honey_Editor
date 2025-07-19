@@ -86,8 +86,8 @@ namespace Honey {
                     Honey::Renderer2D::begin_scene(m_camera_controller.get_camera());
             
                     //Honey::Renderer2D::draw_quad({0.0f, 0.0f, 0.0f}, {96.8f, 52.6f}, m_sprite_sheet, {1.0f, 1.0f, 1.0f, 1.0f}, 1.0f);
-                    for (uint32_t y = 0; y < m_map_height; y++) {
-                        for (uint32_t x = 0; x < m_map_width; x++) {
+                    for (std::uint32_t y = 0; y < m_map_height; y++) {
+                        for (std::uint32_t x = 0; x < m_map_width; x++) {
                             char tile_type = s_map_tiles[x + y * m_map_width];
                             if (s_texture_map.find(tile_type) != s_texture_map.end()) {
                                 auto texture = s_texture_map[tile_type];
@@ -342,10 +342,10 @@ namespace Honey {
         ImVec2 viewport_panel_size = ImGui::GetContentRegionAvail();
         if (m_viewport_size != *((glm::vec2*)&viewport_panel_size)) {
             m_viewport_size = {viewport_panel_size.x, viewport_panel_size.y};
-            m_framebuffer->resize((uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y);
+            m_framebuffer->resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
         }
 
-        uint32_t texture_id = m_framebuffer->get_color_attachment_renderer_id();
+        std::uint32_t texture_id = m_framebuffer->get_color_attachment_renderer_id();
         ImGui::Image(ImTextureID((void*)(intptr_t)texture_id), ImVec2(m_viewport_size.x, m_viewport_size.y), ImVec2(0,1), ImVec2(1,0));
 
         ImGui::End();
