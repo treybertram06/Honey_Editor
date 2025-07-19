@@ -30,7 +30,7 @@ namespace Honey {
         glm::vec2 m_viewport_size = {1280.0f, 720.0f};
 
 
-        uint32_t m_map_width, m_map_height;
+        std::uint32_t m_map_width, m_map_height;
 
         glm::vec4 m_clear_color = { 0.1f, 0.1f, 0.1f, 1.0f };
         glm::vec3 m_square_position;
