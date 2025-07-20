@@ -45,8 +45,8 @@ namespace Honey {
 
         // update
         {
-            HN_PROFILE_SCOPE("EditorLayer::camera_update");
-            m_camera_controller.on_update(ts);
+            if (m_viewport_focused)
+                m_camera_controller.on_update(ts);
         }
 
         //profiling
@@ -339,6 +339,11 @@ namespace Honey {
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
         ImGui::Begin("Viewport");
+
+        m_viewport_focused = ImGui::IsWindowFocused();
+        m_viewport_hovered = ImGui::IsWindowHovered();
+        Application::get().get_imgui_layer()->block_events(!m_viewport_focused || !m_viewport_hovered);
+
         ImVec2 viewport_panel_size = ImGui::GetContentRegionAvail();
         if (m_viewport_size != *((glm::vec2*)&viewport_panel_size)) {
             m_viewport_size = {viewport_panel_size.x, viewport_panel_size.y};
@@ -350,6 +355,10 @@ namespace Honey {
 
         ImGui::End();
         ImGui::PopStyleVar();
+
+        if (m_viewport_hovered)
+            ImGui::GetIO().WantCaptureMouse = false;
+
 
 
 
