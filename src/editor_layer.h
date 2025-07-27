@@ -30,6 +30,8 @@ namespace Honey {
         glm::vec2 m_viewport_size = {1280.0f, 720.0f};
         bool m_viewport_focused = false, m_viewport_hovered = false;
 
+        Ref<Scene> m_active_scene;
+
 
         std::uint32_t m_map_width, m_map_height;
 
