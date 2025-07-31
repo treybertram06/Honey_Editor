@@ -23,9 +23,9 @@ namespace Honey {
 
         m_active_scene = CreateRef<Scene>();
 
-        auto chuck = m_active_scene->create_entity();
-        m_active_scene->reg().emplace<TransformComponent>(chuck);
-        m_active_scene->reg().emplace<SpriteRendererComponent>(chuck, glm::vec4{0.0f, 1.0f, 0.0f, 1.0f});
+        Entity my_ent = m_active_scene->create_entity();
+
+        my_ent.add_component<SpriteRendererComponent>();
 
         auto texture_path_prefix = asset_root / "textures";
         m_chuck_texture = Texture2D::create(texture_path_prefix / "bung.png");
