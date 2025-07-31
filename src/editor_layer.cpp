@@ -23,9 +23,9 @@ namespace Honey {
 
         m_active_scene = CreateRef<Scene>();
 
-        Entity my_ent = m_active_scene->create_entity();
+        Entity square_ent = m_active_scene->create_entity();
 
-        my_ent.add_component<SpriteRendererComponent>();
+        square_ent.add_component<SpriteRendererComponent>(glm::vec4(0.8f, 0.3f, 0.8f, 1.0f));
 
         auto texture_path_prefix = asset_root / "textures";
         m_chuck_texture = Texture2D::create(texture_path_prefix / "bung.png");
@@ -69,7 +69,7 @@ namespace Honey {
 
         Renderer2D::begin_scene(m_camera_controller.get_camera());
 
-        m_active_scene->on_update(ts);
+        m_active_scene->render();
 
         Renderer2D::end_scene();
         m_framebuffer->unbind();
