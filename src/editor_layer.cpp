@@ -10,8 +10,8 @@ namespace Honey {
 
     EditorLayer::EditorLayer()
         : Layer("EditorLayer"),
-          m_camera_controller((1.6f / 0.9f), true) {
-    }
+          m_camera_controller((1.6f / 0.9f), true)
+    {}
 
 
     void EditorLayer::on_attach() {
@@ -23,9 +23,13 @@ namespace Honey {
 
         m_active_scene = CreateRef<Scene>();
 
-        Entity square_ent = m_active_scene->create_entity();
+        m_square_ent = m_active_scene->create_entity("Square");
+        m_camera_ent = m_active_scene->create_entity("Camera");
 
-        square_ent.add_component<SpriteRendererComponent>(glm::vec4(0.8f, 0.3f, 0.8f, 1.0f));
+        m_square_ent.add_component<SpriteRendererComponent>(glm::vec4(0.8f, 0.3f, 0.8f, 1.0f));
+        CameraComponent camera_component;
+        camera_component.primary = true;
+        m_camera_ent.add_component<CameraComponent>(camera_component);
 
         auto texture_path_prefix = asset_root / "textures";
         m_chuck_texture = Texture2D::create(texture_path_prefix / "bung.png");
@@ -67,11 +71,9 @@ namespace Honey {
 
 
 
-        Renderer2D::begin_scene(m_camera_controller.get_camera());
 
         m_active_scene->render();
 
-        Renderer2D::end_scene();
         m_framebuffer->unbind();
     }
 

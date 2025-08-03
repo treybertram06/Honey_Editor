@@ -31,6 +31,8 @@ namespace Honey {
         bool m_viewport_focused = false, m_viewport_hovered = false;
 
         Ref<Scene> m_active_scene;
+        Entity m_camera_ent;
+        Entity m_square_ent;
 
 
         std::uint32_t m_map_width, m_map_height;

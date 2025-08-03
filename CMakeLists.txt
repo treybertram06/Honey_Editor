@@ -14,6 +14,8 @@ target_include_directories(Honey_Editor PRIVATE
         ${CMAKE_SOURCE_DIR}/Honey/engine/vendor
 )
 
+add_compile_definitions(GLM_FORCE_SILENT_WARNINGS)
+
 add_subdirectory(Honey)
 target_link_libraries(Honey_Editor PRIVATE engine)
 
