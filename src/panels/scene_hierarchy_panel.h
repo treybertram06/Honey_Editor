@@ -1,0 +1,24 @@
+#pragma once
+#include "Honey/core/base.h"
+#include "Honey/scene/scene.h"
+#include "Honey/scene/components.h"
+#include "Honey/scene/entity.h"
+
+
+namespace Honey {
+
+    class SceneHierarchyPanel {
+    public:
+        SceneHierarchyPanel() = default;
+        SceneHierarchyPanel(const Ref<Scene>& context);
+
+        void set_context(const Ref<Scene>& context);
+
+        void on_imgui_render();
+    private:
+        Ref<Scene> m_context;
+        Entity m_selected_entity;
+
+        void draw_entity_node(Entity entity);
+    };
+}

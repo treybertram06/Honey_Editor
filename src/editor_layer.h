@@ -1,5 +1,6 @@
 #pragma once
 #include <Honey.h>
+#include "panels/scene_hierarchy_panel.h"
 #include <glm/glm/glm.hpp>
 
 namespace Honey {
@@ -33,6 +34,8 @@ namespace Honey {
         Ref<Scene> m_active_scene;
         Entity m_camera_ent;
         Entity m_square_ent;
+        std::vector<Entity> m_camera_entities;
+
 
 
         std::uint32_t m_map_width, m_map_height;
@@ -47,6 +50,10 @@ namespace Honey {
         float m_frame_time = 0.0f;
 
         glm::vec4 square_color = { 0.2f, 0.3f, 0.8f, 1.0f };
+
+
+        //Panels
+        SceneHierarchyPanel m_scene_hierarchy_panel;
 
 
     };

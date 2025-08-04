@@ -5,7 +5,9 @@ set(CMAKE_CXX_STANDARD 20)
 
 add_executable(Honey_Editor src/honey_editor_app.cpp
         src/editor_layer.cpp
-        src/editor_layer.h)
+        src/editor_layer.h
+        src/panels/scene_hierarchy_panel.h
+        src/panels/scene_hierarchy_panel.cpp)
 
 target_include_directories(Honey_Editor PRIVATE
         ${CMAKE_SOURCE_DIR}/Honey/engine/src

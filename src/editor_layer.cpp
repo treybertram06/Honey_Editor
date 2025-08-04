@@ -24,12 +24,20 @@ namespace Honey {
         m_active_scene = CreateRef<Scene>();
 
         m_square_ent = m_active_scene->create_entity("Square");
-        m_camera_ent = m_active_scene->create_entity("Camera");
+        m_camera_ent = m_active_scene->create_entity("Main Camera");
+        auto second_camera = m_active_scene->create_entity("Secondary Camera");
+        auto third_camera = m_active_scene->create_entity("Debug Camera");
 
         m_square_ent.add_component<SpriteRendererComponent>(glm::vec4(0.8f, 0.3f, 0.8f, 1.0f));
-        CameraComponent camera_component;
-        camera_component.primary = true;
-        m_camera_ent.add_component<CameraComponent>(camera_component);
+        m_camera_ent.add_component<CameraComponent>();
+        second_camera.add_component<CameraComponent>();
+        third_camera.add_component<CameraComponent>();
+
+        // Store camera entities for the radio buttons
+        m_camera_entities = { m_camera_ent, second_camera, third_camera };
+
+        m_active_scene->set_primary_camera(m_camera_ent);
+
 
         class CameraController : public ScriptableEntity {
         public:
@@ -55,7 +63,11 @@ namespace Honey {
          };
 
         m_camera_ent.add_component<NativeScriptComponent>().bind<CameraController>();
+        //second_camera.add_component<NativeScriptComponent>().bind<CameraController>();
+        //third_camera.add_component<NativeScriptComponent>().bind<CameraController>();
 
+
+        m_scene_hierarchy_panel.set_context(m_active_scene);
 
 
     }
@@ -145,8 +157,59 @@ namespace Honey {
             ImGui::EndMainMenuBar();
         }
 
+        m_scene_hierarchy_panel.on_imgui_render();
 
         ImGui::Begin("Renderer Debug Panel");
+
+        if (ImGui::CollapsingHeader("Camera Selection", ImGuiTreeNodeFlags_DefaultOpen)) {
+            static int selected_camera = 0; // Index of currently selected camera
+
+            ImGui::Text("Primary Camera:");
+            ImGui::Separator();
+
+            // Create radio buttons for each camera using their TagComponent names
+            for (int i = 0; i < m_camera_entities.size(); ++i) {
+                if (m_camera_entities[i].is_valid()) {
+                    // Get the camera's name from its TagComponent
+                    const std::string& camera_name = m_camera_entities[i].get_component<TagComponent>().tag;
+
+                    if (ImGui::RadioButton(camera_name.c_str(), selected_camera == i)) {
+                        selected_camera = i;
+
+                        // Set the selected camera as primary
+                        m_active_scene->set_primary_camera(m_camera_entities[i]);
+                        HN_CORE_INFO("Primary camera set to: {}", camera_name);
+                    }
+
+                    // Add some spacing between radio buttons
+                    if (i < m_camera_entities.size() - 1) {
+                        ImGui::Spacing();
+                    }
+                }
+            }
+
+            ImGui::Separator();
+
+            // Option to clear primary camera
+            if (ImGui::Button("Clear Primary Camera")) {
+                m_active_scene->clear_primary_camera();
+                selected_camera = -1; // Reset selection
+                HN_CORE_INFO("Primary camera cleared");
+            }
+
+            ImGui::Spacing();
+
+            // Display current primary camera info
+            std::string current_primary = "None";
+            if (selected_camera >= 0 && selected_camera < m_camera_entities.size() &&
+                m_camera_entities[selected_camera].is_valid()) {
+                current_primary = m_camera_entities[selected_camera].get_component<TagComponent>().tag;
+                }
+            ImGui::Text("Current Primary: %s", current_primary.c_str());
+        }
+
+
+
 
         // Performance Section
         if (ImGui::CollapsingHeader("Performance", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -321,6 +384,9 @@ namespace Honey {
         if (m_viewport_size != *((glm::vec2*)&viewport_panel_size)) {
             m_viewport_size = {viewport_panel_size.x, viewport_panel_size.y};
             m_framebuffer->resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
+
+            m_active_scene->on_viewport_resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
+
         }
 
         std::uint32_t texture_id = m_framebuffer->get_color_attachment_renderer_id();
