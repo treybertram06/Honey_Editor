@@ -31,18 +31,33 @@ namespace Honey {
         camera_component.primary = true;
         m_camera_ent.add_component<CameraComponent>(camera_component);
 
-        auto texture_path_prefix = asset_root / "textures";
-        m_chuck_texture = Texture2D::create(texture_path_prefix / "bung.png");
-        m_missing_texture = Texture2D::create(texture_path_prefix / "missing.png");
-        m_sprite_sheet01 = Texture2D::create(asset_root / "test_game" / "textures"/ "roguelikeSheet_transparent.png");
-        m_sprite_sheet02 = Texture2D::create(asset_root / "test_game" / "textures"/ "colored-transparent.png");
-        m_bush_sprite = SubTexture2D::create_from_coords(m_sprite_sheet01, {14, 9},{16, 16},{1, 1},{1, 1},{0, 17});
-        s_texture_map['d'] = SubTexture2D::create_from_coords(m_sprite_sheet01, {5, 0},{16, 16},{1, 1},{1, 1},{0, 17});
-        s_texture_map['w'] = SubTexture2D::create_from_coords(m_sprite_sheet01, {3, 1},{16, 16},{1, 1},{1, 1},{0, 17});
-        m_player_sprite = SubTexture2D::create_from_coords(m_sprite_sheet02, {23, 7},{16, 16},{1, 1},{1, 1},{0, 17});
+        class CameraController : public ScriptableEntity {
+        public:
+            void on_create() {
+            }
+
+            void on_destroy() {}
+
+            void on_update(Timestep ts) {
+                auto& transform = get_component<TransformComponent>().transform;
+                float speed = 5.0f * ts;
+
+                if (Input::is_key_pressed(KeyCode::A))
+                    transform[3][0] -= speed;
+                if (Input::is_key_pressed(KeyCode::D))
+                    transform[3][0] += speed;
+                if (Input::is_key_pressed(KeyCode::S))
+                    transform[3][1] -= speed;
+                if (Input::is_key_pressed(KeyCode::W))
+                    transform[3][1] += speed;
+            }
+
+         };
+
+        m_camera_ent.add_component<NativeScriptComponent>().bind<CameraController>();
 
 
-        m_camera_controller.set_zoom_level(10.0f);
+
     }
 
     void EditorLayer::on_detach() {
@@ -71,7 +86,7 @@ namespace Honey {
 
 
 
-
+        m_active_scene->on_update(ts);
         m_active_scene->render();
 
         m_framebuffer->unbind();
