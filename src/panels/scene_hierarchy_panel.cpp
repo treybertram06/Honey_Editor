@@ -81,8 +81,68 @@ namespace Honey {
 
                 ImGui::TreePop();
             }
+        }
+
+        if (entity.has_component<CameraComponent>()) {
+            if (ImGui::TreeNodeEx((void*)typeid(CameraComponent).hash_code(), ImGuiTreeNodeFlags_DefaultOpen, "Camera")) {
+                auto& camera_component = entity.get_component<CameraComponent>();
+                auto& camera = camera_component.camera;
+
+                bool curr_projection_index = (int)camera_component.projection_type;
+                const char* projection_type[] = { "Orthographic", "Perspective" };
+                if (ImGui::BeginCombo("Projection", projection_type[curr_projection_index])) {
+                    for (int i = 0; i < 2; i++) {
+                        bool is_selected = (curr_projection_index == i);
+                        if (ImGui::Selectable(projection_type[i], is_selected)) {
+                            if (camera_component.projection_type != (CameraComponent::ProjectionType)i) {
+                                camera_component.projection_type = (CameraComponent::ProjectionType)i;
+
+                                float current_aspect_ratio = camera_component.camera->get_aspect_ratio();
+                                camera_component.update_projection(current_aspect_ratio);
+                            }
+                        }
+                        if (is_selected) {
+                            ImGui::SetItemDefaultFocus();
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
 
 
+                if (camera_component.projection_type == CameraComponent::ProjectionType::Orthographic) {
+                    bool changed = false;
+                    changed |= ImGui::DragFloat("Orthographic Size", &camera_component.orthographic_size, 0.1f, 0.0f, 100.0f);
+                    changed |= ImGui::DragFloat("Near Clip", &camera_component.orthographic_near, 0.01f, 0.0f, 100.0f);
+                    changed |= ImGui::DragFloat("Far Clip", &camera_component.orthographic_far, 0.01f, 0.0f, 100.0f);
+
+                    if (changed && camera) {
+                        if (auto ortho_cam = dynamic_cast<OrthographicCamera*>(camera.get())) {
+                            ortho_cam->set_size(camera_component.orthographic_size);
+                            ortho_cam->set_near_clip(camera_component.orthographic_near);
+                            ortho_cam->set_far_clip(camera_component.orthographic_far);
+                        }
+                    }
+                }
+
+                if (camera_component.projection_type == CameraComponent::ProjectionType::Perspective) {
+                    bool changed = false;
+                    changed |= ImGui::DragFloat("FOV", &camera_component.perspective_fov, 1.0f, 1.0f, 179.0f);
+                    changed |= ImGui::DragFloat("Near Clip", &camera_component.perspective_near, 0.01f, 0.01f, 100.0f);
+                    changed |= ImGui::DragFloat("Far Clip", &camera_component.perspective_far, 1.0f, 1.0f, 10000.0f);
+
+                    if (changed && camera) {
+                        if (auto persp_cam = dynamic_cast<PerspectiveCamera*>(camera.get())) {
+                            persp_cam->set_fov(camera_component.perspective_fov);
+                            persp_cam->set_near_clip(camera_component.perspective_near);
+                            persp_cam->set_far_clip(camera_component.perspective_far);
+                        }
+                    }
+                }
+
+
+
+                ImGui::TreePop();
+            }
         }
     }
 
