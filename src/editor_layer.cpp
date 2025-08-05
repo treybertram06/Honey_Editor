@@ -32,7 +32,7 @@ namespace Honey {
 
         m_square_ent.add_component<SpriteRendererComponent>(glm::vec4(0.8f, 0.3f, 0.8f, 1.0f));
         second_square.add_component<SpriteRendererComponent>(glm::vec4(0.2f, 0.3f, 0.8f, 1.0f));
-        second_square.get_component<TransformComponent>().transform = glm::translate(glm::mat4(1.0f), glm::vec3(0.5f, 2.0f, 0.0f));
+        second_square.get_component<TransformComponent>().translation = glm::vec3(0.5f, 2.0f, 0.0f);
 
         m_camera_ent.add_component<CameraComponent>();
         second_camera.add_component<CameraComponent>();
@@ -52,17 +52,17 @@ namespace Honey {
             void on_destroy() {}
 
             void on_update(Timestep ts) {
-                auto& transform = get_component<TransformComponent>().transform;
+                auto& translation = get_component<TransformComponent>().translation;
                 float speed = 5.0f * ts;
 
                 if (Input::is_key_pressed(KeyCode::A))
-                    transform[3][0] -= speed;
+                    translation.x -= speed;
                 if (Input::is_key_pressed(KeyCode::D))
-                    transform[3][0] += speed;
+                    translation.x += speed;
                 if (Input::is_key_pressed(KeyCode::S))
-                    transform[3][1] -= speed;
+                    translation.y -= speed;
                 if (Input::is_key_pressed(KeyCode::W))
-                    transform[3][1] += speed;
+                    translation.y += speed;
             }
 
          };

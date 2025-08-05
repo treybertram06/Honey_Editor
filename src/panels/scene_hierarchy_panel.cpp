@@ -2,6 +2,7 @@
 
 #include <imgui.h>
 
+#include "imgui_internal.h"
 #include "glm/gtc/type_ptr.inl"
 
 
@@ -61,6 +62,50 @@ namespace Honey {
 
     }
 
+    static void draw_vec3_control(const std::string& label, glm::vec3& values, float reset_value = 0.0f, float column_width = 100.0f) {
+        ImGui::PushID(label.c_str());
+
+        ImGui::Columns(2);
+        ImGui::SetColumnWidth(0, column_width);
+        ImGui::Text(label.c_str());
+        ImGui::NextColumn();
+
+        ImGui::PushMultiItemsWidths(3, ImGui::CalcItemWidth());
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{ 0, 0 });
+
+        float line_height = GImGui->Font->FontSize + GImGui->Style.FramePadding.y * 2.0f;
+        ImVec2 button_size = { line_height + 3.0f, line_height };
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.8f, 0.1f, 0.1f, 0.7f });
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.9f, 0.2f, 0.2f, 0.7f });
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.8f, 0.1f, 0.1f, 1.0f });
+        if (ImGui::Button("X", button_size)) values.x = reset_value; ImGui::SameLine();
+        ImGui::DragFloat("##X", &values.x, 0.1f, 0.0f, 0.0f, "%.2f"); ImGui::SameLine();
+        ImGui::PopItemWidth();
+        ImGui::PopStyleColor(3);
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.1f, 0.8f, 0.1f, 0.7f });
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.2f, 0.9f, 0.2f, 0.7f });
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.1f, 0.8f, 0.1f, 1.0f });
+        if (ImGui::Button("Y", button_size)) values.y = reset_value; ImGui::SameLine();
+        ImGui::DragFloat("##Y", &values.y, 0.1f, 0.0f, 0.0f, "%.2f"); ImGui::SameLine();
+        ImGui::PopItemWidth();
+        ImGui::PopStyleColor(3);
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.1f, 0.1f, 0.8f, 0.7f });
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.2f, 0.2f, 0.9f, 0.7f });
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.1f, 0.1f, 0.8f, 1.0f });
+        if (ImGui::Button("Z", button_size)) values.z = reset_value; ImGui::SameLine();
+        ImGui::DragFloat("##Z", &values.z, 0.1f, 0.0f, 0.0f, "%.2f");
+        ImGui::PopItemWidth();
+        ImGui::PopStyleColor(3);
+        ImGui::PopStyleVar();
+
+
+        ImGui::Columns(1);
+        ImGui::PopID();
+    }
+
     void SceneHierarchyPanel::draw_components(Entity entity) {
         if (entity.has_component<TagComponent>()) {
             auto& tag = entity.get_component<TagComponent>().tag;
@@ -75,8 +120,12 @@ namespace Honey {
 
         if (entity.has_component<TransformComponent>()) {
             if (ImGui::TreeNodeEx((void*)typeid(TransformComponent).hash_code(), ImGuiTreeNodeFlags_DefaultOpen, "Transform")) {
-                auto& transform = entity.get_component<TransformComponent>().transform;
-                ImGui::DragFloat3("Position", glm::value_ptr((transform[3])), 0.01f);
+                auto& transform_component = entity.get_component<TransformComponent>();
+                draw_vec3_control("Translation", transform_component.translation);
+                glm::vec3 rotation = glm::degrees(transform_component.rotation);
+                draw_vec3_control("Rotation", rotation);
+                transform_component.rotation = glm::radians(rotation);
+                draw_vec3_control("Scale", transform_component.scale, 1.0f);
 
                 ImGui::TreePop();
             }
