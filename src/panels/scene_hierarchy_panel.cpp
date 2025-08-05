@@ -2,6 +2,8 @@
 
 #include <imgui.h>
 
+#include "glm/gtc/type_ptr.inl"
+
 
 namespace Honey {
 
@@ -24,6 +26,19 @@ namespace Honey {
                 draw_entity_node(current_entity);
             }
         }
+
+        if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered()) {
+                m_selected_entity = {};
+        }
+
+        ImGui::End();
+
+        ImGui::Begin("Properties");
+
+        if (m_selected_entity) {
+            draw_components(m_selected_entity);
+        }
+
         ImGui::End();
     }
 
@@ -44,6 +59,31 @@ namespace Honey {
             ImGui::TreePop();
         }
 
+    }
+
+    void SceneHierarchyPanel::draw_components(Entity entity) {
+        if (entity.has_component<TagComponent>()) {
+            auto& tag = entity.get_component<TagComponent>().tag;
+
+            char buffer[256];
+            memset(buffer, 0, sizeof(buffer));
+            strcpy(buffer, tag.c_str());
+            if (ImGui::InputText("Tag", buffer, sizeof(buffer))) {
+                tag = std::string(buffer);
+            }
+        }
+
+        if (entity.has_component<TransformComponent>()) {
+
+            if (ImGui::TreeNodeEx((void*)typeid(TransformComponent).hash_code(), ImGuiTreeNodeFlags_DefaultOpen, "Transform")) {
+                auto& transform = entity.get_component<TransformComponent>().transform;
+                ImGui::DragFloat3("Position", glm::value_ptr((transform[3])), 0.01f);
+
+                ImGui::TreePop();
+            }
+
+
+        }
     }
 
 }

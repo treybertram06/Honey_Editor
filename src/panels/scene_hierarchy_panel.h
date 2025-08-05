@@ -20,5 +20,6 @@ namespace Honey {
         Entity m_selected_entity;
 
         void draw_entity_node(Entity entity);
+        void draw_components(Entity entity);
     };
 }

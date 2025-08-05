@@ -24,11 +24,16 @@ namespace Honey {
         m_active_scene = CreateRef<Scene>();
 
         m_square_ent = m_active_scene->create_entity("Square");
+        auto second_square = m_active_scene->create_entity("Second Square");
+
         m_camera_ent = m_active_scene->create_entity("Main Camera");
         auto second_camera = m_active_scene->create_entity("Secondary Camera");
         auto third_camera = m_active_scene->create_entity("Debug Camera");
 
         m_square_ent.add_component<SpriteRendererComponent>(glm::vec4(0.8f, 0.3f, 0.8f, 1.0f));
+        second_square.add_component<SpriteRendererComponent>(glm::vec4(0.2f, 0.3f, 0.8f, 1.0f));
+        second_square.get_component<TransformComponent>().transform = glm::translate(glm::mat4(1.0f), glm::vec3(0.5f, 2.0f, 0.0f));
+
         m_camera_ent.add_component<CameraComponent>();
         second_camera.add_component<CameraComponent>();
         third_camera.add_component<CameraComponent>();
