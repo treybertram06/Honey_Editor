@@ -242,7 +242,7 @@ namespace Honey {
             }
 
             static bool wireframe_mode = false;
-            static bool depth_test = true;
+            static bool depth_test = false;
             static bool face_culling = true;
             static bool blending = true;
 

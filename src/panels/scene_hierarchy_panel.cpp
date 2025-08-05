@@ -74,7 +74,6 @@ namespace Honey {
         }
 
         if (entity.has_component<TransformComponent>()) {
-
             if (ImGui::TreeNodeEx((void*)typeid(TransformComponent).hash_code(), ImGuiTreeNodeFlags_DefaultOpen, "Transform")) {
                 auto& transform = entity.get_component<TransformComponent>().transform;
                 ImGui::DragFloat3("Position", glm::value_ptr((transform[3])), 0.01f);
@@ -108,7 +107,6 @@ namespace Honey {
                     ImGui::EndCombo();
                 }
 
-
                 if (camera_component.projection_type == CameraComponent::ProjectionType::Orthographic) {
                     bool changed = false;
                     changed |= ImGui::DragFloat("Orthographic Size", &camera_component.orthographic_size, 0.1f, 0.0f, 100.0f);
@@ -138,9 +136,14 @@ namespace Honey {
                         }
                     }
                 }
+                ImGui::TreePop();
+            }
+        }
 
-
-
+        if (entity.has_component<SpriteRendererComponent>()) {
+            if (ImGui::TreeNodeEx((void*)typeid(SpriteRendererComponent).hash_code(), ImGuiTreeNodeFlags_DefaultOpen, "Sprite Renderer")) {
+                auto& sprite_renderer = entity.get_component<SpriteRendererComponent>();
+                ImGui::ColorEdit4("Color", glm::value_ptr(sprite_renderer.color));
                 ImGui::TreePop();
             }
         }
