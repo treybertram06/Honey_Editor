@@ -7,7 +7,8 @@ add_executable(Honey_Editor src/honey_editor_app.cpp
         src/editor_layer.cpp
         src/editor_layer.h
         src/panels/scene_hierarchy_panel.h
-        src/panels/scene_hierarchy_panel.cpp)
+        src/panels/scene_hierarchy_panel.cpp
+        assets/scripts/camera_controller.h)
 
 target_include_directories(Honey_Editor PRIVATE
         ${CMAKE_SOURCE_DIR}/Honey/engine/src

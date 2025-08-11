@@ -55,6 +55,8 @@ namespace Honey {
         //Panels
         SceneHierarchyPanel m_scene_hierarchy_panel;
 
+        void render_camera_selector();
+
 
     };
 }

@@ -3,6 +3,7 @@
 #include "imgui.h"
 #include <glm/glm/gtc/type_ptr.hpp>
 #include "hnpch.h"
+#include "../assets/scripts/camera_controller.h"
 
 static const std::filesystem::path asset_root = ASSET_ROOT;
 
@@ -44,28 +45,6 @@ namespace Honey {
         m_active_scene->set_primary_camera(m_camera_ent);
 
 
-        class CameraController : public ScriptableEntity {
-        public:
-            void on_create() {
-            }
-
-            void on_destroy() {}
-
-            void on_update(Timestep ts) {
-                auto& translation = get_component<TransformComponent>().translation;
-                float speed = 5.0f * ts;
-
-                if (Input::is_key_pressed(KeyCode::A))
-                    translation.x -= speed;
-                if (Input::is_key_pressed(KeyCode::D))
-                    translation.x += speed;
-                if (Input::is_key_pressed(KeyCode::S))
-                    translation.y -= speed;
-                if (Input::is_key_pressed(KeyCode::W))
-                    translation.y += speed;
-            }
-
-         };
 
         m_camera_ent.add_component<NativeScriptComponent>().bind<CameraController>();
         //second_camera.add_component<NativeScriptComponent>().bind<CameraController>();
@@ -76,6 +55,82 @@ namespace Honey {
 
 
     }
+
+    void EditorLayer::render_camera_selector() {
+        if (!ImGui::CollapsingHeader("Camera Selection", ImGuiTreeNodeFlags_DefaultOpen)) {
+            return;
+        }
+
+        ImGui::Text("Primary Camera:");
+        ImGui::Separator();
+
+        std::vector<Entity> camera_entities;
+        if (m_active_scene) {
+            auto camera_view = m_active_scene->get_registry().view<CameraComponent>();
+            for (auto entity_id : camera_view) {
+                Entity camera_entity = { entity_id, m_active_scene.get() };
+                if (camera_entity.is_valid()) {
+                    camera_entities.push_back(camera_entity);
+                }
+            }
+        }
+
+        Entity current_primary_camera = m_active_scene->get_primary_camera();
+
+        static int selected_camera = -1; // Index of currently selected camera
+
+        for (int i = 0; i < camera_entities.size(); ++i) {
+            if (current_primary_camera.is_valid() &&
+                camera_entities[i].get_handle() == current_primary_camera.get_handle()) {
+                selected_camera = i;
+                break;
+            }
+        }
+
+        if (!current_primary_camera.is_valid()) {
+            selected_camera = -1;
+        }
+
+        for (int i = 0; i < camera_entities.size(); ++i) {
+            const std::string& camera_name = camera_entities[i].get_component<TagComponent>().tag;
+
+            if (ImGui::RadioButton(camera_name.c_str(), selected_camera == i)) {
+                selected_camera = i;
+
+                m_active_scene->set_primary_camera(camera_entities[i]);
+
+                auto& camera_component = m_active_scene->get_primary_camera().get_component<CameraComponent>();
+                float aspect_ratio = (float)m_viewport_size.x / (float)m_viewport_size.y;
+                camera_component.get_camera()->set_aspect_ratio(aspect_ratio);
+            }
+
+            // Add some spacing between radio buttons
+            if (i < camera_entities.size() - 1) {
+                ImGui::Spacing();
+            }
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::Button("Clear Primary Camera")) {
+            m_active_scene->clear_primary_camera();
+            selected_camera = -1; // Reset selection
+            HN_CORE_INFO("Primary camera cleared");
+        }
+
+        ImGui::Spacing();
+
+        std::string current_primary = "None";
+        if (current_primary_camera.is_valid()) {
+            current_primary = current_primary_camera.get_component<TagComponent>().tag;
+        }
+
+        ImGui::Text("Current Primary: %s", current_primary.c_str());
+        ImGui::Text("Total Cameras: %zu", camera_entities.size());
+    }
+
+
+
 
     void EditorLayer::on_detach() {
     }
@@ -166,55 +221,7 @@ namespace Honey {
 
         ImGui::Begin("Renderer Debug Panel");
 
-        if (ImGui::CollapsingHeader("Camera Selection", ImGuiTreeNodeFlags_DefaultOpen)) {
-            static int selected_camera = 0; // Index of currently selected camera
-
-            ImGui::Text("Primary Camera:");
-            ImGui::Separator();
-
-            // Create radio buttons for each camera using their TagComponent names
-            for (int i = 0; i < m_camera_entities.size(); ++i) {
-                if (m_camera_entities[i].is_valid()) {
-                    // Get the camera's name from its TagComponent
-                    const std::string& camera_name = m_camera_entities[i].get_component<TagComponent>().tag;
-
-                    if (ImGui::RadioButton(camera_name.c_str(), selected_camera == i)) {
-                        selected_camera = i;
-
-                        // Set the selected camera as primary
-                        m_active_scene->set_primary_camera(m_camera_entities[i]);
-                        HN_CORE_INFO("Primary camera set to: {}", camera_name);
-                    }
-
-                    // Add some spacing between radio buttons
-                    if (i < m_camera_entities.size() - 1) {
-                        ImGui::Spacing();
-                    }
-                }
-            }
-
-            ImGui::Separator();
-
-            // Option to clear primary camera
-            if (ImGui::Button("Clear Primary Camera")) {
-                m_active_scene->clear_primary_camera();
-                selected_camera = -1; // Reset selection
-                HN_CORE_INFO("Primary camera cleared");
-            }
-
-            ImGui::Spacing();
-
-            // Display current primary camera info
-            std::string current_primary = "None";
-            if (selected_camera >= 0 && selected_camera < m_camera_entities.size() &&
-                m_camera_entities[selected_camera].is_valid()) {
-                current_primary = m_camera_entities[selected_camera].get_component<TagComponent>().tag;
-                }
-            ImGui::Text("Current Primary: %s", current_primary.c_str());
-        }
-
-
-
+        render_camera_selector();
 
         // Performance Section
         if (ImGui::CollapsingHeader("Performance", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -262,83 +269,6 @@ namespace Honey {
                 RenderCommand::set_blend(blending);
             }
         }
-
-        // Camera Control Section
-        if (ImGui::CollapsingHeader("Camera Control", ImGuiTreeNodeFlags_DefaultOpen)) {
-            glm::vec3 camera_pos = m_camera_controller.get_camera().get_position();
-            if (ImGui::DragFloat3("Position", glm::value_ptr(camera_pos), 0.1f)) {
-                m_camera_controller.get_camera().set_position(camera_pos);
-            }
-
-            float camera_rotation = m_camera_controller.get_camera().get_rotation();
-            if (ImGui::SliderFloat("Rotation", &camera_rotation, -180.0f, 180.0f)) {
-                m_camera_controller.get_camera().set_rotation(camera_rotation);
-            }
-
-            float zoom = m_camera_controller.get_zoom_level();
-            if (ImGui::SliderFloat("Zoom Level", &zoom, 0.1f, 10.0f)) {
-                m_camera_controller.set_zoom_level(zoom);
-            }
-
-            ImGui::Separator();
-            ImGui::Text("Projection Settings");
-
-            if (ImGui::Button("Reset Camera")) {
-                m_camera_controller.get_camera().set_position({0.0f, 0.0f, 0.0f});
-                m_camera_controller.get_camera().set_rotation(0.0f);
-                m_camera_controller.set_zoom_level(1.0f);
-            }
-        }
-
-        /* Object Properties Section
-        if (ImGui::CollapsingHeader("Object Properties")) {
-            ImGui::Text("Texture Settings");
-
-            static float texture_tiling = 1.0f;
-            ImGui::SliderFloat("Texture Tiling", &texture_tiling, 0.1f, 10.0f);
-
-            static glm::vec4 texture_color = {1.0f, 1.0f, 1.0f, 1.0f};
-            ImGui::ColorEdit4("Texture Tint", glm::value_ptr(texture_color));
-
-            ImGui::Separator();
-            ImGui::Text("Test Object Transforms");
-
-            static glm::vec3 test_position = {0.0f, 0.0f, 0.0f};
-            static glm::vec2 test_scale = {1.0f, 1.0f};
-            static float test_rotation = 0.0f;
-
-            ImGui::DragFloat3("Test Position", glm::value_ptr(test_position), 0.1f);
-            ImGui::DragFloat2("Test Scale", glm::value_ptr(test_scale), 0.1f, 0.1f, 10.0f);
-            ImGui::SliderFloat("Test Rotation", &test_rotation, -180.0f, 180.0f);
-        }*/
-
-        /* Lighting Section
-        if (ImGui::CollapsingHeader("Lighting")) {
-            static glm::vec3 light_direction = {-0.2f, -1.0f, -0.3f};
-            static glm::vec3 light_color = {1.0f, 1.0f, 1.0f};
-            static float light_intensity = 1.0f;
-            static glm::vec3 ambient_color = {0.2f, 0.2f, 0.2f};
-
-            ImGui::DragFloat3("Light Direction", glm::value_ptr(light_direction), 0.1f, -1.0f, 1.0f);
-            ImGui::ColorEdit3("Light Color", glm::value_ptr(light_color));
-            ImGui::SliderFloat("Light Intensity", &light_intensity, 0.0f, 5.0f);
-            ImGui::ColorEdit3("Ambient Color", glm::value_ptr(ambient_color));
-        }*/
-
-        /* Post-Processing Section
-        if (ImGui::CollapsingHeader("Post-Processing")) {
-            static float gamma = 2.2f;
-            static float exposure = 1.0f;
-            static float contrast = 1.0f;
-            static float brightness = 0.0f;
-            static float saturation = 1.0f;
-
-            ImGui::SliderFloat("Gamma", &gamma, 0.1f, 5.0f);
-            ImGui::SliderFloat("Exposure", &exposure, 0.1f, 5.0f);
-            ImGui::SliderFloat("Contrast", &contrast, 0.0f, 3.0f);
-            ImGui::SliderFloat("Brightness", &brightness, -1.0f, 1.0f);
-            ImGui::SliderFloat("Saturation", &saturation, 0.0f, 3.0f);
-        }*/
 
         // Debug Section
         if (ImGui::CollapsingHeader("Debug")) {
