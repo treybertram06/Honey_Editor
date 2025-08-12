@@ -28,7 +28,7 @@ namespace Honey {
         Ref<SubTexture2D> m_bush_sprite, m_grass_sprite, m_player_sprite, m_water_sprite;
 
         Ref<Framebuffer> m_framebuffer;
-        glm::vec2 m_viewport_size = {1280.0f, 720.0f};
+        glm::vec2 m_viewport_size = {1680.0f, 720.0f};
         bool m_viewport_focused = false, m_viewport_hovered = false;
 
         Ref<Scene> m_active_scene;

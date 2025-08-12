@@ -167,7 +167,14 @@ namespace Honey {
     void EditorLayer::on_imgui_render() {
         HN_PROFILE_FUNCTION();
 
+        ImGuiStyle& style = ImGui::GetStyle();
+        float min_window_size = style.WindowMinSize.x;
+        style.WindowMinSize.x = 370.0f;
+
         ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport());
+
+        style.WindowMinSize.x = min_window_size;
+
 
         if (ImGui::BeginMainMenuBar()) {
             if (ImGui::BeginMenu("File")) {
@@ -212,6 +219,22 @@ namespace Honey {
                 if (ImGui::MenuItem("Reset View")) {
                     // Reset camera or scene view
                 }
+                if (ImGui::BeginMenu("Set Theme")) {
+                    auto* imgui_layer = Application::get().get_imgui_layer();
+                    UITheme current_theme = imgui_layer->get_current_theme();
+
+                    for (int i = 0; i < 6; ++i) {
+                        UITheme theme = static_cast<UITheme>(i);
+                        bool is_selected = (current_theme == theme);
+
+                        if (ImGui::MenuItem(imgui_layer->get_theme_name(theme), nullptr, is_selected)) {
+                            imgui_layer->set_theme(theme);
+                        }
+                    }
+                    ImGui::EndMenu();
+                }
+
+
                 ImGui::EndMenu();
             }
             ImGui::EndMainMenuBar();

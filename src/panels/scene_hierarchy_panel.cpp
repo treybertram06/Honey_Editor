@@ -47,23 +47,6 @@ namespace Honey {
 
         if (m_selected_entity) {
             draw_components(m_selected_entity);
-
-            if (ImGui::Button("Add Component"))
-                ImGui::OpenPopup("Add Component");
-
-            if (ImGui::BeginPopup("Add Component")) {
-                if (ImGui::MenuItem("Sprite Renderer")) {
-                    m_selected_entity.add_component<SpriteRendererComponent>();
-                }
-                if (ImGui::MenuItem("Camera")) {
-                    m_selected_entity.add_component<CameraComponent>();
-                }
-                if (ImGui::MenuItem("Native Script")) {
-                    m_selected_entity.add_component<NativeScriptComponent>();
-                }
-                ImGui::EndPopup();
-            }
-
         }
 
         ImGui::End();
@@ -72,9 +55,7 @@ namespace Honey {
     void SceneHierarchyPanel::draw_entity_node(Entity entity) {
         auto& tag = entity.get_component<TagComponent>();
 
-        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow |
-            ImGuiTreeNodeFlags_OpenOnDoubleClick |
-                ImGuiTreeNodeFlags_SpanAvailWidth |
+        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth |
                     ((m_selected_entity == entity) ? ImGuiTreeNodeFlags_Selected : 0);
         bool opened = ImGui::TreeNodeEx(entity, flags, "%s", tag.tag.c_str());
 
@@ -99,11 +80,14 @@ namespace Honey {
     }
 
     static void draw_vec3_control(const std::string& label, glm::vec3& values, float reset_value = 0.0f, float column_width = 100.0f) {
+        ImGuiIO& io = ImGui::GetIO();
+        auto extra_bold_font = io.Fonts->Fonts[1];
+
         ImGui::PushID(label.c_str());
 
         ImGui::Columns(2);
         ImGui::SetColumnWidth(0, column_width);
-        ImGui::Text(label.c_str());
+        ImGui::Text("%s", label.c_str());
         ImGui::NextColumn();
 
         ImGui::PushMultiItemsWidths(3, ImGui::CalcItemWidth());
@@ -115,7 +99,9 @@ namespace Honey {
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.8f, 0.1f, 0.1f, 0.7f });
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.9f, 0.2f, 0.2f, 0.7f });
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.8f, 0.1f, 0.1f, 1.0f });
+        ImGui::PushFont(extra_bold_font);
         if (ImGui::Button("X", button_size)) values.x = reset_value; ImGui::SameLine();
+        ImGui::PopFont();
         ImGui::DragFloat("##X", &values.x, 0.1f, 0.0f, 0.0f, "%.2f"); ImGui::SameLine();
         ImGui::PopItemWidth();
         ImGui::PopStyleColor(3);
@@ -123,7 +109,9 @@ namespace Honey {
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.1f, 0.8f, 0.1f, 0.7f });
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.2f, 0.9f, 0.2f, 0.7f });
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.1f, 0.8f, 0.1f, 1.0f });
+        ImGui::PushFont(extra_bold_font);
         if (ImGui::Button("Y", button_size)) values.y = reset_value; ImGui::SameLine();
+        ImGui::PopFont();
         ImGui::DragFloat("##Y", &values.y, 0.1f, 0.0f, 0.0f, "%.2f"); ImGui::SameLine();
         ImGui::PopItemWidth();
         ImGui::PopStyleColor(3);
@@ -131,7 +119,9 @@ namespace Honey {
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.1f, 0.1f, 0.8f, 0.7f });
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.2f, 0.2f, 0.9f, 0.7f });
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.1f, 0.1f, 0.8f, 1.0f });
+        ImGui::PushFont(extra_bold_font);
         if (ImGui::Button("Z", button_size)) values.z = reset_value; ImGui::SameLine();
+        ImGui::PopFont();
         ImGui::DragFloat("##Z", &values.z, 0.1f, 0.0f, 0.0f, "%.2f");
         ImGui::PopItemWidth();
         ImGui::PopStyleColor(3);
@@ -142,9 +132,43 @@ namespace Honey {
         ImGui::PopID();
     }
 
-    void SceneHierarchyPanel::draw_components(Entity entity) {
+    template<typename T, typename UIFunction>
+    static void draw_component(const std::string& label, Entity entity, UIFunction ui_function) {
 
-        const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap;// | ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding;
+        const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_FramePadding;
+
+        if (entity.has_component<T>()) {
+
+            auto& component = entity.get_component<T>();
+            ImVec2 contentRegionAvailable = ImGui::GetContentRegionAvail();
+
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 4, 4 });
+            float line_height = GImGui->Font->FontSize + GImGui->Style.FramePadding.y * 2.0f;
+            ImGui::Separator();
+            bool open = ImGui::TreeNodeEx((void*)typeid(T).hash_code(), flags, "%s", label.c_str());
+            ImGui::PopStyleVar();
+
+            ImGui::SameLine(contentRegionAvailable.x - line_height * 0.5f);
+            if (ImGui::Button("+", ImVec2(line_height, line_height)))
+                ImGui::OpenPopup("Component Settings");
+
+            bool remove_component = false;
+            if (ImGui::BeginPopup("Component Settings")) {
+                if (ImGui::MenuItem("Remove Component"))
+                    remove_component = true;
+
+                ImGui::EndPopup();
+            }
+
+            if (open) {
+                ui_function(component);
+                ImGui::TreePop();
+            }
+            if (remove_component)
+                entity.remove_component<T>();
+        }
+    }
+    void SceneHierarchyPanel::draw_components(Entity entity) {
 
         if (entity.has_component<TagComponent>()) {
             auto& tag = entity.get_component<TagComponent>().tag;
@@ -157,39 +181,57 @@ namespace Honey {
             }
         }
 
-        if (entity.has_component<TransformComponent>()) {
-            bool open = ImGui::TreeNodeEx((void*)typeid(TransformComponent).hash_code(), flags, "Transform");
+        ImGui::SameLine();
+        ImGui::PushItemWidth(-1);
+        if (ImGui::Button("Add Component"))
+            ImGui::OpenPopup("Add Component");
 
-            if (open) {
-                auto& transform_component = entity.get_component<TransformComponent>();
-                draw_vec3_control("Translation", transform_component.translation);
-                glm::vec3 rotation = glm::degrees(transform_component.rotation);
-                draw_vec3_control("Rotation", rotation);
-                transform_component.rotation = glm::radians(rotation);
-                draw_vec3_control("Scale", transform_component.scale, 1.0f);
-
-                ImGui::TreePop();
+        if (ImGui::BeginPopup("Add Component")) {
+            if (ImGui::MenuItem("Transform Component")) {
+                entity.add_component<TransformComponent>();
+                ImGui::CloseCurrentPopup();
             }
+            if (ImGui::MenuItem("Sprite Renderer")) {
+                entity.add_component<SpriteRendererComponent>();
+                ImGui::CloseCurrentPopup();
+            }
+            if (ImGui::MenuItem("Camera Component")) {
+                entity.add_component<CameraComponent>();
+                ImGui::CloseCurrentPopup();
+            }
+            if (ImGui::MenuItem("Native Script Component")) {
+                entity.add_component<NativeScriptComponent>();
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::EndPopup();
         }
 
-        if (entity.has_component<CameraComponent>()) {
-            bool open = ImGui::TreeNodeEx((void*)typeid(CameraComponent).hash_code(), flags, "Camera");
+        ImGui::PopItemWidth();
 
-            if (open) {
-                auto& camera_component = entity.get_component<CameraComponent>();
-                auto& camera = camera_component.camera;
 
-                bool curr_projection_index = (int)camera_component.projection_type;
+        draw_component<TransformComponent>("Transform", entity, [](auto& component) {
+            draw_vec3_control("Translation", component.translation);
+                glm::vec3 rotation = glm::degrees(component.rotation);
+                draw_vec3_control("Rotation", rotation);
+                component.rotation = glm::radians(rotation);
+                draw_vec3_control("Scale", component.scale, 1.0f);
+        });
+
+        draw_component<CameraComponent>("Camera", entity, [](auto& component) {
+            auto& camera = component.camera;
+
+                bool curr_projection_index = (int)component.projection_type;
                 const char* projection_type[] = { "Orthographic", "Perspective" };
                 if (ImGui::BeginCombo("Projection", projection_type[curr_projection_index])) {
                     for (int i = 0; i < 2; i++) {
                         bool is_selected = (curr_projection_index == i);
                         if (ImGui::Selectable(projection_type[i], is_selected)) {
-                            if (camera_component.projection_type != (CameraComponent::ProjectionType)i) {
-                                camera_component.projection_type = (CameraComponent::ProjectionType)i;
+                            if (component.projection_type != (CameraComponent::ProjectionType)i) {
+                                component.projection_type = (CameraComponent::ProjectionType)i;
 
-                                float current_aspect_ratio = camera_component.camera->get_aspect_ratio();
-                                camera_component.update_projection(current_aspect_ratio);
+                                float current_aspect_ratio = component.camera->get_aspect_ratio();
+                                component.update_projection(current_aspect_ratio);
                             }
                         }
                         if (is_selected) {
@@ -199,89 +241,46 @@ namespace Honey {
                     ImGui::EndCombo();
                 }
 
-                if (camera_component.projection_type == CameraComponent::ProjectionType::Orthographic) {
+                if (component.projection_type == CameraComponent::ProjectionType::Orthographic) {
                     bool changed = false;
-                    changed |= ImGui::DragFloat("Orthographic Size", &camera_component.orthographic_size, 0.1f, 0.0f, 100.0f);
-                    changed |= ImGui::DragFloat("Near Clip", &camera_component.orthographic_near, 0.01f, 0.0f, 100.0f);
-                    changed |= ImGui::DragFloat("Far Clip", &camera_component.orthographic_far, 0.01f, 0.0f, 100.0f);
+                    changed |= ImGui::DragFloat("Orthographic Size", &component.orthographic_size, 0.1f, 0.0f, 100.0f);
+                    changed |= ImGui::DragFloat("Near Clip", &component.orthographic_near, 0.01f, 0.0f, 100.0f);
+                    changed |= ImGui::DragFloat("Far Clip", &component.orthographic_far, 0.01f, 0.0f, 100.0f);
 
                     if (changed && camera) {
                         if (auto ortho_cam = dynamic_cast<OrthographicCamera*>(camera.get())) {
-                            ortho_cam->set_size(camera_component.orthographic_size);
-                            ortho_cam->set_near_clip(camera_component.orthographic_near);
-                            ortho_cam->set_far_clip(camera_component.orthographic_far);
+                            ortho_cam->set_size(component.orthographic_size);
+                            ortho_cam->set_near_clip(component.orthographic_near);
+                            ortho_cam->set_far_clip(component.orthographic_far);
                         }
                     }
                 }
 
-                if (camera_component.projection_type == CameraComponent::ProjectionType::Perspective) {
+                if (component.projection_type == CameraComponent::ProjectionType::Perspective) {
                     bool changed = false;
-                    changed |= ImGui::DragFloat("FOV", &camera_component.perspective_fov, 1.0f, 1.0f, 179.0f);
-                    changed |= ImGui::DragFloat("Near Clip", &camera_component.perspective_near, 0.01f, 0.01f, 100.0f);
-                    changed |= ImGui::DragFloat("Far Clip", &camera_component.perspective_far, 1.0f, 1.0f, 10000.0f);
+                    changed |= ImGui::DragFloat("FOV", &component.perspective_fov, 1.0f, 1.0f, 179.0f);
+                    changed |= ImGui::DragFloat("Near Clip", &component.perspective_near, 0.01f, 0.01f, 100.0f);
+                    changed |= ImGui::DragFloat("Far Clip", &component.perspective_far, 1.0f, 1.0f, 10000.0f);
 
                     if (changed && camera) {
                         if (auto persp_cam = dynamic_cast<PerspectiveCamera*>(camera.get())) {
-                            persp_cam->set_fov(camera_component.perspective_fov);
-                            persp_cam->set_near_clip(camera_component.perspective_near);
-                            persp_cam->set_far_clip(camera_component.perspective_far);
+                            persp_cam->set_fov(component.perspective_fov);
+                            persp_cam->set_near_clip(component.perspective_near);
+                            persp_cam->set_far_clip(component.perspective_far);
                         }
                     }
                 }
-                ImGui::TreePop();
-            }
-        }
+        });
 
-        if (entity.has_component<SpriteRendererComponent>()) {
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 4, 4 });
-            bool open = ImGui::TreeNodeEx((void*)typeid(SpriteRendererComponent).hash_code(), flags, "Sprite Renderer");
+        draw_component<SpriteRendererComponent>("Sprite Renderer", entity, [](auto& component) {
+            ImGui::ColorEdit4("Color", glm::value_ptr(component.color));
+        });
 
-            ImGui::SameLine(ImGui::GetWindowWidth() - 25);
-            if (ImGui::Button("+", ImVec2(20, 20)))
-                ImGui::OpenPopup("Component Settings");
+        draw_component<NativeScriptComponent>("Native Script", entity, [](auto& component) {
+            //ImGui::Text("Script: %s", native_script.script->get_class_name());
 
-            ImGui::PopStyleVar();
-            bool remove_component = false;
-            if (ImGui::BeginPopup("Component Settings")) {
-                if (ImGui::MenuItem("Remove Component"))
-                    remove_component = true;
+        });
 
-                ImGui::EndPopup();
-            }
-
-            if (open) {
-                auto& sprite_renderer = entity.get_component<SpriteRendererComponent>();
-                ImGui::ColorEdit4("Color", glm::value_ptr(sprite_renderer.color));
-                ImGui::TreePop();
-            }
-            if (remove_component) {
-                entity.remove_component<SpriteRendererComponent>();
-            }
-        }
-
-        if (entity.has_component<NativeScriptComponent>()) {
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 4, 4 });
-            bool open = ImGui::TreeNodeEx((void*)typeid(NativeScriptComponent).hash_code(), flags, "Native Script");
-
-            ImGui::SameLine(ImGui::GetWindowWidth() - 25);
-            if (ImGui::Button("+", ImVec2(20, 20)))
-                ImGui::OpenPopup("Component Settings");
-
-            ImGui::PopStyleVar();
-            bool remove_component = false;
-            if (ImGui::BeginPopup("Component Settings")) {
-                if (ImGui::MenuItem("Remove Component"))
-                    remove_component = true;
-
-                ImGui::EndPopup();
-            }
-
-            if (open) {
-                auto& native_script = entity.get_component<NativeScriptComponent>();
-                //ImGui::Text("Script: %s", native_script.script->get_class_name());
-                ImGui::TreePop();
-            }
-        }
     }
 
 }
