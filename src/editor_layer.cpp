@@ -5,6 +5,8 @@
 #include "hnpch.h"
 #include "../assets/scripts/camera_controller.h"
 
+#include "Honey/scene/scene_serializer.h"
+
 static const std::filesystem::path asset_root = ASSET_ROOT;
 
 namespace Honey {
@@ -23,6 +25,7 @@ namespace Honey {
         m_framebuffer = Framebuffer::create(fb_spec);
 
         m_active_scene = CreateRef<Scene>();
+        /*
 
         m_square_ent = m_active_scene->create_entity("Square");
         auto second_square = m_active_scene->create_entity("Second Square");
@@ -50,8 +53,10 @@ namespace Honey {
         //second_camera.add_component<NativeScriptComponent>().bind<CameraController>();
         //third_camera.add_component<NativeScriptComponent>().bind<CameraController>();
 
-
+*/
         m_scene_hierarchy_panel.set_context(m_active_scene);
+
+
 
 
     }
@@ -181,11 +186,13 @@ namespace Honey {
                 if (ImGui::MenuItem("New")) {
                     // Action for New
                 }
-                if (ImGui::MenuItem("Open...", "Ctrl+O")) {
-                    // Action for Open
+                if (ImGui::MenuItem("Deserialize", "Ctrl+O")) {
+                    SceneSerializer serializer(m_active_scene);
+                    serializer.deserialize("../assets/scenes/test.hns");
                 }
-                if (ImGui::MenuItem("Save", "Ctrl+S")) {
-                    // Action for Save
+                if (ImGui::MenuItem("Serialize", "Ctrl+S")) {
+                    SceneSerializer serializer(m_active_scene);
+                    serializer.serialize("../assets/scenes/test.hns");
                 }
                 ImGui::Separator();
                 if (ImGui::MenuItem("Exit")) {
