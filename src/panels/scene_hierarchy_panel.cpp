@@ -13,6 +13,7 @@ namespace Honey {
     }
 
     void SceneHierarchyPanel::set_context(const Ref<Scene>& context) {
+        m_selected_entity = {};
         m_context = context;
     }
 

@@ -18,6 +18,13 @@ namespace Honey {
         void on_event(Event &event) override;
 
     private:
+
+        bool on_key_pressed(KeyPressedEvent& e);
+
+        void new_scene();
+        void open_scene();
+        void save_scene_as();
+
         OrthographicCameraController m_camera_controller;
 
         // temp

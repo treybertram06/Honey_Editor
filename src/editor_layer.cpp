@@ -6,6 +6,7 @@
 #include "../assets/scripts/camera_controller.h"
 
 #include "Honey/scene/scene_serializer.h"
+#include "Honey/utils/platform_utils.h"
 
 static const std::filesystem::path asset_root = ASSET_ROOT;
 
@@ -183,16 +184,14 @@ namespace Honey {
 
         if (ImGui::BeginMainMenuBar()) {
             if (ImGui::BeginMenu("File")) {
-                if (ImGui::MenuItem("New")) {
-                    // Action for New
+                if (ImGui::MenuItem("New", "Ctrl+N")) {
+                    new_scene();
                 }
-                if (ImGui::MenuItem("Deserialize", "Ctrl+O")) {
-                    SceneSerializer serializer(m_active_scene);
-                    serializer.deserialize("../assets/scenes/test.hns");
+                if (ImGui::MenuItem("Open...", "Ctrl+O")) {
+                    open_scene();
                 }
-                if (ImGui::MenuItem("Serialize", "Ctrl+S")) {
-                    SceneSerializer serializer(m_active_scene);
-                    serializer.serialize("../assets/scenes/test.hns");
+                if (ImGui::MenuItem("Save As...", "Ctrl+S")) {
+                    save_scene_as();
                 }
                 ImGui::Separator();
                 if (ImGui::MenuItem("Exit")) {
@@ -363,14 +362,70 @@ namespace Honey {
         if (m_viewport_hovered)
             ImGui::GetIO().WantCaptureMouse = false;
 
-
-
-
-
-
     }
 
     void EditorLayer::on_event(Event &event) {
         m_camera_controller.on_event(event);
+
+        EventDispatcher dispatcher(event);
+        dispatcher.dispatch<KeyPressedEvent>(HN_BIND_EVENT_FN(EditorLayer::on_key_pressed));
+    }
+
+    bool EditorLayer::on_key_pressed(KeyPressedEvent& e) {
+        if (e.get_repeat_count() > 0)
+            return false;
+
+        bool control = Input::is_key_pressed(KeyCode::LeftControl) || Input::is_key_pressed(KeyCode::RightControl);
+        bool shift = Input::is_key_pressed(KeyCode::LeftShift) || Input::is_key_pressed(KeyCode::RightShift);
+        bool alt = Input::is_key_pressed(KeyCode::LeftAlt) || Input::is_key_pressed(KeyCode::RightAlt);
+        bool super = Input::is_key_pressed(KeyCode::LeftSuper) || Input::is_key_pressed(KeyCode::RightSuper);
+
+        bool handled = false;
+
+        switch (e.get_key_code()) {
+        case KeyCode::S:
+            if (control && shift) { save_scene_as(); handled = true; }
+            break;
+
+        case KeyCode::O:
+            if (control) { open_scene(); handled = true; }
+            break;
+
+        case KeyCode::N:
+            if (control) { new_scene(); handled = true; }
+            break;
+
+        default:
+            break;
+        }
+
+        return handled;
+    }
+
+
+    void EditorLayer::new_scene() {
+        m_active_scene = CreateRef<Scene>();
+        m_active_scene->on_viewport_resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
+        m_scene_hierarchy_panel.set_context(m_active_scene);
+    }
+
+    void EditorLayer::open_scene() {
+        std::string path = FileDialogs::open_file("Honey Scene (*.hns)\0*.hns\0");
+        if (!path.empty()) {
+            m_active_scene = CreateRef<Scene>();
+            m_active_scene->on_viewport_resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
+            m_scene_hierarchy_panel.set_context(m_active_scene);
+
+            SceneSerializer serializer(m_active_scene);
+            serializer.deserialize(path);
+        }
+    }
+
+    void EditorLayer::save_scene_as() {
+        std::string path = FileDialogs::save_file("Honey Scene (*.hns)\0*.hns\0");
+        if (!path.empty()) {
+            SceneSerializer serializer(m_active_scene);
+            serializer.serialize(path);
+        }
     }
 }
