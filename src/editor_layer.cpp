@@ -230,7 +230,7 @@ namespace Honey {
                     auto* imgui_layer = Application::get().get_imgui_layer();
                     UITheme current_theme = imgui_layer->get_current_theme();
 
-                    for (int i = 0; i < 6; ++i) {
+                    for (int i = 0; i < 7; ++i) {
                         UITheme theme = static_cast<UITheme>(i);
                         bool is_selected = (current_theme == theme);
 
