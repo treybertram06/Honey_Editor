@@ -1,12 +1,16 @@
 #include "editor_layer.h"
 
 #include "imgui.h"
+#include <ImGuizmo.h>
 #include <glm/glm/gtc/type_ptr.hpp>
 #include "hnpch.h"
 #include "../assets/scripts/camera_controller.h"
+#include "../Honey/vendor/imguizmo/ImGuizmo.h"
 
 #include "Honey/scene/scene_serializer.h"
 #include "Honey/utils/platform_utils.h"
+
+#include "Honey/math/math.h"
 
 static const std::filesystem::path asset_root = ASSET_ROOT;
 
@@ -322,19 +326,6 @@ namespace Honey {
             ImGui::Text("API: OpenGL"); // You can make this dynamic
             ImGui::Text("Version: 4.6"); // You can query this from OpenGL
         }
-
-        /* Texture Manager Section
-        if (ImGui::CollapsingHeader("Texture Manager")) {
-            ImGui::Text("Loaded Textures:");
-            ImGui::BulletText("Chuck Texture: %s", m_chuck_texture ? "Loaded" : "Not Loaded");
-            ImGui::BulletText("Missing Texture: %s", m_missing_texture ? "Loaded" : "Not Loaded");
-            ImGui::BulletText("Transparent Texture: %s", m_sprite_sheet01 ? "Loaded" : "Not Loaded");
-
-            if (ImGui::Button("Reload Textures")) {
-                on_attach(); // Quick way to reload textures
-            }
-        }
-*/
         ImGui::End();
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
@@ -342,7 +333,7 @@ namespace Honey {
 
         m_viewport_focused = ImGui::IsWindowFocused();
         m_viewport_hovered = ImGui::IsWindowHovered();
-        Application::get().get_imgui_layer()->block_events(!m_viewport_focused || !m_viewport_hovered);
+        Application::get().get_imgui_layer()->block_events(!m_viewport_focused && !m_viewport_hovered);
 
         ImVec2 viewport_panel_size = ImGui::GetContentRegionAvail();
         if (m_viewport_size != *((glm::vec2*)&viewport_panel_size)) {
@@ -356,12 +347,59 @@ namespace Honey {
         std::uint32_t texture_id = m_framebuffer->get_color_attachment_renderer_id();
         ImGui::Image(ImTextureID((void*)(intptr_t)texture_id), ImVec2(m_viewport_size.x, m_viewport_size.y), ImVec2(0,1), ImVec2(1,0));
 
+        Entity selected_entity = m_scene_hierarchy_panel.get_selected_entity();
+        Entity camera_entity = m_active_scene->get_primary_camera();
+
+        if (selected_entity && camera_entity && m_gizmo_type != -1) {
+            const ImVec2 bottom_left = ImGui::GetItemRectMin();
+            const ImVec2 top_right = ImGui::GetItemRectMax();
+            const float width  = top_right.x - bottom_left.x;
+            const float height = top_right.y - bottom_left.y;
+
+            if (width <= 1.0f || height <= 1.0f) return;
+
+            ImGuizmo::SetDrawlist();
+            ImGuizmo::SetRect(bottom_left.x, bottom_left.y, width, height);
+
+            auto camera = camera_entity.get_component<CameraComponent>().get_camera();
+            auto& camera_transform = camera_entity.get_component<TransformComponent>();
+
+            const glm::mat4 view = glm::inverse(camera_transform.get_transform());
+            const glm::mat4 projection = camera->get_projection_matrix();
+
+            const bool isOrtho = (dynamic_cast<OrthographicCamera*>(camera) != nullptr);
+            ImGuizmo::SetOrthographic(isOrtho);
+
+            auto& transform_component = selected_entity.get_component<TransformComponent>();
+            glm::mat4 transform = transform_component.get_transform();
+
+            bool snap = Input::is_key_pressed(KeyCode::LeftControl);
+            float snap_value = 0.5f; // 0.5 metres for translation and scale
+            if (m_gizmo_type == ImGuizmo::OPERATION::ROTATE) // 45 degrees for rotation
+                snap_value = 45.0f;
+
+            float snap_values[3] = { snap_value, snap_value, snap_value };
+
+            ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(projection),
+                                 (ImGuizmo::OPERATION)m_gizmo_type, ImGuizmo::WORLD,
+                                 glm::value_ptr(transform), nullptr, snap ? snap_values : nullptr);
+
+            if (ImGuizmo::IsUsing()) {
+                glm::vec3 translation, rotation, scale;
+                Math::decompose_transform(transform, translation, rotation, scale);
+
+                glm::vec3 delta_rotation = rotation - transform_component.rotation;
+                transform_component.translation = translation;
+                transform_component.rotation += delta_rotation;
+                transform_component.scale = scale;
+            }
+        }
+
         ImGui::End();
         ImGui::PopStyleVar();
 
-        if (m_viewport_hovered)
-            ImGui::GetIO().WantCaptureMouse = false;
-
+        //if (m_viewport_hovered)
+        //    ImGui::GetIO().WantCaptureMouse = false;
     }
 
     void EditorLayer::on_event(Event &event) {
@@ -383,6 +421,7 @@ namespace Honey {
         bool handled = false;
 
         switch (e.get_key_code()) {
+            //scene file shortcuts
         case KeyCode::S:
             if (control && shift) { save_scene_as(); handled = true; }
             break;
@@ -393,6 +432,23 @@ namespace Honey {
 
         case KeyCode::N:
             if (control) { new_scene(); handled = true; }
+            break;
+
+        // gizmo selectors
+        case KeyCode::Q:
+            m_gizmo_type = -1;
+            break;
+
+        case KeyCode::W:
+            m_gizmo_type = ImGuizmo::OPERATION::TRANSLATE;
+            break;
+
+        case KeyCode::E:
+            m_gizmo_type = ImGuizmo::OPERATION::ROTATE;
+            break;
+
+        case KeyCode::R:
+            m_gizmo_type = ImGuizmo::OPERATION::SCALE;
             break;
 
         default:
