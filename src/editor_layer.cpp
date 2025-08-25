@@ -25,40 +25,13 @@ namespace Honey {
     void EditorLayer::on_attach() {
 
         FramebufferSpecification fb_spec;
+        fb_spec.attachments = { FramebufferTextureFormat::RGBA8, FramebufferTextureFormat::Depth };
         fb_spec.width = 1280;
         fb_spec.height = 720;
         m_framebuffer = Framebuffer::create(fb_spec);
 
         m_active_scene = CreateRef<Scene>();
-        /*
 
-        m_square_ent = m_active_scene->create_entity("Square");
-        auto second_square = m_active_scene->create_entity("Second Square");
-
-        m_camera_ent = m_active_scene->create_entity("Main Camera");
-        auto second_camera = m_active_scene->create_entity("Secondary Camera");
-        auto third_camera = m_active_scene->create_entity("Debug Camera");
-
-        m_square_ent.add_component<SpriteRendererComponent>(glm::vec4(0.8f, 0.3f, 0.8f, 1.0f));
-        second_square.add_component<SpriteRendererComponent>(glm::vec4(0.2f, 0.3f, 0.8f, 1.0f));
-        second_square.get_component<TransformComponent>().translation = glm::vec3(0.5f, 2.0f, 0.0f);
-
-        m_camera_ent.add_component<CameraComponent>();
-        second_camera.add_component<CameraComponent>();
-        third_camera.add_component<CameraComponent>();
-
-        // Store camera entities for the radio buttons
-        m_camera_entities = { m_camera_ent, second_camera, third_camera };
-
-        m_active_scene->set_primary_camera(m_camera_ent);
-
-
-
-        m_camera_ent.add_component<NativeScriptComponent>().bind<CameraController>();
-        //second_camera.add_component<NativeScriptComponent>().bind<CameraController>();
-        //third_camera.add_component<NativeScriptComponent>().bind<CameraController>();
-
-*/
         m_scene_hierarchy_panel.set_context(m_active_scene);
 
 
