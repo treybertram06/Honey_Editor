@@ -44,6 +44,9 @@ namespace Honey {
         Entity m_square_ent;
         std::vector<Entity> m_camera_entities;
 
+        //Editor camera
+        EditorCamera m_editor_camera;
+
 
 
         std::uint32_t m_map_width, m_map_height;

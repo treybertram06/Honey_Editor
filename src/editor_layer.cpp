@@ -34,6 +34,8 @@ namespace Honey {
 
         m_scene_hierarchy_panel.set_context(m_active_scene);
 
+        m_editor_camera = EditorCamera(16.0f/9.0f, 45.0f, 0.1f, 1000.0f);
+
 
 
 
@@ -124,9 +126,10 @@ namespace Honey {
         m_frame_time = ts.get_millis();
 
 
-        if (m_viewport_focused)
+        if (m_viewport_focused) {
             m_camera_controller.on_update(ts);
-
+            m_editor_camera.on_update(ts);
+        }
 
 
         m_framerate_counter.update(ts);
@@ -141,8 +144,7 @@ namespace Honey {
 
 
 
-        m_active_scene->on_update(ts);
-        m_active_scene->render();
+        m_active_scene->on_update_editor(ts, m_editor_camera);
 
         m_framebuffer->unbind();
     }
@@ -312,7 +314,7 @@ namespace Honey {
         if (m_viewport_size != *((glm::vec2*)&viewport_panel_size)) {
             m_viewport_size = {viewport_panel_size.x, viewport_panel_size.y};
             m_framebuffer->resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
-
+            m_editor_camera.set_viewport_size(m_viewport_size.x, m_viewport_size.y);
             m_active_scene->on_viewport_resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
 
         }
@@ -321,9 +323,10 @@ namespace Honey {
         ImGui::Image(ImTextureID((void*)(intptr_t)texture_id), ImVec2(m_viewport_size.x, m_viewport_size.y), ImVec2(0,1), ImVec2(1,0));
 
         Entity selected_entity = m_scene_hierarchy_panel.get_selected_entity();
-        Entity camera_entity = m_active_scene->get_primary_camera();
+        //Entity camera_entity = m_active_scene->get_primary_camera();
 
-        if (selected_entity && camera_entity && m_gizmo_type != -1) {
+        //if (selected_entity && camera_entity && m_gizmo_type != -1) {
+        if (selected_entity && m_gizmo_type != -1) {
             const ImVec2 bottom_left = ImGui::GetItemRectMin();
             const ImVec2 top_right = ImGui::GetItemRectMax();
             const float width  = top_right.x - bottom_left.x;
@@ -334,13 +337,17 @@ namespace Honey {
             ImGuizmo::SetDrawlist();
             ImGuizmo::SetRect(bottom_left.x, bottom_left.y, width, height);
 
-            auto camera = camera_entity.get_component<CameraComponent>().get_camera();
-            auto& camera_transform = camera_entity.get_component<TransformComponent>();
+            //auto camera = camera_entity.get_component<CameraComponent>().get_camera();
+            //auto& camera_transform = camera_entity.get_component<TransformComponent>();
 
-            const glm::mat4 view = glm::inverse(camera_transform.get_transform());
-            const glm::mat4 projection = camera->get_projection_matrix();
+            //const glm::mat4 view = glm::inverse(camera_transform.get_transform());
+            //const glm::mat4 projection = camera->get_projection_matrix();
+            const glm::mat4 view = m_editor_camera.get_view_matrix();
+            const glm::mat4 projection = m_editor_camera.get_projection_matrix();
 
-            const bool isOrtho = (dynamic_cast<OrthographicCamera*>(camera) != nullptr);
+            //const bool isOrtho = (dynamic_cast<OrthographicCamera*>(camera) != nullptr);
+            const bool isOrtho = false;
+
             ImGuizmo::SetOrthographic(isOrtho);
 
             auto& transform_component = selected_entity.get_component<TransformComponent>();
@@ -377,6 +384,7 @@ namespace Honey {
 
     void EditorLayer::on_event(Event &event) {
         m_camera_controller.on_event(event);
+        m_editor_camera.on_event(event);
 
         EventDispatcher dispatcher(event);
         dispatcher.dispatch<KeyPressedEvent>(HN_BIND_EVENT_FN(EditorLayer::on_key_pressed));
