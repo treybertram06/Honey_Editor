@@ -25,7 +25,7 @@ namespace Honey {
     void EditorLayer::on_attach() {
 
         FramebufferSpecification fb_spec;
-        fb_spec.attachments = { FramebufferTextureFormat::RGBA8, FramebufferTextureFormat::Depth };
+        fb_spec.attachments = { FramebufferTextureFormat::RGBA8, FramebufferTextureFormat::RED_INTEGER, FramebufferTextureFormat::Depth };
         fb_spec.width = 1280;
         fb_spec.height = 720;
         m_framebuffer = Framebuffer::create(fb_spec);
@@ -128,8 +128,8 @@ namespace Honey {
 
         if (m_viewport_focused) {
             m_camera_controller.on_update(ts);
-            m_editor_camera.on_update(ts);
         }
+            m_editor_camera.on_update(ts);
 
 
         m_framerate_counter.update(ts);
@@ -141,10 +141,23 @@ namespace Honey {
         RenderCommand::set_clear_color(m_clear_color);
         RenderCommand::clear();
 
-
-
-
         m_active_scene->on_update_editor(ts, m_editor_camera);
+
+        auto [mx, my] = ImGui::GetMousePos();
+        mx -= m_viewport_bounds[0].x;
+        my -= m_viewport_bounds[0].y;
+        glm::vec2 viewport_size = m_viewport_bounds[1] - m_viewport_bounds[0];
+        my = viewport_size.y - my;
+
+        int mouse_x = (int)mx;
+        int mouse_y = (int)my;
+
+        if (mouse_x >= 0 && mouse_y >= 0 && mouse_x < (int)viewport_size.x && mouse_y < (int)viewport_size.y) {
+            int pixel_data = m_framebuffer->read_pixel(1, mouse_x, mouse_y);
+            HN_CORE_TRACE("Pixel data: {0}", pixel_data);
+
+        }
+
 
         m_framebuffer->unbind();
     }
@@ -305,6 +318,7 @@ namespace Honey {
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
         ImGui::Begin("Viewport");
+        auto viewport_offset = ImGui::GetCursorPos();
 
         m_viewport_focused = ImGui::IsWindowFocused();
         m_viewport_hovered = ImGui::IsWindowHovered();
@@ -321,6 +335,15 @@ namespace Honey {
 
         std::uint32_t texture_id = m_framebuffer->get_color_attachment_renderer_id();
         ImGui::Image(ImTextureID((void*)(intptr_t)texture_id), ImVec2(m_viewport_size.x, m_viewport_size.y), ImVec2(0,1), ImVec2(1,0));
+
+        auto window_size = ImGui::GetWindowSize();
+        ImVec2 min_bound = ImGui::GetWindowPos();
+        min_bound.x += viewport_offset.x;
+        min_bound.y += viewport_offset.y;
+
+        ImVec2 max_bound = { min_bound.x + window_size.x, min_bound.y + window_size.y };
+        m_viewport_bounds[0] = { min_bound.x, min_bound.y };
+        m_viewport_bounds[1] = { max_bound.x, max_bound.y };
 
         Entity selected_entity = m_scene_hierarchy_panel.get_selected_entity();
         //Entity camera_entity = m_active_scene->get_primary_camera();
