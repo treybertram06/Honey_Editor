@@ -140,24 +140,9 @@ namespace Honey {
         m_framebuffer->bind();
         RenderCommand::set_clear_color(m_clear_color);
         RenderCommand::clear();
+        m_framebuffer->clear_color_attachment_i(1, -1);
 
         m_active_scene->on_update_editor(ts, m_editor_camera);
-
-        auto [mx, my] = ImGui::GetMousePos();
-        mx -= m_viewport_bounds[0].x;
-        my -= m_viewport_bounds[0].y;
-        glm::vec2 viewport_size = m_viewport_bounds[1] - m_viewport_bounds[0];
-        my = viewport_size.y - my;
-
-        int mouse_x = (int)mx;
-        int mouse_y = (int)my;
-
-        if (mouse_x >= 0 && mouse_y >= 0 && mouse_x < (int)viewport_size.x && mouse_y < (int)viewport_size.y) {
-            int pixel_data = m_framebuffer->read_pixel(1, mouse_x, mouse_y);
-            HN_CORE_TRACE("Pixel data: {0}", pixel_data);
-
-        }
-
 
         m_framebuffer->unbind();
     }
@@ -336,14 +321,40 @@ namespace Honey {
         std::uint32_t texture_id = m_framebuffer->get_color_attachment_renderer_id();
         ImGui::Image(ImTextureID((void*)(intptr_t)texture_id), ImVec2(m_viewport_size.x, m_viewport_size.y), ImVec2(0,1), ImVec2(1,0));
 
-        auto window_size = ImGui::GetWindowSize();
-        ImVec2 min_bound = ImGui::GetWindowPos();
-        min_bound.x += viewport_offset.x;
-        min_bound.y += viewport_offset.y;
+        const ImVec2 imgMin = ImGui::GetItemRectMin();
+        const ImVec2 imgMax = ImGui::GetItemRectMax();
+        const float  imgW   = imgMax.x - imgMin.x;
+        const float  imgH   = imgMax.y - imgMin.y;
 
-        ImVec2 max_bound = { min_bound.x + window_size.x, min_bound.y + window_size.y };
-        m_viewport_bounds[0] = { min_bound.x, min_bound.y };
-        m_viewport_bounds[1] = { max_bound.x, max_bound.y };
+        const ImVec2 mouse = ImGui::GetMousePos();
+        float localX = mouse.x - imgMin.x;
+        float localY = mouse.y - imgMin.y;
+
+        if (localX >= 0.0f && localY >= 0.0f && localX < imgW && localY < imgH) {
+
+            const float sx = (imgW > 0.0f) ? (m_viewport_size.x / imgW) : 1.0f;
+            const float sy = (imgH > 0.0f) ? (m_viewport_size.y / imgH) : 1.0f;
+
+            const int mouse_x = (int)std::floor(localX * sx + 0.0001f);
+            const int mouse_y = (int)std::floor((imgH - localY) * sy + 0.0001f);
+
+            if (mouse_x >= 0 && mouse_y >= 0 && mouse_x < (int)m_viewport_size.x && mouse_y < (int)m_viewport_size.y) {
+                if (Input::is_mouse_button_pressed(MouseButton::Left) && m_viewport_hovered) {
+                    const int id = m_framebuffer->read_pixel(1, mouse_x, mouse_y);
+
+                    if (id == -1) {
+                        m_scene_hierarchy_panel.set_selected_entity(Entity{}); // invalid
+                    } else {
+                        Entity picked{ static_cast<entt::entity>(id), m_active_scene.get() };
+                        if (picked.is_valid()) {
+                            m_scene_hierarchy_panel.set_selected_entity(picked);
+                        } else {
+                            m_scene_hierarchy_panel.set_selected_entity(Entity{});
+                        }
+                    }
+                }
+            }
+        }
 
         Entity selected_entity = m_scene_hierarchy_panel.get_selected_entity();
         //Entity camera_entity = m_active_scene->get_primary_camera();

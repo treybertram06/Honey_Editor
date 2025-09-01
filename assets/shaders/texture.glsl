@@ -11,6 +11,7 @@ layout (location = 6) in float i_tex_index;
 layout (location = 7) in float i_tiling;
 layout (location = 8) in vec2 i_tex_coord_min;
 layout (location = 9) in vec2 i_tex_coord_max;
+layout (location = 10) in int i_entity_id;
 
 uniform mat4 u_view_projection;
 
@@ -18,6 +19,7 @@ out vec2 v_tex_coord;
 out vec4 v_color;
 out float v_tex_index;
 out float v_tiling;
+flat out int current_ent;
 
 void main()
 {
@@ -36,6 +38,7 @@ void main()
     v_color      = i_color;
     v_tex_index  = i_tex_index;
     v_tiling     = i_tiling;
+    current_ent  = i_entity_id;
 }
 
 #type fragment
@@ -47,6 +50,7 @@ in vec4  v_color;
 in vec2  v_tex_coord;
 in float v_tex_index;
 in float v_tiling;
+flat in int current_ent;
 
 uniform sampler2D u_textures[MAX_TEXTURE_SLOTS];
 
@@ -56,5 +60,6 @@ void main()
     outColor = texture(u_textures[int(v_tex_index)],
                        v_tex_coord * v_tiling) * v_color;
 
-    entity_id = 69;
+    entity_id = current_ent;
+
 }

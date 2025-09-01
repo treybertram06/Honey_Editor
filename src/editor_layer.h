@@ -37,7 +37,6 @@ namespace Honey {
 
         Ref<Framebuffer> m_framebuffer;
         glm::vec2 m_viewport_size = {1680.0f, 720.0f};
-        glm::vec2 m_viewport_bounds[2];
         bool m_viewport_focused = false, m_viewport_hovered = false;
 
         Ref<Scene> m_active_scene;
