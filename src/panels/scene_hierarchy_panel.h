@@ -17,6 +17,7 @@ namespace Honey {
         void on_imgui_render();
 
         Entity get_selected_entity() const { return m_selected_entity; }
+        void set_selected_entity(Entity entity) { m_selected_entity = entity; }
     private:
         Ref<Scene> m_context;
         Entity m_selected_entity;
