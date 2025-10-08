@@ -1,5 +1,6 @@
 #type vertex
-#version 330 core
+#version 450 core
+
 layout (location = 0) in vec2 a_local_pos;     // static
 layout (location = 1) in vec2 a_local_tex;     // static
 
@@ -13,13 +14,15 @@ layout (location = 8) in vec2 i_tex_coord_min;
 layout (location = 9) in vec2 i_tex_coord_max;
 layout (location = 10) in int i_entity_id;
 
-uniform mat4 u_view_projection;
+layout (std140, binding = 0) uniform camera {
+    mat4 u_view_projection;
+};
 
-out vec2 v_tex_coord;
-out vec4 v_color;
-out float v_tex_index;
-out float v_tiling;
-flat out int current_ent;
+layout(location=0) out vec4 v_color;
+layout(location=1) out vec2 v_tex_coord;
+layout(location=2) out float v_tex_index;
+layout(location=3) out float v_tiling_factor;
+layout(location=4) out flat int v_entity_id;
 
 void main()
 {
@@ -33,33 +36,31 @@ void main()
     }
 
     vec3 world_pos = i_center + vec3(p, 0.0);
+
+    v_tex_coord         = mix(i_tex_coord_min, i_tex_coord_max, a_local_tex);
+    v_color             = i_color;
+    v_tex_index         = i_tex_index;
+    v_tiling_factor     = i_tiling;
+    v_entity_id         = i_entity_id;
+
     gl_Position = u_view_projection * vec4(world_pos, 1.0);
-    v_tex_coord  = mix(i_tex_coord_min, i_tex_coord_max, a_local_tex);
-    v_color      = i_color;
-    v_tex_index  = i_tex_index;
-    v_tiling     = i_tiling;
-    current_ent  = i_entity_id;
 }
 
 #type fragment
-#version 330 core
+#version 450 core
+
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out int entity_id;
 
-in vec4  v_color;
-in vec2  v_tex_coord;
-in float v_tex_index;
-in float v_tiling;
-flat in int current_ent;
+layout(location=0) in vec4 v_color;
+layout(location=1) in vec2 v_tex_coord;
+layout(location=2) in float v_tex_index;
+layout(location=3) in float v_tiling_factor;
+layout(location=4) in flat int v_entity_id;
 
-uniform sampler2D u_textures[MAX_TEXTURE_SLOTS];
+layout (binding = 0) uniform sampler2D u_textures[32];
 
-
-void main()
-{
-    outColor = texture(u_textures[int(v_tex_index)],
-                       v_tex_coord * v_tiling) * v_color;
-
-    entity_id = current_ent;
-
+void main() {
+    outColor = texture(u_textures[int(v_tex_index)], v_tex_coord * v_tiling_factor) * v_color;
+    entity_id = v_entity_id;
 }

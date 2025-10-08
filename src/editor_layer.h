@@ -3,6 +3,9 @@
 #include "panels/scene_hierarchy_panel.h"
 
 #include <glm/glm/glm.hpp>
+#include <imgui.h>
+#include <ImGuizmo.h>
+
 
 namespace Honey {
     class EditorLayer : public Layer {
@@ -21,6 +24,9 @@ namespace Honey {
     private:
 
         bool on_key_pressed(KeyPressedEvent& e);
+        bool on_mouse_button_pressed(MouseButtonPressedEvent& e);
+
+        bool can_mousepick() { return (m_viewport_hovered && !ImGuizmo::IsOver() && !Input::is_key_pressed(KeyCode::LeftAlt)); }
 
         void new_scene();
         void open_scene();
@@ -43,6 +49,7 @@ namespace Honey {
         Entity m_camera_ent;
         Entity m_square_ent;
         std::vector<Entity> m_camera_entities;
+        Entity m_hovered_entity;
 
         //Editor camera
         EditorCamera m_editor_camera;

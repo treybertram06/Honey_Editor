@@ -1,7 +1,5 @@
 #include "editor_layer.h"
 
-#include "imgui.h"
-#include <ImGuizmo.h>
 #include <glm/glm/gtc/type_ptr.hpp>
 #include "hnpch.h"
 #include "../assets/scripts/camera_controller.h"
@@ -339,17 +337,17 @@ namespace Honey {
             const int mouse_y = (int)std::floor((imgH - localY) * sy + 0.0001f);
 
             if (mouse_x >= 0 && mouse_y >= 0 && mouse_x < (int)m_viewport_size.x && mouse_y < (int)m_viewport_size.y) {
-                if (Input::is_mouse_button_pressed(MouseButton::Left) && m_viewport_hovered) {
+                if (m_viewport_hovered) {
                     const int id = m_framebuffer->read_pixel(1, mouse_x, mouse_y);
 
                     if (id == -1) {
-                        m_scene_hierarchy_panel.set_selected_entity(Entity{}); // invalid
+                        m_hovered_entity = Entity{}; // invalid
                     } else {
                         Entity picked{ static_cast<entt::entity>(id), m_active_scene.get() };
                         if (picked.is_valid()) {
-                            m_scene_hierarchy_panel.set_selected_entity(picked);
+                            m_hovered_entity = picked;
                         } else {
-                            m_scene_hierarchy_panel.set_selected_entity(Entity{});
+                            m_hovered_entity = Entity{};
                         }
                     }
                 }
@@ -422,6 +420,7 @@ namespace Honey {
 
         EventDispatcher dispatcher(event);
         dispatcher.dispatch<KeyPressedEvent>(HN_BIND_EVENT_FN(EditorLayer::on_key_pressed));
+        dispatcher.dispatch<MouseButtonPressedEvent>(HN_BIND_EVENT_FN(EditorLayer::on_mouse_button_pressed));
     }
 
     bool EditorLayer::on_key_pressed(KeyPressedEvent& e) {
@@ -471,6 +470,14 @@ namespace Honey {
         }
 
         return handled;
+    }
+
+    bool EditorLayer::on_mouse_button_pressed(MouseButtonPressedEvent& e) {
+        if (e.get_mouse_button() == MouseButton::Left) {
+            if (can_mousepick())
+                m_scene_hierarchy_panel.set_selected_entity(m_hovered_entity);
+        }
+        return false;
     }
 
 
