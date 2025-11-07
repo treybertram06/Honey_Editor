@@ -1,6 +1,7 @@
 #pragma once
 #include <Honey.h>
 #include "panels/scene_hierarchy_panel.h"
+#include "panels/content_browser_panel.h"
 
 #include <glm/glm/glm.hpp>
 #include <imgui.h>
@@ -74,6 +75,7 @@ namespace Honey {
 
         //Panels
         SceneHierarchyPanel m_scene_hierarchy_panel;
+        ContentBrowserPanel m_content_browser_panel;
 
         void render_camera_selector();
 

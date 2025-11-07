@@ -222,6 +222,7 @@ namespace Honey {
         }
 
         m_scene_hierarchy_panel.on_imgui_render();
+        m_content_browser_panel.on_imgui_render();
 
         ImGui::Begin("Renderer Debug Panel");
 
