@@ -31,6 +31,7 @@ namespace Honey {
 
         void new_scene();
         void open_scene();
+        void open_scene(const std::filesystem::path& path);
         void save_scene_as();
 
         OrthographicCameraController m_camera_controller;

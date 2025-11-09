@@ -1,12 +1,16 @@
 #include "scene_hierarchy_panel.h"
 
+#include <filesystem>
 #include <imgui.h>
 
 #include "imgui_internal.h"
 #include "glm/gtc/type_ptr.inl"
+#include "Honey/renderer/texture.h"
 
 
 namespace Honey {
+
+    extern const std::filesystem::path g_assets_dir;
 
     SceneHierarchyPanel::SceneHierarchyPanel(const Ref<Scene>& context) {
         set_context(context);
@@ -275,6 +279,22 @@ namespace Honey {
 
         draw_component<SpriteRendererComponent>("Sprite Renderer", entity, [](auto& component) {
             ImGui::ColorEdit4("Color", glm::value_ptr(component.color));
+
+            ImGui::Button("Texture", ImVec2(100, 20));
+            if (ImGui::BeginDragDropTarget()) {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+                if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
+                    const char* path_str = (const char*)payload->Data;
+                    std::filesystem::path path = path_str;
+                    std::filesystem::path texture_path = std::filesystem::path(g_assets_dir) / path;
+                    component.texture = Texture2D::create(texture_path.string());
+                }
+            }
+            ImGui::EndDragDropTarget();
+        }
+
+            ImGui::DragFloat("Tiling Factor", &component.tiling_factor, 0.1f, 0.0f, 100.0f);
+
         });
 
         draw_component<NativeScriptComponent>("Native Script", entity, [](auto& component) {

@@ -14,6 +14,8 @@ static const std::filesystem::path asset_root = ASSET_ROOT;
 
 namespace Honey {
 
+    extern const std::filesystem::path g_assets_dir;
+
     EditorLayer::EditorLayer()
         : Layer("EditorLayer"),
           m_camera_controller((1.6f / 0.9f), true)
@@ -320,6 +322,17 @@ namespace Honey {
         std::uint32_t texture_id = m_framebuffer->get_color_attachment_renderer_id();
         ImGui::Image(ImTextureID((void*)(intptr_t)texture_id), ImVec2(m_viewport_size.x, m_viewport_size.y), ImVec2(0,1), ImVec2(1,0));
 
+        if (ImGui::BeginDragDropTarget()) { /// Talk about this maybe as an example of an issue when working with pointers?
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+                if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
+                    const char* path_str = (const char*)payload->Data;
+                    std::filesystem::path path = path_str;
+                    open_scene(g_assets_dir / path);
+                }
+            }
+            ImGui::EndDragDropTarget();
+        }
+
         const ImVec2 imgMin = ImGui::GetItemRectMin();
         const ImVec2 imgMax = ImGui::GetItemRectMax();
         const float  imgW   = imgMax.x - imgMin.x;
@@ -490,16 +503,19 @@ namespace Honey {
 
     void EditorLayer::open_scene() {
         std::string path = FileDialogs::open_file("Honey Scene (*.hns)\0*.hns\0");
-        if (!path.empty()) {
-            m_active_scene = CreateRef<Scene>();
-            m_active_scene->on_viewport_resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
-            m_scene_hierarchy_panel.set_context(m_active_scene);
-
-            SceneSerializer serializer(m_active_scene);
-            serializer.deserialize(path);
-        }
+        if (!path.empty())
+            open_scene(path);
     }
 
+    void EditorLayer::open_scene(const std::filesystem::path& path) {
+        m_active_scene = CreateRef<Scene>();
+        m_active_scene->on_viewport_resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
+        m_scene_hierarchy_panel.set_context(m_active_scene);
+
+        SceneSerializer serializer(m_active_scene);
+        serializer.deserialize(path);
+    }
+    
     void EditorLayer::save_scene_as() {
         std::string path = FileDialogs::save_file("Honey Scene (*.hns)\0*.hns\0");
         if (!path.empty()) {
