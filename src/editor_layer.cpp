@@ -140,7 +140,7 @@ namespace Honey {
         m_framebuffer->bind();
         RenderCommand::set_clear_color(m_clear_color);
         RenderCommand::clear();
-        m_framebuffer->clear_attachment(1, (void*)-1);
+        m_framebuffer->clear_attachment_i32(1, -1);
 
         m_active_scene->on_update_editor(ts, m_editor_camera);
 
