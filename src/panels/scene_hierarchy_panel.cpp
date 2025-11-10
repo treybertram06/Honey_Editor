@@ -288,6 +288,7 @@ namespace Honey {
                     const char* path_str = (const char*)payload->Data;
                     std::filesystem::path path = path_str;
                     std::filesystem::path texture_path = std::filesystem::path(g_assets_dir) / path;
+                    component.texture_path = texture_path;
                     component.texture = Texture2D::create(texture_path.string());
                 }
             }

@@ -2,7 +2,7 @@
 
 #include <glm/glm/gtc/type_ptr.hpp>
 #include "hnpch.h"
-#include "../assets/scripts/camera_controller.h"
+#include "../assets/scripts/script_registrar.h"
 #include "../Honey/vendor/imguizmo/ImGuizmo.h"
 
 #include "Honey/scene/scene_serializer.h"

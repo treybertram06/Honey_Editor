@@ -1,0 +1,50 @@
+Scene: Untitled
+Entities:
+  - Entity: 1234567890
+    TagComponent:
+      Tag: Player
+    TransformComponent:
+      Translation: [-0.043003082, 0.5, -0.1]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 1]
+      TilingFactor: 1
+      Texture: ../assets/textures/transparent.png
+    NativeScriptComponent:
+      ScriptName: PlayerController
+  - Entity: 1234567890
+    TagComponent:
+      Tag: Camera
+    TransformComponent:
+      Translation: [0.12854138, 2.5386999, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    CameraComponent:
+      ProjectionType: Orthographic
+      OrthographicSize: 10
+      OrthographicNear: -1
+      OrthographicFar: 1
+      PerspectiveFOV: 45
+      PerspectiveNear: 0.1
+      PerspectiveFar: 1000
+      FixedAspectRatio: false
+      Camera:
+        Position:
+          - [4.68368e-39, 4.867354e-39, 4.775521e-39]
+        AspectRatio: 2.5554502
+        Rotation: 0
+        Size: 10
+    NativeScriptComponent:
+      ScriptName: CameraController
+  - Entity: 1234567890
+    TagComponent:
+      Tag: Floor
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [13, 0.2, 1]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 1]
+      TilingFactor: 1
+      Texture: ../assets/textures/missing.png
