@@ -34,14 +34,13 @@ namespace Honey {
         void open_scene(const std::filesystem::path& path);
         void save_scene_as();
 
-        OrthographicCameraController m_camera_controller;
+        void on_scene_play();
+        void on_scene_stop();
 
-        // temp
-        Ref<VertexArray> m_square_vertex_array;
-        Ref<Shader> m_shader;
-        Ref<Texture2D> m_missing_texture;
-        Ref<Texture2D> m_chuck_texture, m_sprite_sheet01, m_sprite_sheet02;
-        Ref<SubTexture2D> m_bush_sprite, m_grass_sprite, m_player_sprite, m_water_sprite;
+        // ui panels
+        void ui_toolbar();
+
+
 
         Ref<Framebuffer> m_framebuffer;
         glm::vec2 m_viewport_size = {1680.0f, 720.0f};
@@ -56,29 +55,34 @@ namespace Honey {
         //Editor camera
         EditorCamera m_editor_camera;
 
+        //Editor resources
+        Ref<Texture2D> m_icon_play, m_icon_stop;
 
 
-        std::uint32_t m_map_width, m_map_height;
 
         glm::vec4 m_clear_color = { 0.1f, 0.1f, 0.1f, 1.0f };
-        glm::vec3 m_square_position;
-
-        std::unordered_map<char, Ref<SubTexture2D>> s_texture_map;
 
         FramerateCounter m_framerate_counter;
         int m_framerate = 0;
         float m_frame_time = 0.0f;
 
-        glm::vec4 square_color = { 0.2f, 0.3f, 0.8f, 1.0f };
 
         int m_gizmo_type = -1;
-
 
         //Panels
         SceneHierarchyPanel m_scene_hierarchy_panel;
         ContentBrowserPanel m_content_browser_panel;
 
         void render_camera_selector();
+
+        enum class SceneState {
+            edit = 0,
+            play = 1,
+            pause = 2,
+            stop = 3,
+        };
+
+        SceneState m_scene_state = SceneState::edit;
 
 
     };

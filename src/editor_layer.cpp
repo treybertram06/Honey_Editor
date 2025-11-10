@@ -17,12 +17,13 @@ namespace Honey {
     extern const std::filesystem::path g_assets_dir;
 
     EditorLayer::EditorLayer()
-        : Layer("EditorLayer"),
-          m_camera_controller((1.6f / 0.9f), true)
-    {}
+        : Layer("EditorLayer") {}
 
 
     void EditorLayer::on_attach() {
+
+        m_icon_play = Texture2D::create("../resources/icons/toolbar/play_button.png");
+        m_icon_stop = Texture2D::create("../resources/icons/toolbar/stop_button.png");
 
         FramebufferSpecification fb_spec;
         fb_spec.attachments = { FramebufferTextureFormat::RGBA8, FramebufferTextureFormat::RED_INTEGER, FramebufferTextureFormat::Depth };
@@ -124,25 +125,28 @@ namespace Honey {
         HN_PROFILE_FUNCTION();
 
         m_frame_time = ts.get_millis();
-
-
-        if (m_viewport_focused) {
-            m_camera_controller.on_update(ts);
-        }
-            m_editor_camera.on_update(ts);
-
-
         m_framerate_counter.update(ts);
         m_framerate = m_framerate_counter.get_smoothed_fps();
-
-
 
         m_framebuffer->bind();
         RenderCommand::set_clear_color(m_clear_color);
         RenderCommand::clear();
         m_framebuffer->clear_attachment_i32(1, -1);
 
-        m_active_scene->on_update_editor(ts, m_editor_camera);
+        switch (m_scene_state) {
+            case SceneState::edit:
+            {
+                if (m_viewport_focused)
+                    m_editor_camera.on_update(ts);
+
+                m_active_scene->on_update_editor(ts, m_editor_camera); break;
+            }
+            case SceneState::play:
+            {
+                    m_gizmo_type = -1;
+                m_active_scene->on_update_runtime(ts); break;
+            }
+        }
 
         m_framebuffer->unbind();
     }
@@ -426,10 +430,41 @@ namespace Honey {
 
         //if (m_viewport_hovered)
         //    ImGui::GetIO().WantCaptureMouse = false;
+
+        ui_toolbar();
+    }
+
+    void EditorLayer::ui_toolbar() {
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 2));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2(0, 0));
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+        auto& colors = ImGui::GetStyle().Colors;
+        auto& button_hovered = colors[ImGuiCol_ButtonHovered];
+        auto& button_active = colors[ImGuiCol_ButtonActive];
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(button_hovered.x, button_hovered.y, button_hovered.z, 0.5f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(button_active.x, button_active.y, button_active.z, 0.5f));
+
+        ImGui::Begin("##toolbar", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+
+        float size = ImGui::GetWindowHeight() - 4.0f;
+        Ref<Texture2D> icon = m_scene_state == SceneState::edit ? m_icon_play : m_icon_stop;
+        ImGui::SameLine((ImGui::GetWindowContentRegionMax().x * 0.5f) - (size * 0.5f));
+
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
+        if (ImGui::ImageButton("play_stop_button", (ImTextureID)icon->get_renderer_id(), ImVec2(size, size), ImVec2(0, 0), ImVec2(1, 1))) {
+            if (m_scene_state == SceneState::edit)
+                on_scene_play();
+            else if (m_scene_state == SceneState::play)
+                on_scene_stop();
+        }
+
+        ImGui::PopStyleVar(3);
+        ImGui::PopStyleColor(3);
+        ImGui::End();
     }
 
     void EditorLayer::on_event(Event &event) {
-        m_camera_controller.on_event(event);
         m_editor_camera.on_event(event);
 
         EventDispatcher dispatcher(event);
@@ -522,5 +557,13 @@ namespace Honey {
             SceneSerializer serializer(m_active_scene);
             serializer.serialize(path);
         }
+    }
+
+    void EditorLayer::on_scene_play() {
+        m_scene_state = SceneState::play;
+    }
+
+    void EditorLayer::on_scene_stop() {
+        m_scene_state = SceneState::edit;
     }
 }
