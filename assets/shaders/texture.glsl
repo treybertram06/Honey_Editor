@@ -9,7 +9,7 @@ layout (location = 2) in vec3 i_center;        // per-instance
 layout (location = 3) in vec2 i_half_size;
 layout (location = 4) in float i_rotation;
 layout (location = 5) in vec4 i_color;
-layout (location = 6) in float i_tex_index;
+layout (location = 6) in int i_tex_index;
 layout (location = 7) in float i_tiling;
 layout (location = 8) in vec2 i_tex_coord_min;
 layout (location = 9) in vec2 i_tex_coord_max;
@@ -21,7 +21,7 @@ layout (std140, binding = 0) uniform camera {
 
 layout(location=0) out vec4 v_color;
 layout(location=1) out vec2 v_tex_coord;
-layout(location=2) out float v_tex_index;
+layout(location=2) flat out int v_tex_index;
 layout(location=3) out float v_tiling_factor;
 layout(location=4) flat out int v_entity_id;
 
@@ -56,13 +56,13 @@ layout(location = 1) out int entity_id;
 
 layout(location=0) in vec4 v_color;
 layout(location=1) in vec2 v_tex_coord;
-layout(location=2) in float v_tex_index;
+layout(location=2) flat in int v_tex_index;
 layout(location=3) in float v_tiling_factor;
 layout(location=4) flat in int v_entity_id;
 
 layout (binding = 0) uniform sampler2D u_textures[MAX_TEXTURE_SLOTS];
 
 void main() {
-    outColor = texture(u_textures[int(v_tex_index)], v_tex_coord * v_tiling_factor) * v_color;
+    outColor = texture(u_textures[v_tex_index], v_tex_coord * v_tiling_factor) * v_color;
     entity_id = v_entity_id;
 }
