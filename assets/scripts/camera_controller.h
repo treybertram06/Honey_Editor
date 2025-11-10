@@ -2,6 +2,8 @@
 
 #include <Honey.h>
 
+#include "Honey/scene/script_registry.h"
+
 class CameraController : public Honey::ScriptableEntity {
 public:
     void on_create() {
@@ -24,3 +26,5 @@ public:
     }
 
 };
+
+REGISTER_SCRIPT(CameraController)

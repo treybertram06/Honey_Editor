@@ -6,6 +6,7 @@
 #include "imgui_internal.h"
 #include "glm/gtc/type_ptr.inl"
 #include "Honey/renderer/texture.h"
+#include "Honey/scene/script_registry.h"
 
 
 namespace Honey {
@@ -298,9 +299,48 @@ namespace Honey {
         });
 
         draw_component<NativeScriptComponent>("Native Script", entity, [](auto& component) {
-            //ImGui::Text("Script: %s", native_script.script->get_class_name());
+                // Display current script name
+                std::string display_name = component.script_name.empty() ? "None" : component.script_name;
+                ImGui::Text("Script: %s", display_name.c_str());
 
-        });
+                // Drag-drop target for scripts
+                ImGui::Button("Drop Script Here", ImVec2(200, 20));
+                if (ImGui::BeginDragDropTarget()) {
+                    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+                        if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
+                            const char* path_str = (const char*)payload->Data;
+                            std::filesystem::path path = path_str;
+
+                            // Extract script name from file path (without extension)
+                            std::string script_name = path.stem().string();
+
+                            // Check if script is registered
+                            if (ScriptRegistry::get().has_script(script_name)) {
+                                component.bind_by_name(script_name);
+                                HN_CORE_INFO("Bound script: {0}", script_name);
+                            } else {
+                                HN_CORE_WARN("Script not registered: {0}", script_name);
+                            }
+                        }
+                    }
+                    ImGui::EndDragDropTarget();
+                }
+
+                // Optional: Dropdown to select from registered scripts
+                if (ImGui::BeginCombo("Available Scripts", display_name.c_str())) {
+                    auto script_names = ScriptRegistry::get().get_all_script_names();
+                    for (const auto& name : script_names) {
+                        bool is_selected = (component.script_name == name);
+                        if (ImGui::Selectable(name.c_str(), is_selected)) {
+                            component.bind_by_name(name);
+                        }
+                        if (is_selected) {
+                            ImGui::SetItemDefaultFocus();
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+            });
 
     }
 
