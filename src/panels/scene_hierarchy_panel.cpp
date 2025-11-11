@@ -30,7 +30,12 @@ namespace Honey {
 
             for (auto entity : view) {
                 Entity current_entity = { entity, m_context.get() };
-                draw_entity_node(current_entity);
+
+                // Only draw entities that are not children (i.e., have no parent)
+                if (!current_entity.has_component<RelationshipComponent>() ||
+                    current_entity.get_component<RelationshipComponent>().parent == entt::null) {
+                    draw_entity_node(current_entity);
+                    }
             }
         }
 
@@ -60,29 +65,60 @@ namespace Honey {
 
     void SceneHierarchyPanel::draw_entity_node(Entity entity) {
         auto& tag = entity.get_component<TagComponent>();
+        bool has_children = entity.has_component<RelationshipComponent>() &&
+                            !entity.get_component<RelationshipComponent>().children.empty();
 
-        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth |
-                    ((m_selected_entity == entity) ? ImGuiTreeNodeFlags_Selected : 0);
-        bool opened = ImGui::TreeNodeEx(entity, flags, "%s", tag.tag.c_str());
+        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth |
+                                   ((m_selected_entity == entity) ? ImGuiTreeNodeFlags_Selected : 0);
+        if (!has_children)
+            flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 
-        if (ImGui::IsItemClicked()) {
+        bool opened = ImGui::TreeNodeEx((void*)(uint64_t)(uint32_t)entity.get_handle(), flags, "%s", tag.tag.c_str());
+
+        if (ImGui::IsItemClicked())
             m_selected_entity = entity;
-        }
 
-        if (opened) {
-            ImGui::TreePop();
-        }
-
-        if (ImGui::BeginPopupContextItem(0, ImGuiPopupFlags_NoOpenOverItems | ImGuiPopupFlags_MouseButtonRight)) {
+        // Right-click context menu
+        if (ImGui::BeginPopupContextItem()) {
             if (ImGui::MenuItem("Delete Entity")) {
-                if (m_selected_entity == entity) {
+                if (m_selected_entity == entity)
                     m_selected_entity = {};
-                }
                 m_context->destroy_entity(entity);
+                ImGui::EndPopup();
+                if (opened && has_children)
+                    ImGui::TreePop();
+                return;
             }
+
+            if (ImGui::MenuItem("Create Child")) {
+                Entity child = m_context->create_entity("Child Entity");
+                if (!entity.has_component<RelationshipComponent>())
+                    entity.add_component<RelationshipComponent>();
+                if (!child.has_component<RelationshipComponent>())
+                    child.add_component<RelationshipComponent>();
+
+                auto& parent_rel = entity.get_component<RelationshipComponent>();
+                auto& child_rel = child.get_component<RelationshipComponent>();
+
+                child_rel.parent = entity.get_handle();
+                parent_rel.children.push_back(child.get_handle());
+
+                m_selected_entity = child;
+            }
+
             ImGui::EndPopup();
         }
 
+        // Recursively draw children
+        if (opened && has_children) {
+            auto& rel = entity.get_component<RelationshipComponent>();
+            for (auto child_handle : rel.children) {
+                Entity child_entity = { child_handle, m_context.get() };
+                if (child_entity.is_valid())
+                    draw_entity_node(child_entity);
+            }
+            ImGui::TreePop();
+        }
     }
 
     static void draw_vec3_control(const std::string& label, glm::vec3& values, float reset_value = 0.0f, float column_width = 100.0f) {
