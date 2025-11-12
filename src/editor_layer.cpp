@@ -171,7 +171,7 @@ namespace Honey {
                 if (ImGui::MenuItem("Open...", "Ctrl+O")) {
                     open_scene();
                 }
-                if (ImGui::MenuItem("Save As...", "Ctrl+S")) {
+                if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S")) {
                     save_scene_as();
                 }
                 ImGui::Separator();

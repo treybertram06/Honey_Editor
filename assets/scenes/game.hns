@@ -1,19 +1,17 @@
 Scene: Untitled
 Entities:
-  - Entity: 1234567890
+  - Entity: 3748752610156413085
     TagComponent:
-      Tag: Player
+      Tag: Floor
     TransformComponent:
-      Translation: [-0.043003082, 0.5, -0.1]
+      Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
+      Scale: [13, 0.2, 1]
     SpriteRendererComponent:
       Color: [1, 1, 1, 1]
       TilingFactor: 1
-      Texture: ../assets/textures/transparent.png
-    NativeScriptComponent:
-      ScriptName: PlayerController
-  - Entity: 1234567890
+      Texture: ../assets/textures/missing.png
+  - Entity: 2675178354906879001
     TagComponent:
       Tag: Camera
     TransformComponent:
@@ -37,14 +35,16 @@ Entities:
         Size: 10
     NativeScriptComponent:
       ScriptName: CameraController
-  - Entity: 1234567890
+  - Entity: 16875930394065292020
     TagComponent:
-      Tag: Floor
+      Tag: Player
     TransformComponent:
-      Translation: [0, 0, 0]
+      Translation: [-0.043003082, 0.5, -0.1]
       Rotation: [0, 0, 0]
-      Scale: [13, 0.2, 1]
+      Scale: [1, 1, 1]
     SpriteRendererComponent:
       Color: [1, 1, 1, 1]
       TilingFactor: 1
-      Texture: ../assets/textures/missing.png
+      Texture: ../assets/textures/transparent.png
+    NativeScriptComponent:
+      ScriptName: PlayerController
