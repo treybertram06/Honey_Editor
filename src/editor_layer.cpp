@@ -2,13 +2,14 @@
 
 #include <glm/glm/gtc/type_ptr.hpp>
 #include "hnpch.h"
-#include "../assets/scripts/script_registrar.h"
+//#include "../assets/scripts/script_registrar.h"
 #include "../Honey/vendor/imguizmo/ImGuizmo.h"
 
 #include "Honey/scene/scene_serializer.h"
 #include "Honey/utils/platform_utils.h"
 
 #include "Honey/math/math.h"
+#include "scripting/script_loader.h"
 
 static const std::filesystem::path asset_root = ASSET_ROOT;
 
@@ -221,6 +222,27 @@ namespace Honey {
                     ImGui::EndMenu();
                 }
 
+
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("Scripts")) {
+                if (ImGui::MenuItem("Build Scripts")) {
+                    ScriptLoader::get().unload_library();
+
+                    int result = std::system("cmake --build . --target HoneyScripts");
+                    if (result == 0) {
+                        HN_CORE_INFO("Scripts built successfully, reloading...");
+                        //print current working directory
+                        std::filesystem::path current_path = std::filesystem::current_path();
+                        HN_CORE_INFO("Current working directory: {0}", current_path.string());
+                        ScriptLoader::get().reload_library("assets/scripts/libHoneyScripts.so");
+                    } else {
+                        HN_CORE_ERROR("Script build failed with code: {0}", result);
+                    }
+                }
+                if (ImGui::MenuItem("Reload Scripts")) {
+                    ScriptLoader::get().reload_library("assets/scripts/libHoneyScripts.so");
+                }
 
                 ImGui::EndMenu();
             }
