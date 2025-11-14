@@ -22,4 +22,3 @@ private:
     float m_speed = 1.0f;
 };
 
-REGISTER_SCRIPT(PipeController)

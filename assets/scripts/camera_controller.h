@@ -52,4 +52,3 @@ private:
     glm::vec2 offset{0.0f, 1.0f};   // camera offset from player (X,Y)
 };
 
-REGISTER_SCRIPT(CameraController)

@@ -78,4 +78,3 @@ private:
     float m_timer = 0.0f;
 };
 
-REGISTER_SCRIPT(PipeSpawner)

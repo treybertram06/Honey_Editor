@@ -20,4 +20,3 @@ public:
 
 };
 
-REGISTER_SCRIPT(Test)

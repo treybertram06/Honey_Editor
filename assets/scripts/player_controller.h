@@ -66,4 +66,3 @@ private:
     float m_gravity   = -25.0f;
 };
 
-REGISTER_SCRIPT(PlayerController)

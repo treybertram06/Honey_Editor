@@ -43,5 +43,3 @@ private:
     float m_velocity = 0.0f;
     bool m_flying = false;
 };
-
-REGISTER_SCRIPT(BirdController)

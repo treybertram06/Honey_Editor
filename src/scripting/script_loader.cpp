@@ -36,12 +36,30 @@ namespace Honey {
     #endif
 
         HN_CORE_INFO("Successfully loaded script library: {0}", path);
+
+        // Look up the registration function
+#if defined(HN_PLATFORM_LINUX) || defined(HN_PLATFORM_MACOS)
+        void* func = dlsym(m_library_handle, "register_all_scripts");
+#elif defined(HN_PLATFORM_WINDOWS)
+        void* func = GetProcAddress((HMODULE)m_library_handle, "register_all_scripts");
+#endif
+
+        if (func) {
+            using RegisterFunc = void(*)();
+            RegisterFunc register_all = reinterpret_cast<RegisterFunc>(func);
+            register_all();
+        } else {
+            HN_CORE_WARN("No register_all_scripts() function found in script library.");
+        }
+
         return true;
     }
 
     void ScriptLoader::unload_library() {
         if (!m_library_handle)
             return;
+
+        ScriptRegistry::get().clear();
 
     #if defined(HN_PLATFORM_LINUX) || defined(HN_PLATFORM_MACOS)
         dlclose(m_library_handle);
@@ -52,7 +70,6 @@ namespace Honey {
         HN_CORE_INFO("Unloaded script library.");
         m_library_handle = nullptr;
 
-        ScriptRegistry::get().clear();
     }
 
     bool ScriptLoader::reload_library(const std::string& path) {
