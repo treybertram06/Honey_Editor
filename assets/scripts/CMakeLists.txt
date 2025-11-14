@@ -14,7 +14,10 @@ endforeach()
 
 # Build as a shared library
 add_library(HoneyScripts SHARED ${SCRIPT_SOURCES}
-        script_entry.cpp)
+        script_entry.cpp
+        bird_controller.h
+        pipe_spawner.h
+        pipe_contoller.h)
 
 # Force inclusion of all object files to ensure static initializers run
 if (MSVC)

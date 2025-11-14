@@ -1,5 +1,6 @@
 #include "script_loader.h"
 #include "Honey/core/log.h"
+#include "Honey/scene/script_registry.h"
 
 #if defined(HN_PLATFORM_LINUX) || defined(HN_PLATFORM_MACOS)
     #include <dlfcn.h>
@@ -50,6 +51,8 @@ namespace Honey {
 
         HN_CORE_INFO("Unloaded script library.");
         m_library_handle = nullptr;
+
+        ScriptRegistry::get().clear();
     }
 
     bool ScriptLoader::reload_library(const std::string& path) {

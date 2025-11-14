@@ -1,4 +1,6 @@
+#include "bird_controller.h"
 #include "camera_controller.h"
+#include "pipe_spawner.h"
 #include "player_controller.h"
 #include "test.h"
 
@@ -9,6 +11,8 @@ namespace {
         (void)sizeof(CameraController);
         (void)sizeof(PlayerController);
         (void)sizeof(Test);
+        (void)sizeof(BirdController);
+        (void)sizeof(PipeSpawner);
     }
 }
 
