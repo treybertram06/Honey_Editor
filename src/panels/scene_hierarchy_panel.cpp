@@ -7,10 +7,10 @@
 #include "glm/gtc/type_ptr.inl"
 #include "Honey/renderer/texture.h"
 #include "Honey/scene/script_registry.h"
+#include "Honey/scripting/mono_script_engine.h"
 
 
 namespace Honey {
-
     extern const std::filesystem::path g_assets_dir;
 
     SceneHierarchyPanel::SceneHierarchyPanel(const Ref<Scene>& context) {
@@ -40,7 +40,7 @@ namespace Honey {
         }
 
         if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered()) {
-                m_selected_entity = {};
+            m_selected_entity = {};
         }
 
         // Right click on blank space
@@ -211,7 +211,6 @@ namespace Honey {
         }
     }
     void SceneHierarchyPanel::draw_components(Entity entity) {
-
         if (entity.has_component<TagComponent>()) {
             auto& tag = entity.get_component<TagComponent>().tag;
 
@@ -243,6 +242,10 @@ namespace Honey {
             }
             if (ImGui::MenuItem("Native Script Component")) {
                 entity.add_component<NativeScriptComponent>();
+                ImGui::CloseCurrentPopup();
+            }
+            if (ImGui::MenuItem("C# Script Component")) {
+                entity.add_component<ScriptComponent>();
                 ImGui::CloseCurrentPopup();
             }
 
@@ -379,6 +382,20 @@ namespace Honey {
                 }
             });
 
-    }
+        draw_component<ScriptComponent>("C# Script", entity, [](auto& component) {
+            auto available_classes = Scripting::MonoScriptEngine::get_available_classes();
 
+            const char* current_class = component.class_name.empty() ? "None" : component.class_name.c_str();
+            if (ImGui::BeginCombo("Available Scripts", current_class)) {
+                for (const auto& name : available_classes) {
+                    bool is_selected = (component.class_name == name);
+                    if (ImGui::Selectable(name.c_str(), is_selected))
+                        component.class_name = name;
+                    if (is_selected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+        });
+    }
 }

@@ -13,11 +13,19 @@ foreach(SRC ${SCRIPT_SOURCES})
 endforeach()
 
 # Build as a shared library
-add_library(HoneyScripts SHARED ${SCRIPT_SOURCES}
-        script_entry.cpp
-        bird_controller.h
-        pipe_spawner.h
-        pipe_contoller.h)
+add_library(HoneyScripts SHARED ${SCRIPT_SOURCES} script_entry.cpp)
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(MONO REQUIRED mono-2)
+
+target_include_directories(HoneyScripts PRIVATE
+        ${MONO_INCLUDE_DIRS}
+        ${CMAKE_SOURCE_DIR}/Honey/engine/src
+)
+
+target_link_libraries(HoneyScripts PRIVATE
+        ${MONO_LIBRARIES}
+)
 
 # Force inclusion of all object files to ensure static initializers run
 if (MSVC)
