@@ -7,7 +7,7 @@
 #include "glm/gtc/type_ptr.inl"
 #include "Honey/renderer/texture.h"
 #include "Honey/scene/script_registry.h"
-#include "Honey/scripting/mono_script_engine.h"
+//#include "Honey/scripting/mono_script_engine.h"
 
 
 namespace Honey {
@@ -383,17 +383,17 @@ namespace Honey {
             });
 
         draw_component<ScriptComponent>("C# Script", entity, [](auto& component) {
-            auto available_classes = Scripting::MonoScriptEngine::get_available_classes();
+            //auto available_classes = Scripting::MonoScriptEngine::get_available_classes();
 
             const char* current_class = component.class_name.empty() ? "None" : component.class_name.c_str();
             if (ImGui::BeginCombo("Available Scripts", current_class)) {
-                for (const auto& name : available_classes) {
-                    bool is_selected = (component.class_name == name);
-                    if (ImGui::Selectable(name.c_str(), is_selected))
-                        component.class_name = name;
-                    if (is_selected)
-                        ImGui::SetItemDefaultFocus();
-                }
+                //for (const auto& name : available_classes) {
+                //    bool is_selected = (component.class_name == name);
+                //    if (ImGui::Selectable(name.c_str(), is_selected))
+                //        component.class_name = name;
+                //    if (is_selected)
+                //        ImGui::SetItemDefaultFocus();
+                //}
                 ImGui::EndCombo();
             }
         });
