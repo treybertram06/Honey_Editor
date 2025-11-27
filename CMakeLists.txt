@@ -32,7 +32,7 @@ target_include_directories(Honey_Editor PRIVATE
 add_compile_definitions(GLM_FORCE_SILENT_WARNINGS)
 
 add_subdirectory(Honey)
-add_subdirectory(assets/scripts)
+#add_subdirectory(assets/scripts)
 target_link_libraries(Honey_Editor PRIVATE engine)
 
 add_compile_definitions(
