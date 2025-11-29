@@ -3,4 +3,4 @@
 	url = https://github.com/treybertram06/Honey.git
 [submodule "vendor/yaml-cpp"]
 	path = vendor/yaml-cpp
-	url = https://github.com/jbeder/yaml-cpp.git
+	url = https://github.com/treybertram06/yaml-cpp.git

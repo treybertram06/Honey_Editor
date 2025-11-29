@@ -47,6 +47,8 @@ namespace Honey {
         bool m_viewport_focused = false, m_viewport_hovered = false;
 
         Ref<Scene> m_active_scene;
+        Ref<Scene> m_editor_scene, m_runtime_scene;
+
         Entity m_camera_ent;
         Entity m_square_ent;
         std::vector<Entity> m_camera_entities;

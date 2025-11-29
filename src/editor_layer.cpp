@@ -565,12 +565,30 @@ namespace Honey {
     }
 
     void EditorLayer::open_scene(const std::filesystem::path& path) {
-        m_active_scene = CreateRef<Scene>();
-        m_active_scene->on_viewport_resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
-        m_scene_hierarchy_panel.set_context(m_active_scene);
+        if (m_scene_state != SceneState::edit)
+            on_scene_stop();
 
-        SceneSerializer serializer(m_active_scene);
-        serializer.deserialize(path);
+        if (path.extension() != ".hns") {
+            HN_CORE_WARN("File {0} is not a Honey Scene file!", path.string());
+            return;
+        }
+
+        Ref<Scene> new_scene = CreateRef<Scene>();
+        SceneSerializer serializer(new_scene);
+        if (serializer.deserialize(path)) {
+            m_editor_scene = new_scene;
+            m_editor_scene->on_viewport_resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
+            m_scene_hierarchy_panel.set_context(m_active_scene);
+
+            m_active_scene = m_editor_scene;
+        }
+
+        //m_active_scene = CreateRef<Scene>();
+        //m_active_scene->on_viewport_resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
+        //m_scene_hierarchy_panel.set_context(m_active_scene);
+//
+        //SceneSerializer serializer(m_active_scene);
+        //serializer.deserialize(path);
     }
     
     void EditorLayer::save_scene_as() {
