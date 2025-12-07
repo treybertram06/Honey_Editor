@@ -172,6 +172,9 @@ namespace Honey {
                 if (ImGui::MenuItem("Open...", "Ctrl+O")) {
                     open_scene();
                 }
+                if (ImGui::MenuItem("Save", "Ctrl+S")) {
+                    save_current_scene();
+                }
                 if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S")) {
                     save_scene_as();
                 }
@@ -506,9 +509,11 @@ namespace Honey {
         bool handled = false;
 
         switch (e.get_key_code()) {
+
             //scene file shortcuts
         case KeyCode::S:
             if (control && shift) { save_scene_as(); handled = true; }
+            else if (control) { save_current_scene(); handled = true; }
             break;
 
         case KeyCode::O:
@@ -534,6 +539,12 @@ namespace Honey {
 
         case KeyCode::R:
             m_gizmo_type = ImGuizmo::OPERATION::SCALE;
+            break;
+
+
+        //Scene commands
+        case KeyCode::D:
+            if (control) { on_duplicate_entity(); handled = true; }
             break;
 
         default:
@@ -573,14 +584,16 @@ namespace Honey {
             return;
         }
 
+        m_scene_filepath = path;
         Ref<Scene> new_scene = CreateRef<Scene>();
         SceneSerializer serializer(new_scene);
         if (serializer.deserialize(path)) {
+            m_scene_hierarchy_panel.set_selected_entity({});
             m_editor_scene = new_scene;
             m_editor_scene->on_viewport_resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
-            m_scene_hierarchy_panel.set_context(m_active_scene);
 
             m_active_scene = m_editor_scene;
+            m_scene_hierarchy_panel.set_context(m_active_scene);
         }
 
         //m_active_scene = CreateRef<Scene>();
@@ -591,19 +604,41 @@ namespace Honey {
         //serializer.deserialize(path);
     }
     
-    void EditorLayer::save_scene_as() {
-        std::string path = FileDialogs::save_file("Honey Scene (*.hns)\0*.hns\0");
+    void EditorLayer::save_scene_as(std::filesystem::path path) {
+        if (path.empty())
+            path = FileDialogs::save_file("Honey Scene (*.hns)\0");
+        else
+            HN_CORE_INFO("Saving scene as {0}", path.string());
         if (!path.empty()) {
             SceneSerializer serializer(m_active_scene);
             serializer.serialize(path);
         }
     }
 
+    void EditorLayer::save_current_scene() {
+        save_scene_as(m_scene_filepath);
+    }
+
     void EditorLayer::on_scene_play() {
         m_scene_state = SceneState::play;
+
+        m_active_scene = Scene::copy(m_editor_scene);
+        m_active_scene->on_viewport_resize((uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y);
+        m_active_scene->on_runtime_start();
     }
 
     void EditorLayer::on_scene_stop() {
         m_scene_state = SceneState::edit;
+
+        m_active_scene->on_runtime_stop();
+        m_active_scene = m_editor_scene;
+    }
+
+    void EditorLayer::on_duplicate_entity() {
+        if (m_scene_state != SceneState::edit) return;
+
+        Entity entity = m_scene_hierarchy_panel.get_selected_entity();
+        if (entity)
+            m_editor_scene->duplicate_entity(entity);
     }
 }

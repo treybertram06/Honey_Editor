@@ -229,25 +229,48 @@ namespace Honey {
             ImGui::OpenPopup("Add Component");
 
         if (ImGui::BeginPopup("Add Component")) {
-            if (ImGui::MenuItem("Transform Component")) {
-                entity.add_component<TransformComponent>();
-                ImGui::CloseCurrentPopup();
+
+            if (!m_selected_entity.has_component<TransformComponent>()) {
+                if (ImGui::MenuItem("Transform Component")) {
+                    entity.add_component<TransformComponent>();
+                    ImGui::CloseCurrentPopup();
+                }
             }
-            if (ImGui::MenuItem("Sprite Renderer")) {
-                entity.add_component<SpriteRendererComponent>();
-                ImGui::CloseCurrentPopup();
+            if (!m_selected_entity.has_component<SpriteRendererComponent>()) {
+                if (ImGui::MenuItem("Sprite Renderer")) {
+                    entity.add_component<SpriteRendererComponent>();
+                    ImGui::CloseCurrentPopup();
+                }
             }
-            if (ImGui::MenuItem("Camera Component")) {
-                entity.add_component<CameraComponent>();
-                ImGui::CloseCurrentPopup();
+            if (!m_selected_entity.has_component<CameraComponent>()) {
+                if (ImGui::MenuItem("Camera Component")) {
+                    entity.add_component<CameraComponent>();
+                    ImGui::CloseCurrentPopup();
+                }
             }
-            if (ImGui::MenuItem("Native Script Component")) {
-                entity.add_component<NativeScriptComponent>();
-                ImGui::CloseCurrentPopup();
+            if (!m_selected_entity.has_component<NativeScriptComponent>()) {
+                if (ImGui::MenuItem("Native Script Component")) {
+                    entity.add_component<NativeScriptComponent>();
+                    ImGui::CloseCurrentPopup();
+                }
             }
-            if (ImGui::MenuItem("C# Script Component")) {
-                entity.add_component<ScriptComponent>();
-                ImGui::CloseCurrentPopup();
+            if (!m_selected_entity.has_component<ScriptComponent>()) {
+                if (ImGui::MenuItem("C# Script Component")) {
+                    entity.add_component<ScriptComponent>();
+                    ImGui::CloseCurrentPopup();
+                }
+            }
+            if (!m_selected_entity.has_component<BoxCollider2DComponent>()) {
+                if (ImGui::MenuItem("Box Collider 2D")) {
+                    entity.add_component<BoxCollider2DComponent>();
+                    ImGui::CloseCurrentPopup();
+                }
+            }
+            if (!m_selected_entity.has_component<Rigidbody2DComponent>()) {
+                if (ImGui::MenuItem("Rigidbody 2D")) {
+                    entity.add_component<Rigidbody2DComponent>();
+                    ImGui::CloseCurrentPopup();
+                }
             }
 
             ImGui::EndPopup();
@@ -409,6 +432,36 @@ namespace Honey {
 
                 ImGui::EndCombo();
             }
+        });
+
+        draw_component<Rigidbody2DComponent>("Rigidbody2D", entity, [](auto& component) {
+            const char* body_type[] = { "Static", "Dynamic", "Kinematic" };
+            const char* curr_body_type = body_type[(int)component.body_type];
+            if (ImGui::BeginCombo("Body Type", curr_body_type)) {
+                for (int i = 0; i < 3; i++) {
+                    bool is_selected = (curr_body_type == body_type[i]);
+                    if (ImGui::Selectable(body_type[i], is_selected)) {
+                        if (component.body_type != (Rigidbody2DComponent::BodyType)i) {
+                            component.body_type = (Rigidbody2DComponent::BodyType)i;
+                        }
+                    }
+                    if (is_selected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
+            }
+
+            ImGui::Checkbox("Fixed Rotation", &component.fixed_rotation);
+        });
+
+        draw_component<BoxCollider2DComponent>("Box Collider 2D", entity, [](auto& component) {
+            ImGui::DragFloat2("Offset", glm::value_ptr(component.offset), 0.1f, 0.0f, 100.0f);
+            ImGui::DragFloat2("Size", glm::value_ptr(component.size), 0.1f, 0.0f, 100.0f);
+
+            ImGui::DragFloat("Density", &component.density, 0.01f, 0.0f, 1.0f);
+            ImGui::DragFloat("Friction", &component.friction, 0.01f, 0.0f, 1.0f);
+            ImGui::DragFloat("Restitution", &component.restitution, 0.01f, 0.0f, 1.0f);
         });
 
     }

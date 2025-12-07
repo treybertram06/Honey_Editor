@@ -32,10 +32,12 @@ namespace Honey {
         void new_scene();
         void open_scene();
         void open_scene(const std::filesystem::path& path);
-        void save_scene_as();
+        void save_scene_as(std::filesystem::path path = "");
+        void save_current_scene();
 
         void on_scene_play();
         void on_scene_stop();
+        void on_duplicate_entity();
 
         // ui panels
         void ui_toolbar();
@@ -46,8 +48,9 @@ namespace Honey {
         glm::vec2 m_viewport_size = {1680.0f, 720.0f};
         bool m_viewport_focused = false, m_viewport_hovered = false;
 
+        std::filesystem::path m_scene_filepath;
         Ref<Scene> m_active_scene;
-        Ref<Scene> m_editor_scene, m_runtime_scene;
+        Ref<Scene> m_editor_scene;
 
         Entity m_camera_ent;
         Entity m_square_ent;
