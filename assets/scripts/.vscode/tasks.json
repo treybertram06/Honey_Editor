@@ -1,0 +1,20 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build Honey ScriptCore",
+      "type": "shell",
+      "command": "mcs",
+      "args": [
+        "-target:library",
+        "-out:Honey-ScriptCore.dll",
+        "*.cs"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    }
+  ]
+}
