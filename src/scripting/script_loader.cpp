@@ -39,14 +39,16 @@ namespace Honey {
 
         // Look up the registration function
 #if defined(HN_PLATFORM_LINUX) || defined(HN_PLATFORM_MACOS)
-        void* func = dlsym(m_library_handle, "register_all_scripts");
+        void* sym = dlsym(m_library_handle, "register_all_scripts");
+        using RegisterFunc = void(*)();
+        auto register_all = reinterpret_cast<RegisterFunc>(sym);
 #elif defined(HN_PLATFORM_WINDOWS)
-        void* func = GetProcAddress((HMODULE)m_library_handle, "register_all_scripts");
+        FARPROC sym = GetProcAddress((HMODULE)m_library_handle, "register_all_scripts");
+        using RegisterFunc = void(*)();
+        auto register_all = reinterpret_cast<RegisterFunc>(sym);
 #endif
 
-        if (func) {
-            using RegisterFunc = void(*)();
-            RegisterFunc register_all = reinterpret_cast<RegisterFunc>(func);
+        if (register_all) {
             register_all();
         } else {
             HN_CORE_WARN("No register_all_scripts() function found in script library.");
