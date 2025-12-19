@@ -1,6 +1,6 @@
 is_global = true
 build_property.RootNamespace = Honey-ScriptCore
-build_property.ProjectDir = /home/treybertram/CLionProjects/Honey-Editor/assets/scripts/scripts/
+build_property.ProjectDir = /home/treybertram/Desktop/Honey_Editor/assets/scripts/scripts/
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 
 build_property.CsWinRTUseWindowsUIXamlProjections = false

@@ -32,10 +32,7 @@ namespace Honey {
         fb_spec.height = 720;
         m_framebuffer = Framebuffer::create(fb_spec);
 
-        m_active_scene = CreateRef<Scene>();
-
-        m_scene_hierarchy_panel.set_context(m_active_scene);
-
+        new_scene();
         m_editor_camera = EditorCamera(16.0f/9.0f, 45.0f, 0.1f, 1000.0f);
 
 
@@ -64,48 +61,6 @@ namespace Honey {
 
         Entity current_primary_camera = m_active_scene->get_primary_camera();
 
-        static int selected_camera = -1; // Index of currently selected camera
-
-        for (int i = 0; i < camera_entities.size(); ++i) {
-            if (current_primary_camera.is_valid() &&
-                camera_entities[i].get_handle() == current_primary_camera.get_handle()) {
-                selected_camera = i;
-                break;
-            }
-        }
-
-        if (!current_primary_camera.is_valid()) {
-            selected_camera = -1;
-        }
-
-        for (int i = 0; i < camera_entities.size(); ++i) {
-            const std::string& camera_name = camera_entities[i].get_component<TagComponent>().tag;
-
-            if (ImGui::RadioButton(camera_name.c_str(), selected_camera == i)) {
-                selected_camera = i;
-
-                m_active_scene->set_primary_camera(camera_entities[i]);
-
-                auto& camera_component = m_active_scene->get_primary_camera().get_component<CameraComponent>();
-                float aspect_ratio = (float)m_viewport_size.x / (float)m_viewport_size.y;
-                camera_component.get_camera()->set_aspect_ratio(aspect_ratio);
-            }
-
-            // Add some spacing between radio buttons
-            if (i < camera_entities.size() - 1) {
-                ImGui::Spacing();
-            }
-        }
-
-        ImGui::Separator();
-
-        if (ImGui::Button("Clear Primary Camera")) {
-            m_active_scene->clear_primary_camera();
-            selected_camera = -1; // Reset selection
-            HN_CORE_INFO("Primary camera cleared");
-        }
-
-        ImGui::Spacing();
 
         std::string current_primary = "None";
         if (current_primary_camera.is_valid()) {
@@ -564,7 +519,8 @@ namespace Honey {
 
 
     void EditorLayer::new_scene() {
-        m_active_scene = CreateRef<Scene>();
+        m_editor_scene = CreateRef<Scene>();
+        m_active_scene = m_editor_scene;
         m_active_scene->on_viewport_resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
         m_scene_hierarchy_panel.set_context(m_active_scene);
     }
@@ -603,7 +559,7 @@ namespace Honey {
         //SceneSerializer serializer(m_active_scene);
         //serializer.deserialize(path);
     }
-    
+
     void EditorLayer::save_scene_as(std::filesystem::path path) {
         if (path.empty())
             path = FileDialogs::save_file("Honey Scene (*.hns)\0");
@@ -619,12 +575,15 @@ namespace Honey {
         save_scene_as(m_scene_filepath);
     }
 
+    // Note to self, editor scene is null in some cases so the copy doesnt work, test from fresh scene on boot, ctrlN scene, and saved scene to confirm
+
     void EditorLayer::on_scene_play() {
         m_scene_state = SceneState::play;
 
         m_active_scene = Scene::copy(m_editor_scene);
         m_active_scene->on_viewport_resize((uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y);
         m_active_scene->on_runtime_start();
+        m_scene_hierarchy_panel.set_context(m_active_scene);
     }
 
     void EditorLayer::on_scene_stop() {
@@ -632,6 +591,7 @@ namespace Honey {
 
         m_active_scene->on_runtime_stop();
         m_active_scene = m_editor_scene;
+        m_scene_hierarchy_panel.set_context(m_active_scene);
     }
 
     void EditorLayer::on_duplicate_entity() {

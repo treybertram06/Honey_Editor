@@ -339,6 +339,8 @@ namespace Honey {
                         }
                     }
                 }
+
+            ImGui::Checkbox("Primary", &component.primary);
         });
 
         draw_component<SpriteRendererComponent>("Sprite Renderer", entity, [](auto& component) {

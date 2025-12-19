@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Honey-ScriptCore")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4cbae0319c487fadf6309eb9deee0da10c3dd863")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b010e6f61cf50f9605f201c6f36b45c436ade079")]
 [assembly: System.Reflection.AssemblyProductAttribute("Honey-ScriptCore")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Honey-ScriptCore")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

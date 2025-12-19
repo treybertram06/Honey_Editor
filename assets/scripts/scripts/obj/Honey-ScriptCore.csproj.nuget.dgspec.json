@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "/home/treybertram/CLionProjects/Honey-Editor/assets/scripts/scripts/Honey-ScriptCore.csproj": {}
+    "/home/treybertram/Desktop/Honey_Editor/assets/scripts/scripts/Honey-ScriptCore.csproj": {}
   },
   "projects": {
-    "/home/treybertram/CLionProjects/Honey-Editor/assets/scripts/scripts/Honey-ScriptCore.csproj": {
+    "/home/treybertram/Desktop/Honey_Editor/assets/scripts/scripts/Honey-ScriptCore.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/home/treybertram/CLionProjects/Honey-Editor/assets/scripts/scripts/Honey-ScriptCore.csproj",
+        "projectUniqueName": "/home/treybertram/Desktop/Honey_Editor/assets/scripts/scripts/Honey-ScriptCore.csproj",
         "projectName": "Honey-ScriptCore",
-        "projectPath": "/home/treybertram/CLionProjects/Honey-Editor/assets/scripts/scripts/Honey-ScriptCore.csproj",
+        "projectPath": "/home/treybertram/Desktop/Honey_Editor/assets/scripts/scripts/Honey-ScriptCore.csproj",
         "packagesPath": "/home/treybertram/.nuget/packages/",
-        "outputPath": "/home/treybertram/CLionProjects/Honey-Editor/assets/scripts/scripts/obj/",
+        "outputPath": "/home/treybertram/Desktop/Honey_Editor/assets/scripts/scripts/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/home/treybertram/.nuget/NuGet/NuGet.Config"
