@@ -38,43 +38,6 @@ add_compile_definitions(
 add_subdirectory(Honey)
 target_link_libraries(Honey_Editor PRIVATE engine)
 
-# ==========================================================
-# ==================== MONO (WINDOWS) ======================
-# ==========================================================
-if(WIN32)
-    set(MONO_ROOT "${CMAKE_SOURCE_DIR}/Honey/engine/vendor/mono-bin/windows/x64")
-
-    # Link Mono AGAIN here (static libs do not propagate)
-    find_library(MONO_LIB
-            NAMES
-            monosgen-2.0
-            mono-2.0-sgen
-            mono-2.0
-            PATHS
-            "${MONO_ROOT}/lib"
-            "${MONO_ROOT}/bin"
-            REQUIRED
-    )
-
-    target_link_libraries(Honey_Editor PRIVATE "${MONO_LIB}")
-
-    # Ensure DLL is next to exe
-    set(MONO_DLL
-            "${MONO_ROOT}/bin/mono-2.0-sgen.dll"
-    )
-
-    if(NOT EXISTS "${MONO_DLL}")
-        message(FATAL_ERROR "Mono DLL not found: ${MONO_DLL}")
-    endif()
-
-    add_custom_command(TARGET Honey_Editor POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${MONO_DLL}"
-            "$<TARGET_FILE_DIR:Honey_Editor>"
-    )
-endif()
-
-
 # Move shaderc dll next to executable
 if (WIN32)
     add_custom_command(TARGET Honey_Editor POST_BUILD

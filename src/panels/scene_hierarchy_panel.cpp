@@ -255,7 +255,7 @@ namespace Honey {
                 }
             }
             if (!m_selected_entity.has_component<ScriptComponent>()) {
-                if (ImGui::MenuItem("C# Script Component")) {
+                if (ImGui::MenuItem("Lua Script Component")) {
                     entity.add_component<ScriptComponent>();
                     ImGui::CloseCurrentPopup();
                 }
@@ -408,27 +408,45 @@ namespace Honey {
                 }
             });
 
-        draw_component<ScriptComponent>("C# Script", entity, [](auto& component) {
-            auto available_classes = ScriptEngine::get_entity_classes();
-            static char search_buffer[128] = "";
+        draw_component<ScriptComponent>("Lua Script", entity, [&](auto& component) {
+            // Display current script name
+            std::string display_name = component.script_name.empty() ? "None" : component.script_name;
+            ImGui::Text("Script: %s", display_name.c_str());
 
-            if (ImGui::BeginCombo("Class", component.class_name.empty() ? "None" : component.class_name.c_str())) {
-                ImGui::InputText("##Search", search_buffer, sizeof(search_buffer));
+            // Drag & Drop to assign script
+            ImGui::Button("Drop Lua Script Here", ImVec2(200, 20));
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+                    const char* path_str = (const char*)payload->Data;
+                    std::filesystem::path path = path_str;
 
-                std::string filter = search_buffer;
-                std::transform(filter.begin(), filter.end(), filter.begin(), ::tolower);
+                    if (path.extension() == ".lua") {
+                        component.script_name = path.stem().string();
+                        HN_CORE_INFO("Lua script assigned: {}", component.script_name);
+                    } else {
+                        HN_CORE_WARN("Not a Lua script: {}", path.string());
+                    }
+                }
 
-                for (auto& [class_name, script_class] : available_classes) {
-                    std::string lower_name = class_name;
-                    std::transform(lower_name.begin(), lower_name.end(), lower_name.begin(), ::tolower);
+                ImGui::EndDragDropTarget();
+            }
 
-                    if (filter.empty() || lower_name.find(filter) != std::string::npos) {
-                        bool is_selected = (component.class_name == class_name);
-                        if (ImGui::Selectable(class_name.c_str(), is_selected)) {
-                            component.class_name = class_name;
+            // Dropdown script selection
+            if (ImGui::BeginCombo("Available Lua Scripts", display_name.c_str())) {
+                const std::filesystem::path script_dir = g_assets_dir / "scripts";
+
+                if (std::filesystem::exists(script_dir)) {
+                    for (auto& entry : std::filesystem::directory_iterator(script_dir)) {
+                        if (entry.path().extension() == ".lua") {
+                            std::string name = entry.path().stem().string();
+                            bool is_selected = (component.script_name == name);
+
+                            if (ImGui::Selectable(name.c_str(), is_selected))
+                                component.script_name = name;
+
+                            if (is_selected)
+                                ImGui::SetItemDefaultFocus();
                         }
-                        if (is_selected)
-                            ImGui::SetItemDefaultFocus();
                     }
                 }
 
