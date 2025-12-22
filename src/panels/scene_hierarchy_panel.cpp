@@ -6,6 +6,7 @@
 #include "imgui_internal.h"
 #include "glm/gtc/type_ptr.inl"
 #include "Honey/renderer/texture.h"
+#include "Honey/scene/scene_serializer.h"
 #include "Honey/scene/script_registry.h"
 #include "Honey/scripting/script_engine.h"
 //#include "Honey/scripting/mono_script_engine.h"
@@ -81,6 +82,7 @@ namespace Honey {
 
         // Right-click context menu
         if (ImGui::BeginPopupContextItem()) {
+
             if (ImGui::MenuItem("Delete Entity")) {
                 if (m_selected_entity == entity)
                     m_selected_entity = {};
@@ -105,6 +107,17 @@ namespace Honey {
                 parent_rel.children.push_back(child.get_handle());
 
                 m_selected_entity = child;
+            }
+
+            if (ImGui::MenuItem("Create Prefab")) {
+                std::string default_path = (g_assets_dir / "prefabs" / (tag.tag + ".hnp")).string();
+                if (!default_path.empty()) {
+                    SceneSerializer serializer(m_context);
+                    serializer.serialize_entity_prefab(entity, default_path);
+                } else {
+                    ImGui::OpenPopup("Save Prefab As...");
+                    HN_CORE_WARN("No default path for prefab found and no custom path implementation yet");
+                }
             }
 
             ImGui::EndPopup();
