@@ -1,0 +1,56 @@
+Scene: Untitled
+Entities:
+  - Entity: 5287885375988831183
+    TagComponent:
+      Tag: Camera
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    CameraComponent:
+      ProjectionType: Orthographic
+      OrthographicSize: 10
+      OrthographicNear: -1
+      OrthographicFar: 1
+      PerspectiveFOV: 45
+      PerspectiveNear: 0.1
+      PerspectiveFar: 1000
+      FixedAspectRatio: false
+      Primary: true
+      Camera:
+        Position:
+          - [0, 0, 0]
+        AspectRatio: 2.3819444
+        Rotation: 0
+        Size: 10
+  - Entity: 13642044305437278575
+    TagComponent:
+      Tag: Bird
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 1]
+      TilingFactor: 1
+      Texture: ../assets/textures/transparent.png
+    ScriptComponent:
+      ScriptName: bird
+    Rigidbody2DComponent:
+      BodyType: 1
+      FixedRotation: false
+    BoxCollider2DComponent:
+      Offset: [0, 0]
+      Size: [0.5, 0.5]
+      Density: 1
+      Friction: 0.5
+      Restitution: 0
+  - Entity: 12320704956848614704
+    TagComponent:
+      Tag: Pipe Spawner
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    ScriptComponent:
+      ScriptName: pipeSpawner

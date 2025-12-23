@@ -255,6 +255,12 @@ namespace Honey {
                     ImGui::CloseCurrentPopup();
                 }
             }
+            if (!m_selected_entity.has_component<CircleRendererComponent>()) {
+                if (ImGui::MenuItem("Circle Renderer")) {
+                    entity.add_component<CircleRendererComponent>();
+                    ImGui::CloseCurrentPopup();
+                }
+            }
             if (!m_selected_entity.has_component<CameraComponent>()) {
                 if (ImGui::MenuItem("Camera Component")) {
                     entity.add_component<CameraComponent>();
@@ -375,6 +381,27 @@ namespace Honey {
 
             ImGui::DragFloat("Tiling Factor", &component.tiling_factor, 0.1f, 0.0f, 100.0f);
 
+        });
+
+        draw_component<CircleRendererComponent>("Circle Renderer", entity, [](auto& component) {
+            ImGui::ColorEdit4("Color", glm::value_ptr(component.color));
+
+            ImGui::Button("Texture", ImVec2(100, 20));
+            if (ImGui::BeginDragDropTarget()) {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+                if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
+                    const char* path_str = (const char*)payload->Data;
+                    std::filesystem::path path = path_str;
+                    std::filesystem::path texture_path = std::filesystem::path(g_assets_dir) / path;
+                    component.texture_path = texture_path;
+                    component.texture = Texture2D::create(texture_path.string());
+                }
+            }
+            ImGui::EndDragDropTarget();
+        }
+
+            ImGui::DragFloat("Thickness", &component.thickness, 0.025f, 0.0f, 1.0f);
+            ImGui::DragFloat("Fade", &component.fade, 0.001f, 0.0f, 1.0f);
         });
 
         draw_component<NativeScriptComponent>("Native Script", entity, [](auto& component) {
