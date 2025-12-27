@@ -27,6 +27,8 @@ namespace Honey {
         bool on_key_pressed(KeyPressedEvent& e);
         bool on_mouse_button_pressed(MouseButtonPressedEvent& e);
 
+        void on_overlay_render();
+
         bool can_mousepick() { return (m_viewport_hovered && !ImGuizmo::IsOver() && !Input::is_key_pressed(KeyCode::LeftAlt)); }
 
         void new_scene();
@@ -73,6 +75,7 @@ namespace Honey {
 
 
         int m_gizmo_type = -1;
+        bool m_show_physics_colliders = false;
 
         //Panels
         SceneHierarchyPanel m_scene_hierarchy_panel;

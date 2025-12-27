@@ -95,12 +95,16 @@ namespace Honey {
                 if (m_viewport_focused)
                     m_editor_camera.on_update(ts);
 
-                m_active_scene->on_update_editor(ts, m_editor_camera); break;
+                m_active_scene->on_update_editor(ts, m_editor_camera);
+                    on_overlay_render();
+                    break;
             }
             case SceneState::play:
             {
                     m_gizmo_type = -1;
-                m_active_scene->on_update_runtime(ts); break;
+                m_active_scene->on_update_runtime(ts);
+                    on_overlay_render();
+                    break;
             }
         }
 
@@ -240,7 +244,7 @@ namespace Honey {
             }
 
             static bool wireframe_mode = false;
-            static bool depth_test = false;
+            static bool depth_test = true;
             static bool face_culling = true;
             static bool blending = true;
 
@@ -259,19 +263,17 @@ namespace Honey {
             if (ImGui::Checkbox("Blending", &blending)) {
                 RenderCommand::set_blend(blending);
             }
-        }
 
+            ImGui::Checkbox("Show Physics Colliders", &m_show_physics_colliders);
+
+        }
+/*
         // Debug Section
         if (ImGui::CollapsingHeader("Debug")) {
-            static bool show_wireframe = false;
             static bool show_normals = false;
             static bool show_bounding_boxes = false;
             static bool show_grid = false;
 
-            if (ImGui::Checkbox("Show Wireframe", &show_wireframe)) {
-                RenderCommand::set_wireframe(show_wireframe);
-                HN_CORE_INFO("Wireframe change triggered");
-            }
             ImGui::SameLine();
             ImGui::Checkbox("Show Normals", &show_normals);
 
@@ -284,6 +286,7 @@ namespace Honey {
             ImGui::Text("API: OpenGL"); // You can make this dynamic
             ImGui::Text("Version: 4.6"); // You can query this from OpenGL
         }
+*/
         ImGui::End();
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
@@ -515,6 +518,48 @@ namespace Honey {
                 m_scene_hierarchy_panel.set_selected_entity(m_hovered_entity);
         }
         return false;
+    }
+
+    void EditorLayer::on_overlay_render() {
+
+        if (m_scene_state == SceneState::play) {
+            Entity camera_entity = m_active_scene->get_primary_camera();
+            Renderer2D::begin_scene(*camera_entity.get_component<CameraComponent>().camera, camera_entity.get_component<TransformComponent>().get_transform());
+        } else {
+            Renderer2D::begin_scene(m_editor_camera);
+        }
+
+        if (m_show_physics_colliders) {
+            { // Box colliders
+                auto view = m_active_scene->get_all_entities_with<TransformComponent, BoxCollider2DComponent>();
+                for (auto entity : view) {
+                    auto [tc, bc2d] = view.get<TransformComponent, BoxCollider2DComponent>(entity);
+
+                    glm::vec3 translation = tc.translation + glm::vec3(bc2d.offset, 0.001f);
+                    glm::vec3 scale = tc.scale * glm::vec3(bc2d.size * 2.0f, 1.0f);
+                    glm::mat4 transform = glm::translate(glm::mat4(1.0f), translation)
+                    * glm::rotate(glm::mat4(1.0f), tc.rotation.z, glm::vec3(0, 0, 1))
+                    * glm::scale(glm::mat4(1.0f), scale);
+
+                    Renderer2D::draw_rect(transform, glm::vec4(0, 1, 0, 1));
+                }
+            }
+            { // Circle colliders
+                auto view = m_active_scene->get_all_entities_with<TransformComponent, CircleCollider2DComponent>();
+                for (auto entity : view) {
+                    auto [tc, cc2d] = view.get<TransformComponent, CircleCollider2DComponent>(entity);
+
+                    glm::vec3 translation = tc.translation + glm::vec3(cc2d.offset, 0.001f);
+                    glm::vec3 scale = tc.scale * glm::vec3(cc2d.radius * 2);
+                    glm::mat4 transform = glm::translate(glm::mat4(1.0f), translation) * glm::scale(glm::mat4(1.0f), scale);
+
+                    Renderer2D::draw_circle(transform, glm::vec4(0, 1, 0, 1), 0.05f);
+                }
+            }
+        }
+
+        Renderer2D::end_scene();
+
     }
 
 
