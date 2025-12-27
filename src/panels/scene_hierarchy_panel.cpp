@@ -291,6 +291,12 @@ namespace Honey {
                     ImGui::CloseCurrentPopup();
                 }
             }
+            if (!m_selected_entity.has_component<CircleCollider2DComponent>()) {
+                if (ImGui::MenuItem("Circle Collider 2D")) {
+                    entity.add_component<CircleCollider2DComponent>();
+                    ImGui::CloseCurrentPopup();
+                }
+            }
             if (!m_selected_entity.has_component<Rigidbody2DComponent>()) {
                 if (ImGui::MenuItem("Rigidbody 2D")) {
                     entity.add_component<Rigidbody2DComponent>();
@@ -544,6 +550,15 @@ namespace Honey {
         draw_component<BoxCollider2DComponent>("Box Collider 2D", entity, [](auto& component) {
             ImGui::DragFloat2("Offset", glm::value_ptr(component.offset), 0.1f, 0.0f, 100.0f);
             ImGui::DragFloat2("Size", glm::value_ptr(component.size), 0.1f, 0.0f, 100.0f);
+
+            ImGui::DragFloat("Density", &component.density, 0.01f, 0.0f, 1.0f);
+            ImGui::DragFloat("Friction", &component.friction, 0.01f, 0.0f, 1.0f);
+            ImGui::DragFloat("Restitution", &component.restitution, 0.01f, 0.0f, 1.0f);
+        });
+
+        draw_component<CircleCollider2DComponent>("Circle Collider 2D", entity, [](auto& component) {
+            ImGui::DragFloat2("Offset", glm::value_ptr(component.offset), 0.1f, 0.0f, 100.0f);
+            ImGui::DragFloat("Radius", &component.radius, 0.1f, 0.0f, 100.0f);
 
             ImGui::DragFloat("Density", &component.density, 0.01f, 0.0f, 1.0f);
             ImGui::DragFloat("Friction", &component.friction, 0.01f, 0.0f, 1.0f);
