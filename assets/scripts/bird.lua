@@ -3,7 +3,7 @@
 local rb = nil
 
 function OnCreate(self)
-    rb = self:GetComponent("Rigidbody2D")
+    rb = self.entity:GetComponent("Rigidbody2D")
     Honey.Log("Bird controller initialized")
 end
 
@@ -16,7 +16,7 @@ function OnUpdate(self, dt)
     end
 
     -- Optional: rotate the bird depending on velocity
-    local transform = self:GetTransform()
+    local transform = self.entity:GetTransform()
     local vel = rb:GetVelocity()
     transform.rotation.z = math.atan(vel.y * 0.2)
 end

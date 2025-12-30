@@ -1,12 +1,11 @@
 -- pipe.lua
 
-local rb = nil
-
 function OnCreate(self)
-    rb = self:GetComponent("Rigidbody2D")
+    self.rb = self.entity:GetComponent("Rigidbody2D")
+    Honey.Log("Pipe initialized")
 end
 
 function OnUpdate(self, dt)
-    rb:SetVelocity(vec2(-3.0, 0.0))
+    self.rb:SetVelocity(vec2(-3.0, 0.0))
 end
 

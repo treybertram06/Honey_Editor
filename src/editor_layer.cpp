@@ -524,6 +524,8 @@ namespace Honey {
 
         if (m_scene_state == SceneState::play) {
             Entity camera_entity = m_active_scene->get_primary_camera();
+            if (!camera_entity.is_valid())
+                return;
             Renderer2D::begin_scene(*camera_entity.get_component<CameraComponent>().camera, camera_entity.get_component<TransformComponent>().get_transform());
         } else {
             Renderer2D::begin_scene(m_editor_camera);
