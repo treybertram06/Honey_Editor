@@ -9,6 +9,8 @@
 #include "Honey/scene/scene_serializer.h"
 #include "Honey/scene/script_registry.h"
 #include "Honey/scripting/script_engine.h"
+#include "Honey/scripting/script_properties_loader.h"
+#include "Honey/scripting/script_properties_writer.h"
 //#include "Honey/scripting/mono_script_engine.h"
 
 
@@ -94,23 +96,13 @@ namespace Honey {
             }
 
             if (ImGui::MenuItem("Create Child")) {
-                Entity child = m_context->create_entity("Child Entity");
-                if (!entity.has_component<RelationshipComponent>())
-                    entity.add_component<RelationshipComponent>();
-                if (!child.has_component<RelationshipComponent>())
-                    child.add_component<RelationshipComponent>();
-
-                auto& parent_rel = entity.get_component<RelationshipComponent>();
-                auto& child_rel = child.get_component<RelationshipComponent>();
-
-                child_rel.parent = entity.get_handle();
-                parent_rel.children.push_back(child.get_handle());
-
+                Entity child = m_context->create_child_for(entity, "Child Entity");
                 m_selected_entity = child;
             }
 
             if (ImGui::MenuItem("Create Prefab")) {
-                std::string default_path = (g_assets_dir / "prefabs" / (tag.tag + ".hnp")).string();
+                std::string default_path =
+                    (g_assets_dir / "prefabs" / (tag.tag + ".hnp")).string();
                 if (!default_path.empty()) {
                     SceneSerializer serializer(m_context);
                     serializer.serialize_entity_prefab(entity, default_path);
@@ -297,10 +289,27 @@ namespace Honey {
                     ImGui::CloseCurrentPopup();
                 }
             }
+
+            const bool has_parent = entity.has_parent();
+
+            if (has_parent) {
+                ImGui::BeginDisabled();
+            }
+
             if (!m_selected_entity.has_component<Rigidbody2DComponent>()) {
                 if (ImGui::MenuItem("Rigidbody 2D")) {
                     entity.add_component<Rigidbody2DComponent>();
                     ImGui::CloseCurrentPopup();
+                }
+            }
+
+            if (has_parent) {
+                ImGui::EndDisabled();
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                    ImGui::SetTooltip(
+                        "Rigidbody2D entities must be world-space roots.\n"
+                        "Remove the parent before adding Rigidbody2D."
+                    );
                 }
             }
 
@@ -523,6 +532,83 @@ namespace Honey {
                 }
 
                 ImGui::EndCombo();
+            }
+
+            if (entity.get_scene()) {
+                auto defaults = ScriptPropertiesLoader::load_from_file(component.script_name);
+
+                if (!defaults.empty()) {
+                    ImGui::Separator();
+                    ImGui::Text("Script Properties");
+
+                    for (auto& [name, default_value] : defaults) {
+                        ImGui::PushID(name.c_str());
+
+                        // Check override
+                        auto it = component.property_overrides.find(name);
+                        bool has_override = it != component.property_overrides.end();
+
+                        if (std::holds_alternative<float>(default_value)) {
+                            float value = has_override
+                                ? std::get<float>(it->second)
+                                : std::get<float>(default_value);
+
+                            if (ImGui::DragFloat(name.c_str(), &value, 0.1f)) {
+                                component.property_overrides[name] = value;
+                            }
+
+                        } else if (std::holds_alternative<bool>(default_value)) {
+                            bool value = has_override
+                                ? std::get<bool>(it->second)
+                                : std::get<bool>(default_value);
+
+                            if (ImGui::Checkbox(name.c_str(), &value)) {
+                                component.property_overrides[name] = value;
+                            }
+
+                        } else if (std::holds_alternative<std::string>(default_value)) {
+                            std::string value = has_override
+                                ? std::get<std::string>(it->second)
+                                : std::get<std::string>(default_value);
+
+                            char buffer[256];
+                            memset(buffer, 0, sizeof(buffer));
+                            strncpy(buffer, value.c_str(), sizeof(buffer) - 1);
+
+                            if (ImGui::InputText(name.c_str(), buffer, sizeof(buffer))) {
+                                component.property_overrides[name] = std::string(buffer);
+                            }
+                        }
+
+                        // Clear override button
+                        if (has_override) {
+                            ImGui::SameLine();
+                            if (ImGui::SmallButton("Reset")) {
+                                component.property_overrides.erase(name);
+                            }
+                        }
+
+                        ImGui::PopID();
+                    }
+                }
+            }
+
+            if (!component.property_overrides.empty()) {
+                ImGui::Separator();
+
+                if (ImGui::Button("Apply as Defaults")) {
+                    std::string error;
+                    if (ScriptPropertiesWriter::write_defaults(
+                            component.script_name,
+                            component.property_overrides,
+                            &error)) {
+
+                        component.property_overrides.clear();
+                        ScriptPropertiesLoader::invalidate_cache(component.script_name);
+                    } else {
+                        HN_CORE_ERROR("Failed to write Lua defaults: {}", error);
+                    }
+                }
             }
         });
 

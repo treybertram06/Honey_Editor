@@ -3,41 +3,38 @@
 local timer = 0.0
 local spawnInterval = 2.0
 
-function OnCreate(self)
+function OnCreate()
+    timer = 0.0
     Honey.Log("pipeSpawner initialized")
 end
 
-function OnUpdate(self, dt)
+function OnUpdate()
     timer = timer + dt
 
-    if timer >= spawnInterval then
-        timer = timer - spawnInterval
+    if timer < spawnInterval then
+        return
+    end
 
-        -- Random gap center
-        local centerY = Honey.Random(-1.5, 1.5)
-        local gapSize = 2.5
+    timer = timer - spawnInterval
 
-        -- TOP pipe
-        local top = Honey.InstantiatePrefab("KinPipe")
+    local centerY = Honey.Random(-1.5, 1.5)
+    local gapSize = 2.5
 
-        local t2 = top:GetTransform()
-
-        t2.scale.y = 10.0
-
-        t2.translation.x = 10.0
-        t2.translation.y = centerY + gapSize + (t2.scale.y / 2)
-
-        -- BOTTOM pipe
-        local bottom = Honey.InstantiatePrefab("KinPipe")
-
-        local t = bottom:GetTransform()
-
+    -- TOP pipe
+    local top = Honey.InstantiatePrefab("KinPipe")
+    if top then
+        local t = top:GetTransform()
         t.scale.y = 10.0
+        t.translation.x = 10.0
+        t.translation.y = centerY + gapSize + (t.scale.y / 2)
+    end
 
+    -- BOTTOM pipe
+    local bottom = Honey.InstantiatePrefab("KinPipe")
+    if bottom then
+        local t = bottom:GetTransform()
+        t.scale.y = 10.0
         t.translation.x = 10.0
         t.translation.y = centerY - gapSize - (t.scale.y / 2)
-
-
-
     end
 end

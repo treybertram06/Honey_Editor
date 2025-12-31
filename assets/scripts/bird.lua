@@ -1,27 +1,38 @@
 -- bird.lua
 
-local rb = nil
+Properties = {
+    flapStrength = 5.0,
+}
 
-function OnCreate(self)
-    rb = self.entity:GetComponent("Rigidbody2D")
+local rb = nil
+local transform = nil
+
+function OnCreate()
+    rb = self:GetComponent("Rigidbody2D")
+    transform = self:GetTransform()
+
+    if not rb then
+        Honey.Log("Bird ERROR: Rigidbody2D missing")
+    end
+
     Honey.Log("Bird controller initialized")
 end
 
-function OnUpdate(self, dt)
-    -- Flap when pressing space
+function OnUpdate()
+    if not rb then return end
+
+    -- Flap
     if Honey.IsKeyPressed(Key.Space) then
         local vel = rb:GetVelocity()
-        vel.y = 5.0 -- upward impulse
+        vel.y = Properties.flapStrength
         rb:SetVelocity(vel)
     end
 
-    -- Optional: rotate the bird depending on velocity
-    local transform = self.entity:GetTransform()
+    -- Rotate based on velocity
     local vel = rb:GetVelocity()
     transform.rotation.z = math.atan(vel.y * 0.2)
 end
 
 function OnCollisionBegin(self, other)
     Honey.Log("Bird collided with " .. tostring(other))
-    -- Here you could trigger game over logic
 end
