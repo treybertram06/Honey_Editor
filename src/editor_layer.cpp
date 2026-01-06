@@ -409,6 +409,8 @@ namespace Honey {
                 transform_component.translation = translation;
                 transform_component.rotation += delta_rotation;
                 transform_component.scale = scale;
+
+                transform_component.collider_dirty = true;
             }
         }
 
