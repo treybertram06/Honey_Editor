@@ -14,7 +14,11 @@ function OnCreate()
 end
 
 function OnUpdate()
-    if not rb then return end
+    if Honey.Scene.GetOr("gameOver", false) then
+        rb:SetVelocity(vec2(0.0, 0.0))
+        rb:SetAngularVelocity(0.0)
+        return
+    end
 
     rb:SetVelocity(vec2(-3.0, 0.0))
 end

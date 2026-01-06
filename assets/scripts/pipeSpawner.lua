@@ -1,21 +1,25 @@
 -- pipeSpawner.lua
 
+Properties = {
+    spawnInterval = 2.0,
+    spawnDisplacement = 15.0,
+}
+
 local timer = 0.0
-local spawnInterval = 2.0
 
 function OnCreate()
-    timer = 0.0
+    timer = Properties.spawnInterval
     Honey.Log("pipeSpawner initialized")
 end
 
 function OnUpdate()
     timer = timer + dt
 
-    if timer < spawnInterval then
+    if timer < Properties.spawnInterval or Honey.Scene.GetOr("gameOver", false) then
         return
     end
 
-    timer = timer - spawnInterval
+    timer = timer - Properties.spawnInterval
 
     local centerY = Honey.Random(-1.5, 1.5)
     local gapSize = 2.5
@@ -25,7 +29,7 @@ function OnUpdate()
     if top then
         local t = top:GetTransform()
         t.scale.y = 10.0
-        t.translation.x = 10.0
+        t.translation.x = Properties.spawnDisplacement
         t.translation.y = centerY + gapSize + (t.scale.y / 2)
     end
 
@@ -34,7 +38,7 @@ function OnUpdate()
     if bottom then
         local t = bottom:GetTransform()
         t.scale.y = 10.0
-        t.translation.x = 10.0
+        t.translation.x = Properties.spawnDisplacement
         t.translation.y = centerY - gapSize - (t.scale.y / 2)
     end
 end

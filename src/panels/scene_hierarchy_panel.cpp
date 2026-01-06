@@ -112,6 +112,10 @@ namespace Honey {
                 }
             }
 
+            if (ImGui::MenuItem("Duplicate Entity")) {
+                m_context->duplicate_entity(entity);
+            }
+
             ImGui::EndPopup();
         }
 

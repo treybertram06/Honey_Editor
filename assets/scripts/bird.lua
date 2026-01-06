@@ -33,6 +33,9 @@ function OnUpdate()
     transform.rotation.z = math.atan(vel.y * 0.2)
 end
 
-function OnCollisionBegin(self, other)
-    Honey.Log("Bird collided with " .. tostring(other))
+function OnCollisionBegin(other)
+    --if (other:GetTag() == "KinPipe") then
+        Honey.Scene.Set("gameOver", true)
+    --end
+
 end
