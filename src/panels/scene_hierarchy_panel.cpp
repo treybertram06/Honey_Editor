@@ -43,6 +43,31 @@ namespace Honey {
             }
         }
 
+        ImVec2 pos  = ImGui::GetWindowPos();
+        ImVec2 size = ImGui::GetWindowSize();
+
+        ImRect window_rect(
+            pos,
+            ImVec2(pos.x + size.x, pos.y + size.y)
+        );
+
+        if (ImGui::BeginDragDropTargetCustom(
+                window_rect,
+                ImGui::GetID("SceneHierarchyRoot"))) {
+
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_ENTITY")) {
+                if (payload->Data && payload->DataSize == sizeof(entt::entity)) {
+                    entt::entity dropped_handle = *(entt::entity*)payload->Data;
+                    Entity dropped_entity{ dropped_handle, m_context.get() };
+
+                    if (dropped_entity.is_valid()) {
+                        dropped_entity.set_parent(Entity{});
+                    }
+                }
+            }
+            ImGui::EndDragDropTarget();
+                }
+
         if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered()) {
             m_selected_entity = {};
         }
@@ -55,7 +80,6 @@ namespace Honey {
             ImGui::EndPopup();
         }
 
-
         ImGui::End();
 
         ImGui::Begin("Properties");
@@ -65,6 +89,19 @@ namespace Honey {
         }
 
         ImGui::End();
+    }
+
+    bool SceneHierarchyPanel::is_descendant(Entity entity, Entity ancestor) const {
+        if (!entity.is_valid() || !ancestor.is_valid())
+            return false;
+
+        Entity current = ancestor;
+        while (current.has_parent()) {
+            current = current.get_parent();
+            if (current == entity)
+                return true;
+        }
+        return false;
     }
 
     void SceneHierarchyPanel::draw_entity_node(Entity entity) {
@@ -81,6 +118,35 @@ namespace Honey {
 
         if (ImGui::IsItemClicked())
             m_selected_entity = entity;
+
+        if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+            entt::entity handle = entity.get_handle();
+            ImGui::SetDragDropPayload(
+                "SCENE_ENTITY",
+                &handle,
+                sizeof(entt::entity)
+            );
+            ImGui::TextUnformatted(tag.tag.c_str());
+            ImGui::EndDragDropSource();
+        }
+
+        if (ImGui::BeginDragDropTarget()) {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_ENTITY")) {
+                if (payload->Data && payload->DataSize == sizeof(entt::entity)) {
+                    entt::entity dropped_handle = *(entt::entity*)payload->Data;
+                    Entity dropped_entity{ dropped_handle, m_context.get() };
+
+                    // Safety checks
+                    if (dropped_entity.is_valid() &&
+                        dropped_entity != entity &&
+                        !is_descendant(dropped_entity, entity)) {
+
+                        dropped_entity.set_parent(entity);
+                        }
+                }
+            }
+            ImGui::EndDragDropTarget();
+        }
 
         // Right-click context menu
         if (ImGui::BeginPopupContextItem()) {
