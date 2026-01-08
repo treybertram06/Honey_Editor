@@ -394,7 +394,13 @@ namespace Honey {
                 glm::vec3 rotation = glm::degrees(component.rotation);
                 draw_vec3_control("Rotation", rotation);
                 component.rotation = glm::radians(rotation);
+
+                glm::vec3 old_scale = component.scale;
                 draw_vec3_control("Scale", component.scale, 1.0f);
+
+                if (component.scale != old_scale) {
+                    component.collider_dirty = true;
+                }
         });
 
         draw_component<CameraComponent>("Camera", entity, [](auto& component) {

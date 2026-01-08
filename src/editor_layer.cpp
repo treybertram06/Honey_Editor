@@ -4,11 +4,13 @@
 #include "hnpch.h"
 //#include "../assets/scripts/script_registrar.h"
 #include "../Honey/vendor/imguizmo/ImGuizmo.h"
+#include "Honey/core/settings.h"
 
 #include "Honey/scene/scene_serializer.h"
 #include "Honey/utils/platform_utils.h"
 
 #include "Honey/math/math.h"
+#include "Honey/scripting/script_properties_loader.h"
 #include "scripting/script_loader.h"
 
 static const std::filesystem::path asset_root = ASSET_ROOT;
@@ -205,6 +207,9 @@ namespace Honey {
                 if (ImGui::MenuItem("Reload Scripts")) {
                     ScriptLoader::get().reload_library("assets/scripts/libHoneyScripts.so");
                 }
+                if (ImGui::MenuItem("Invalidate Lua Script Property Cache")) {
+                    ScriptPropertiesLoader::invalidate_all();
+                }
 
                 ImGui::EndMenu();
             }
@@ -238,33 +243,35 @@ namespace Honey {
 
         // Renderer Settings Section
         if (ImGui::CollapsingHeader("Renderer Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
-            static glm::vec4 clear_color = {0.1f, 0.1f, 0.1f, 1.0f};
-            if (ImGui::ColorEdit4("Clear Color", glm::value_ptr(clear_color))) {
-                m_clear_color = clear_color;
+            auto& renderer = get_settings().renderer;
+
+            if (ImGui::ColorEdit4("Clear Color", glm::value_ptr(renderer.clear_color))) {
+                m_clear_color = renderer.clear_color;
             }
 
-            static bool wireframe_mode = false;
-            static bool depth_test = true;
-            static bool face_culling = true;
-            static bool blending = true;
-
-            if (ImGui::Checkbox("Wireframe Mode", &wireframe_mode)) {
-                RenderCommand::set_wireframe(wireframe_mode);
+            if (ImGui::Checkbox("Wireframe Mode", &renderer.wireframe)) {
+                RenderCommand::set_wireframe(renderer.wireframe);
             }
             ImGui::SameLine();
-            if (ImGui::Checkbox("Depth Test", &depth_test)) {
-                RenderCommand::set_depth_test(depth_test);
+            if (ImGui::Checkbox("Depth Test", &renderer.depth_test)) {
+                RenderCommand::set_depth_test(renderer.depth_test);
             }
 
-            if (ImGui::Checkbox("Face Culling", &face_culling)) {
-                // RenderCommand::set_face_culling(face_culling);
+            if (ImGui::Checkbox("Face Culling", &renderer.face_culling)) {
+                // RenderCommand::set_face_culling(renderer.face_culling);
             }
             ImGui::SameLine();
-            if (ImGui::Checkbox("Blending", &blending)) {
-                RenderCommand::set_blend(blending);
+            if (ImGui::Checkbox("Blending", &renderer.blending)) {
+                RenderCommand::set_blend(renderer.blending);
             }
 
-            ImGui::Checkbox("Show Physics Colliders", &m_show_physics_colliders);
+            if (ImGui::Checkbox("Show Physics Colliders", &renderer.show_physics_debug_draw)) {
+                m_show_physics_colliders = renderer.show_physics_debug_draw;
+            }
+            ImGui::SameLine();
+            if (ImGui::Checkbox("V-Sync", &renderer.vsync)) {
+                //RenderCommand::set_vsync(renderer.vsync);
+            }
 
         }
 /*
@@ -287,6 +294,20 @@ namespace Honey {
             ImGui::Text("Version: 4.6"); // You can query this from OpenGL
         }
 */
+        ImGui::End();
+
+        ImGui::Begin("Physics Debug Panel");
+
+        // Physics Settings Section
+        if (ImGui::CollapsingHeader("Physics Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+            auto& physics = get_settings().physics;
+
+            ImGui::Checkbox("Enable Physics", &physics.enabled);
+
+            ImGui::DragInt("Substeps", &physics.substeps, 1, 1, 20);
+
+        }
+
         ImGui::End();
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
@@ -543,11 +564,13 @@ namespace Honey {
                 for (auto entity : view) {
                     auto [tc, bc2d] = view.get<TransformComponent, BoxCollider2DComponent>(entity);
 
-                    glm::vec3 translation = tc.translation + glm::vec3(bc2d.offset, 0.001f);
-                    glm::vec3 scale = tc.scale * glm::vec3(bc2d.size * 2.0f, 1.0f);
-                    glm::mat4 transform = glm::translate(glm::mat4(1.0f), translation)
-                    * glm::rotate(glm::mat4(1.0f), tc.rotation.z, glm::vec3(0, 0, 1))
-                    * glm::scale(glm::mat4(1.0f), scale);
+                    Entity e{ entity, m_active_scene.get() };
+
+                    glm::mat4 transform =
+                        e.get_world_transform() *
+                        glm::translate(glm::mat4(1.0f), glm::vec3(bc2d.offset, 0.001f)) *
+                        glm::scale(glm::mat4(1.0f),
+                            glm::vec3(bc2d.size * 2.0f, 1.0f));
 
                     Renderer2D::draw_rect(transform, glm::vec4(0, 1, 0, 1));
                 }
@@ -557,9 +580,13 @@ namespace Honey {
                 for (auto entity : view) {
                     auto [tc, cc2d] = view.get<TransformComponent, CircleCollider2DComponent>(entity);
 
-                    glm::vec3 translation = tc.translation + glm::vec3(cc2d.offset, 0.001f);
-                    glm::vec3 scale = tc.scale * glm::vec3(cc2d.radius * 2);
-                    glm::mat4 transform = glm::translate(glm::mat4(1.0f), translation) * glm::scale(glm::mat4(1.0f), scale);
+                    Entity e{ entity, m_active_scene.get() };
+
+                    glm::mat4 transform =
+                        e.get_world_transform() *
+                        glm::translate(glm::mat4(1.0f), glm::vec3(cc2d.offset, 0.001f)) *
+                        glm::scale(glm::mat4(1.0f),
+                            glm::vec3(cc2d.radius * 2.0f));
 
                     Renderer2D::draw_circle(transform, glm::vec4(0, 1, 0, 1), 0.05f);
                 }

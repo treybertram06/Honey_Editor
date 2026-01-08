@@ -1,8 +1,9 @@
 -- pipeSpawner.lua
 
 Properties = {
-    spawnInterval = 2.0,
-    spawnDisplacement = 15.0,
+    spawnDisplacement = 15.000000,
+    gapSize = 1.750000,
+    spawnInterval = 2.000000,
 }
 
 local timer = 0.0
@@ -22,7 +23,6 @@ function OnUpdate()
     timer = timer - Properties.spawnInterval
 
     local centerY = Honey.Random(-1.5, 1.5)
-    local gapSize = 2.5
 
     -- TOP pipe
     local top = Honey.InstantiatePrefab("KinPipe")
@@ -30,7 +30,7 @@ function OnUpdate()
         local t = top:GetTransform()
         t.scale.y = 10.0
         t.translation.x = Properties.spawnDisplacement
-        t.translation.y = centerY + gapSize + (t.scale.y / 2)
+        t.translation.y = centerY + Properties.gapSize + (t.scale.y / 2)
     end
 
     -- BOTTOM pipe
@@ -39,6 +39,6 @@ function OnUpdate()
         local t = bottom:GetTransform()
         t.scale.y = 10.0
         t.translation.x = Properties.spawnDisplacement
-        t.translation.y = centerY - gapSize - (t.scale.y / 2)
+        t.translation.y = centerY - Properties.gapSize - (t.scale.y / 2)
     end
 end
