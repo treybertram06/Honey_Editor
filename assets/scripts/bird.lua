@@ -30,8 +30,10 @@ function OnUpdate()
 
     -- Rotate based on velocity
     local vel = rb:GetVelocity()
-    transform.rotation.z = math.atan(vel.y * 0.2)
+    transform.rotation.z = math.atan(vel.y * 0.2) * 180 / math.pi
+
 end
+
 
 function OnCollisionBegin(other)
     --if (other:GetTag() == "KinPipe") then

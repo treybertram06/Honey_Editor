@@ -38,6 +38,7 @@ function OnUpdate()
     if bottom then
         local t = bottom:GetTransform()
         t.scale.y = 10.0
+        t.rotation.z = 180.0
         t.translation.x = Properties.spawnDisplacement
         t.translation.y = centerY - Properties.gapSize - (t.scale.y / 2)
     end

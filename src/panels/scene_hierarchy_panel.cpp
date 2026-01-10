@@ -464,20 +464,52 @@ namespace Honey {
 
             ImGui::Button("Texture", ImVec2(100, 20));
             if (ImGui::BeginDragDropTarget()) {
-            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
-                if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
-                    const char* path_str = (const char*)payload->Data;
-                    std::filesystem::path path = path_str;
-                    std::filesystem::path texture_path = std::filesystem::path(g_assets_dir) / path;
-                    component.texture_path = texture_path;
-                    component.texture = Texture2D::create(texture_path.string());
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+                    if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
+                        const char* path_str = (const char*)payload->Data;
+                        std::filesystem::path path = path_str;
+
+                        std::filesystem::path texture_path = std::filesystem::path(g_assets_dir) / path;
+
+                        Ref<Texture2D> texture = Texture2D::create(texture_path.string());
+
+                        component.sprite = Sprite::create_from_texture(texture, 8.0f);
+                        component.sprite_path = texture_path;
+                    }
                 }
+                ImGui::EndDragDropTarget();
             }
-            ImGui::EndDragDropTarget();
-        }
 
-            ImGui::DragFloat("Tiling Factor", &component.tiling_factor, 0.1f, 0.0f, 100.0f);
+            if (component.sprite) {
+                    Sprite& sprite = *component.sprite;
 
+                    float ppu = sprite.get_pixels_per_unit();
+                    if (ImGui::DragFloat("Pixels Per Unit", &ppu, 0.1f, 0.01f, 1000.0f)) {
+                        sprite.set_pixels_per_unit(ppu);
+                    }
+
+                    glm::vec2 pivot = sprite.get_pivot();
+                    if (ImGui::DragFloat2("Pivot", glm::value_ptr(pivot), 0.01f, 0.0f, 1.0f)) {
+                        // Clamp to [0,1] to avoid weird values
+                        pivot.x = glm::clamp(pivot.x, 0.0f, 1.0f);
+                        pivot.y = glm::clamp(pivot.y, 0.0f, 1.0f);
+                        sprite.set_pivot(pivot);
+                    }
+
+                    if (ImGui::TreeNodeEx("Sprite Info", ImGuiTreeNodeFlags_DefaultOpen)) {
+                        glm::ivec2 px_min  = sprite.get_pixel_min();
+                        glm::ivec2 px_size = sprite.get_pixel_size();
+                        glm::vec2  world_size = sprite.get_world_size();
+
+                        ImGui::Text("Pixel Rect: min=(%d, %d), size=(%d, %d)",
+                                    px_min.x, px_min.y, px_size.x, px_size.y);
+                        ImGui::Text("World Size: (%.3f, %.3f)",
+                                    world_size.x, world_size.y);
+                        ImGui::TreePop();
+                    }
+                } else {
+                    ImGui::TextDisabled("No sprite assigned");
+                }
         });
 
         draw_component<CircleRendererComponent>("Circle Renderer", entity, [](auto& component) {

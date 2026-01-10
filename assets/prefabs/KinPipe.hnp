@@ -1,16 +1,17 @@
 Prefab: KinPipe
 Entity:
-  Entity: 3245206128473744671
+  Entity: 447313704633028736
   TagComponent:
     Tag: KinPipe
   TransformComponent:
-    Translation: [0, 0, 0]
+    Translation: [-3.3672569, 2.202995, 0.00012207031]
     Rotation: [0, 0, 0]
-    Scale: [1, 1, 1]
+    Scale: [1, 10, 1]
   SpriteRendererComponent:
     Color: [1, 1, 1, 1]
-    TilingFactor: 1
-    Texture: ""
+    Texture: ../assets/textures/Pipe.png
+    PPU: 8
+    Pivot: [0.5, 0.04]
   ScriptComponent:
     ScriptName: pipe
   Rigidbody2DComponent:

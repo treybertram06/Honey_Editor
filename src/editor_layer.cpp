@@ -252,9 +252,13 @@ namespace Honey {
             if (ImGui::Checkbox("Wireframe Mode", &renderer.wireframe)) {
                 RenderCommand::set_wireframe(renderer.wireframe);
             }
-            ImGui::SameLine();
+
             if (ImGui::Checkbox("Depth Test", &renderer.depth_test)) {
                 RenderCommand::set_depth_test(renderer.depth_test);
+            }
+            ImGui::SameLine();
+            if (ImGui::Checkbox("Depth Write", &renderer.depth_write)) {
+                RenderCommand::set_depth_write(renderer.depth_write);
             }
 
             if (ImGui::Checkbox("Face Culling", &renderer.face_culling)) {
