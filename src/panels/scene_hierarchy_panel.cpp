@@ -359,6 +359,12 @@ namespace Honey {
                     ImGui::CloseCurrentPopup();
                 }
             }
+            if (!m_selected_entity.has_component<AudioSourceComponent>()) {
+                if (ImGui::MenuItem("Audio Source Component")) {
+                    entity.add_component<AudioSourceComponent>();
+                    ImGui::CloseCurrentPopup();
+                }
+            }
 
             const bool has_parent = entity.has_parent();
 
@@ -759,5 +765,36 @@ namespace Honey {
             ImGui::DragFloat("Restitution", &component.restitution, 0.01f, 0.0f, 1.0f);
         });
 
+        draw_component<AudioSourceComponent>("Audio Source Component", entity, [](auto& component) {
+            std::string label = component.file_path.empty()
+                    ? std::string("Drop Audio Here")
+                    : component.file_path.filename().string();
+
+            ImGui::Text("Clip:");
+            ImGui::SameLine();
+            ImGui::Button(label.c_str(), ImVec2(200, 0));
+
+
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload* payload =
+
+                ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+                    if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
+                        const char* path_str = (const char*)payload->Data;
+                        std::filesystem::path path = path_str;
+                        // Optional: filter by extension: .wav, .ogg, etc.
+                        if (path.extension() == ".wav") {
+                            component.file_path = std::filesystem::path(g_assets_dir) / path;
+                        }
+                    }
+                }
+                ImGui::EndDragDropTarget();
+            }
+
+            ImGui::DragFloat("Volume", &component.volume, 0.01f, 0.0f, 1.0f);
+            ImGui::DragFloat("Pitch",  &component.pitch,  0.01f, 0.1f, 3.0f);
+            ImGui::Checkbox("Loop", &component.loop);
+            ImGui::Checkbox("Play On Scene Start", &component.play_on_scene_start);
+        });
     }
 }
