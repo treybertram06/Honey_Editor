@@ -1,6 +1,6 @@
 #type vertex
-#version 410 core
-#extension GL_ARB_shading_language_420pack : enable
+#version 450
+
 
 layout (location = 0) in vec2 a_local_pos;     // static
 layout (location = 1) in vec2 a_local_tex;     // static
@@ -15,9 +15,15 @@ layout (location = 8) in vec2 i_tex_coord_min;
 layout (location = 9) in vec2 i_tex_coord_max;
 layout (location = 10) in int i_entity_id;
 
+#ifdef HN_VULKAN
+layout (set = 0, binding = 0, std140) uniform camera {
+    mat4 u_view_projection;
+};
+#else
 layout (std140, binding = 0) uniform camera {
     mat4 u_view_projection;
 };
+#endif
 
 layout(location=0) out vec4 v_color;
 layout(location=1) out vec2 v_tex_coord;
@@ -27,10 +33,8 @@ layout(location=4) flat out int v_entity_id;
 
 void main()
 {
-    // scale to quad size
     vec2 p = a_local_pos * i_half_size * 2.0;
 
-    // optional rotation
     if (i_rotation != 0.0) {
         float s = sin(i_rotation), c = cos(i_rotation);
         p = vec2(c*p.x - s*p.y, s*p.x + c*p.y);
@@ -48,11 +52,13 @@ void main()
 }
 
 #type fragment
-#version 410 core
-#extension GL_ARB_shading_language_420pack : enable
+#version 450
 
 layout(location = 0) out vec4 outColor;
+
+#ifndef HN_VULKAN
 layout(location = 1) out int entity_id;
+#endif
 
 layout(location=0) in vec4 v_color;
 layout(location=1) in vec2 v_tex_coord;
@@ -60,9 +66,16 @@ layout(location=2) flat in int v_tex_index;
 layout(location=3) in float v_tiling_factor;
 layout(location=4) flat in int v_entity_id;
 
+#ifdef HN_VULKAN
+layout (set = 0, binding = 1) uniform sampler2D u_textures[MAX_TEXTURE_SLOTS];
+#else
 layout (binding = 0) uniform sampler2D u_textures[MAX_TEXTURE_SLOTS];
+#endif
 
 void main() {
-    outColor = texture(u_textures[v_tex_index], v_tex_coord * v_tiling_factor) * v_color;
+    int idx = clamp(v_tex_index, 0, MAX_TEXTURE_SLOTS - 1);
+    outColor = texture(u_textures[idx], v_tex_coord * v_tiling_factor) * v_color;
+#ifndef HN_VULKAN
     entity_id = v_entity_id;
+#endif
 }
