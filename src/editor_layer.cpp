@@ -11,6 +11,7 @@
 
 #include "Honey/math/math.h"
 #include "Honey/scripting/script_properties_loader.h"
+#include "platform/vulkan/vk_framebuffer.h"
 #include "scripting/script_loader.h"
 
 static const std::filesystem::path asset_root = ASSET_ROOT;
@@ -86,31 +87,34 @@ namespace Honey {
         m_framerate_counter.update(ts);
         m_framerate = m_framerate_counter.get_smoothed_fps();
 
-        m_framebuffer->bind();
+        Renderer::set_render_target(m_framebuffer);
+        Renderer::begin_pass();
+
         RenderCommand::set_clear_color(m_clear_color);
         RenderCommand::clear();
         m_framebuffer->clear_attachment_i32(1, -1);
 
         switch (m_scene_state) {
-            case SceneState::edit:
+        case SceneState::edit:
             {
                 if (m_viewport_focused)
                     m_editor_camera.on_update(ts);
 
                 m_active_scene->on_update_editor(ts, m_editor_camera);
-                    on_overlay_render();
-                    break;
+                on_overlay_render();
+                break;
             }
-            case SceneState::play:
+        case SceneState::play:
             {
-                    m_gizmo_type = -1;
+                m_gizmo_type = -1;
                 m_active_scene->on_update_runtime(ts);
-                    on_overlay_render();
-                    break;
+                on_overlay_render();
+                break;
             }
         }
 
-        m_framebuffer->unbind();
+        Renderer::end_pass();
+        Renderer::set_render_target(nullptr); // default back to main window for the rest of the frame
     }
 
     void EditorLayer::on_imgui_render() {
@@ -332,7 +336,27 @@ namespace Honey {
         }
 
         std::uint32_t texture_id = m_framebuffer->get_color_attachment_renderer_id();
-        ImGui::Image(ImTextureID((void*)(intptr_t)texture_id), ImVec2(m_viewport_size.x, m_viewport_size.y), ImVec2(0,1), ImVec2(1,0));
+        ImTextureID imgui_tex_id = 0;
+
+        if (RendererAPI::get_api() == RendererAPI::API::vulkan) {
+            // Vulkan: obtain ImGui texture handle directly from VulkanFramebuffer
+            auto* vk_fb = dynamic_cast<VulkanFramebuffer*>(m_framebuffer.get());
+            HN_CORE_ASSERT(vk_fb, "EditorLayer: expected VulkanFramebuffer when using Vulkan API");
+
+            imgui_tex_id = vk_fb->get_imgui_color_texture_id(0);
+
+            ImGui::Image(imgui_tex_id,
+                         ImVec2(m_viewport_size.x, m_viewport_size.y),
+                         ImVec2(0, 0), ImVec2(1, 1));
+        } else {
+            // OpenGL: use GL texture name as before
+            std::uint32_t texture_id = m_framebuffer->get_color_attachment_renderer_id();
+            imgui_tex_id = (ImTextureID)(void*)(intptr_t)texture_id;
+
+            ImGui::Image(imgui_tex_id,
+                         ImVec2(m_viewport_size.x, m_viewport_size.y),
+                         ImVec2(0, 1), ImVec2(1, 0));
+        }
 
         if (ImGui::BeginDragDropTarget()) { /// Talk about this maybe as an example of an issue when working with pointers?
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
