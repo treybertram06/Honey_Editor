@@ -5,6 +5,7 @@
 //#include "../assets/scripts/script_registrar.h"
 #include "../Honey/vendor/imguizmo/ImGuizmo.h"
 #include "Honey/core/settings.h"
+#include "Honey/imgui/imgui_utils.h"
 
 #include "Honey/scene/scene_serializer.h"
 #include "Honey/utils/platform_utils.h"
@@ -12,6 +13,7 @@
 #include "Honey/math/math.h"
 #include "Honey/scripting/script_properties_loader.h"
 #include "platform/vulkan/vk_framebuffer.h"
+#include "platform/vulkan/vk_texture.h"
 #include "scripting/script_loader.h"
 
 static const std::filesystem::path asset_root = ASSET_ROOT;
@@ -335,28 +337,12 @@ namespace Honey {
 
         }
 
-        std::uint32_t texture_id = m_framebuffer->get_color_attachment_renderer_id();
-        ImTextureID imgui_tex_id = 0;
+        ImTextureID imgui_tex_id = m_framebuffer->get_imgui_color_texture_id(0);
 
-        if (RendererAPI::get_api() == RendererAPI::API::vulkan) {
-            // Vulkan: obtain ImGui texture handle directly from VulkanFramebuffer
-            auto* vk_fb = dynamic_cast<VulkanFramebuffer*>(m_framebuffer.get());
-            HN_CORE_ASSERT(vk_fb, "EditorLayer: expected VulkanFramebuffer when using Vulkan API");
-
-            imgui_tex_id = vk_fb->get_imgui_color_texture_id(0);
-
-            ImGui::Image(imgui_tex_id,
+        UI::Image(imgui_tex_id,
                          ImVec2(m_viewport_size.x, m_viewport_size.y),
-                         ImVec2(0, 0), ImVec2(1, 1));
-        } else {
-            // OpenGL: use GL texture name as before
-            std::uint32_t texture_id = m_framebuffer->get_color_attachment_renderer_id();
-            imgui_tex_id = (ImTextureID)(void*)(intptr_t)texture_id;
-
-            ImGui::Image(imgui_tex_id,
-                         ImVec2(m_viewport_size.x, m_viewport_size.y),
-                         ImVec2(0, 1), ImVec2(1, 0));
-        }
+                         ImVec2(0.0f, 0.0f),   // uv0
+                         ImVec2(1.0f, 1.0f));  // uv1
 
         if (ImGui::BeginDragDropTarget()) { /// Talk about this maybe as an example of an issue when working with pointers?
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
@@ -490,7 +476,8 @@ namespace Honey {
         ImGui::SameLine((ImGui::GetWindowContentRegionMax().x * 0.5f) - (size * 0.5f));
 
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
-        if (ImGui::ImageButton("play_stop_button", (ImTextureID)icon->get_renderer_id(), ImVec2(size, size), ImVec2(0, 0), ImVec2(1, 1))) {
+
+        if (UI::ImageButton("play_stop_button", icon->get_imgui_texture_id(), ImVec2(size, size))) {
             if (m_scene_state == SceneState::edit)
                 on_scene_play();
             else if (m_scene_state == SceneState::play)

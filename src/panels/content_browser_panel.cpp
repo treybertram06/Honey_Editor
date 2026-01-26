@@ -4,6 +4,8 @@
 #include <imgui.h>
 #include <filesystem>
 
+#include "Honey/imgui/imgui_utils.h"
+
 namespace Honey {
 
     //will change when theres separate projects
@@ -41,8 +43,7 @@ namespace Honey {
 
             Ref<Texture2D> icon = get_icon_for_extension(path.string());
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-            ImGui::ImageButton(filename_string.c_str(), (ImTextureID)icon->get_renderer_id(), { thumbnail_size, thumbnail_size },
-                { 0, 1 }, { 1, 0 }, ImVec4(0, 0, 0, 0), ImVec4(0.5, 0.5, 0.5, 1.0));
+            UI::ImageButton(filename_string.c_str(), icon->get_imgui_texture_id(), { thumbnail_size, thumbnail_size });
 
             if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
                 std::string path_str = relative_path.string();
