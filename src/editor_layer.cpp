@@ -94,7 +94,7 @@ namespace Honey {
 
         RenderCommand::set_clear_color(m_clear_color);
         RenderCommand::clear();
-        m_framebuffer->clear_attachment_i32(1, -1);
+        //m_framebuffer->clear_attachment_i32(1, -1);
 
         switch (m_scene_state) {
         case SceneState::edit:
