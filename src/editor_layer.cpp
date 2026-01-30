@@ -11,6 +11,7 @@
 #include "Honey/utils/platform_utils.h"
 
 #include "Honey/math/math.h"
+#include "Honey/renderer/texture_cache.h"
 #include "Honey/scripting/script_properties_loader.h"
 #include "platform/vulkan/vk_framebuffer.h"
 #include "platform/vulkan/vk_texture.h"
@@ -249,7 +250,7 @@ namespace Honey {
 
         // Renderer Settings Section
         if (ImGui::CollapsingHeader("Renderer Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
-            auto& renderer = get_settings().renderer;
+            auto& renderer = Settings::get().renderer;
 
             if (ImGui::ColorEdit4("Clear Color", glm::value_ptr(renderer.clear_color))) {
                 m_clear_color = renderer.clear_color;
@@ -275,6 +276,25 @@ namespace Honey {
                 RenderCommand::set_blend(renderer.blending);
             }
 
+            // Texture filter combo
+            {
+                // Names must match the enum ordering
+                static const char* filter_names[] = {
+                    "Nearest",
+                    "Linear",
+                    "Anisotropic"
+                };
+
+                int current = static_cast<int>(renderer.texture_filter);
+                if (ImGui::Combo("Texture Filter", &current, filter_names, IM_ARRAYSIZE(filter_names))) {
+                    renderer.texture_filter =
+                        static_cast<RendererSettings::TextureFilter>(current);
+
+                    TextureCache::get().recreate_all_samplers();
+                    HN_CORE_INFO("Texture filter changed to {}", current);
+                }
+            }
+
             if (ImGui::Checkbox("Show Physics Colliders", &renderer.show_physics_debug_draw)) {
                 m_show_physics_colliders = renderer.show_physics_debug_draw;
             }
@@ -282,6 +302,8 @@ namespace Honey {
             if (ImGui::Checkbox("V-Sync", &renderer.vsync)) {
                 //RenderCommand::set_vsync(renderer.vsync);
             }
+
+
 
         }
 /*
@@ -310,7 +332,7 @@ namespace Honey {
 
         // Physics Settings Section
         if (ImGui::CollapsingHeader("Physics Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
-            auto& physics = get_settings().physics;
+            auto& physics = Settings::get().physics;
 
             ImGui::Checkbox("Enable Physics", &physics.enabled);
 
