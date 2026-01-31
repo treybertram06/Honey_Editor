@@ -290,8 +290,32 @@ namespace Honey {
                     renderer.texture_filter =
                         static_cast<RendererSettings::TextureFilter>(current);
 
-                    TextureCache::get().recreate_all_samplers();
+                    auto& window = Application::get().get_window();
+                    auto ctx = window.get_context(); // Not a huge fan of all this, but it does work!
+                    if (ctx)
+                        ctx->refresh_all_texture_samplers();
+
                     HN_CORE_INFO("Texture filter changed to {}", current);
+                }
+            }
+
+            if (renderer.texture_filter == RendererSettings::TextureFilter::anisotropic) {
+                static const float af_values[]  = { 1.0f, 2.0f, 4.0f, 8.0f, 16.0f };
+                static const char* af_labels[]  = { "1x", "2x", "4x", "8x", "16x" };
+                int current_index = 0;
+
+                // Find closest entry to current value
+                for (int i = 0; i < (int)std::size(af_values); ++i) {
+                    if (std::abs(renderer.anisotropic_filtering_level - af_values[i]) < 0.5f) {
+                        current_index = i;
+                        break;
+                    }
+                }
+
+                if (ImGui::Combo("Anisotropy", &current_index, af_labels, IM_ARRAYSIZE(af_labels))) {
+                    renderer.anisotropic_filtering_level = af_values[current_index];
+                    // Recreate samplers so the new level takes effect
+                    TextureCache::get().recreate_all_samplers();
                 }
             }
 
