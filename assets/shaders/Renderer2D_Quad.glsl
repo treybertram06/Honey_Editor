@@ -67,14 +67,25 @@ layout(location=3) in float v_tiling_factor;
 layout(location=4) flat in int v_entity_id;
 
 #ifdef HN_VULKAN
-layout (set = 0, binding = 1) uniform sampler2D u_textures[MAX_TEXTURE_SLOTS];
+// binding 1: single sampler
+layout (set = 0, binding = 1) uniform sampler u_sampler;
+// binding 2: array of texture2D (sampled images only)
+layout (set = 0, binding = 2) uniform texture2D u_textures[MAX_TEXTURE_SLOTS];
 #else
 layout (binding = 0) uniform sampler2D u_textures[MAX_TEXTURE_SLOTS];
 #endif
 
 void main() {
     int idx = clamp(v_tex_index, 0, MAX_TEXTURE_SLOTS - 1);
+#ifdef HN_VULKAN
+    // Construct a temporary sampler2D on the fly; no local sampler variables.
+    outColor = texture(
+                   sampler2D(u_textures[idx], u_sampler),
+                   v_tex_coord * v_tiling_factor
+               ) * v_color;
+#else
     outColor = texture(u_textures[idx], v_tex_coord * v_tiling_factor) * v_color;
+#endif
 #ifndef HN_VULKAN
     entity_id = v_entity_id;
 #endif

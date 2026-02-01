@@ -81,6 +81,18 @@ namespace Honey {
 
 
     void EditorLayer::on_detach() {
+        HN_CORE_INFO("EditorLayer Detached");
+
+        auto& app = Application::get();
+        auto& window = app.get_window();
+        auto* ctx = window.get_context();
+        if (ctx)
+            ctx->wait_idle();
+
+        m_framebuffer.reset();
+        m_active_scene.reset();
+        m_icon_play.reset();
+        m_icon_stop.reset();
     }
 
     void EditorLayer::on_update(Timestep ts) {
@@ -290,10 +302,10 @@ namespace Honey {
                     renderer.texture_filter =
                         static_cast<RendererSettings::TextureFilter>(current);
 
-                    auto& window = Application::get().get_window();
-                    auto ctx = window.get_context(); // Not a huge fan of all this, but it does work!
-                    if (ctx)
-                        ctx->refresh_all_texture_samplers();
+                    //auto& window = Application::get().get_window();
+                    //auto ctx = window.get_context(); // Not a huge fan of all this, but it does work!
+                    //if (ctx)
+                    //    ctx->refresh_all_texture_samplers(); // No longer necessary
 
                     HN_CORE_INFO("Texture filter changed to {}", current);
                 }
