@@ -296,15 +296,7 @@ namespace Honey {
 
                 int current = static_cast<int>(renderer.texture_filter);
                 if (ImGui::Combo("Texture Filter", &current, filter_names, IM_ARRAYSIZE(filter_names))) {
-                    renderer.texture_filter =
-                        static_cast<RendererSettings::TextureFilter>(current);
-
-                    //auto& window = Application::get().get_window();
-                    //auto ctx = window.get_context(); // Not a huge fan of all this, but it does work!
-                    //if (ctx)
-                    //    ctx->refresh_all_texture_samplers(); // No longer necessary
-
-                    HN_CORE_INFO("Texture filter changed to {}", current);
+                    renderer.texture_filter = static_cast<RendererSettings::TextureFilter>(current);
                 }
             }
 
