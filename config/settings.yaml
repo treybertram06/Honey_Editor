@@ -1,0 +1,15 @@
+Renderer:
+  API: Vulkan
+  ClearColor: [0.1, 0.1, 0.1, 1]
+  Wireframe: false
+  DepthTest: false
+  DepthWrite: false
+  FaceCulling: true
+  Blending: true
+  VSync: false
+  ShowPhysicsDebugDraw: false
+  AnisotropicFilteringLevel: 16
+  TextureFilter: Nearest
+Physics:
+  Enabled: true
+  Substeps: 6

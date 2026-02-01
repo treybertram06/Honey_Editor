@@ -81,7 +81,7 @@ namespace Honey {
         SceneHierarchyPanel m_scene_hierarchy_panel;
         ContentBrowserPanel m_content_browser_panel;
 
-        void render_camera_selector();
+        void render_camera_info();
 
         enum class SceneState {
             edit = 0,

@@ -43,13 +43,10 @@ namespace Honey {
 
     }
 
-    void EditorLayer::render_camera_selector() {
-        if (!ImGui::CollapsingHeader("Camera Selection", ImGuiTreeNodeFlags_DefaultOpen)) {
+    void EditorLayer::render_camera_info() {
+        if (!ImGui::CollapsingHeader("Camera Info", ImGuiTreeNodeFlags_DefaultOpen)) {
             return;
         }
-
-        ImGui::Text("Primary Camera:");
-        ImGui::Separator();
 
         std::vector<Entity> camera_entities;
         if (m_active_scene) {
@@ -205,6 +202,12 @@ namespace Honey {
 
                 ImGui::EndMenu();
             }
+            if (ImGui::BeginMenu("Preferences")) {
+                if (ImGui::MenuItem("Save settings to file")) {
+                    Settings::save_to_file( asset_root / ".." / "config" / "settings.yaml" );
+                }
+                ImGui::EndMenu();
+            }
             if (ImGui::BeginMenu("Scripts")) {
                 if (ImGui::MenuItem("Build Scripts")) {
                     ScriptLoader::get().unload_library();
@@ -237,7 +240,17 @@ namespace Honey {
 
         ImGui::Begin("Renderer Debug Panel");
 
-        render_camera_selector();
+        render_camera_info();
+
+        if (ImGui:: CollapsingHeader("Renderer Info", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Text("Current API: %s", RendererAPI::to_string(RendererAPI::get_api()));
+
+            static std::string vendor_cache;
+            if (vendor_cache.empty()) {
+                vendor_cache = RenderCommand::get_renderer_api()->get_vendor();
+            }
+            ImGui::Text("Vendor: %s", vendor_cache.c_str());
+        }
 
         // Performance Section
         if (ImGui::CollapsingHeader("Performance", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -297,6 +310,8 @@ namespace Honey {
                 int current = static_cast<int>(renderer.texture_filter);
                 if (ImGui::Combo("Texture Filter", &current, filter_names, IM_ARRAYSIZE(filter_names))) {
                     renderer.texture_filter = static_cast<RendererSettings::TextureFilter>(current);
+
+                    TextureCache::get().recreate_all_samplers();
                 }
             }
 
@@ -325,7 +340,7 @@ namespace Honey {
             }
             ImGui::SameLine();
             if (ImGui::Checkbox("V-Sync", &renderer.vsync)) {
-                //RenderCommand::set_vsync(renderer.vsync);
+                RenderCommand::set_vsync(renderer.vsync);
             }
 
 
