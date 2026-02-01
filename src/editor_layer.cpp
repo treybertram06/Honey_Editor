@@ -41,9 +41,6 @@ namespace Honey {
         new_scene();
         m_editor_camera = EditorCamera(16.0f/9.0f, 45.0f, 0.1f, 1000.0f);
 
-
-
-
     }
 
     void EditorLayer::render_camera_selector() {

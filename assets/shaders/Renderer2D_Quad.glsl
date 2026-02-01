@@ -77,11 +77,14 @@ layout (binding = 0) uniform sampler2D u_textures[MAX_TEXTURE_SLOTS];
 
 void main() {
     int idx = clamp(v_tex_index, 0, MAX_TEXTURE_SLOTS - 1);
+
+    vec2 flipped_uv = vec2(v_tex_coord.x, 1.0 - v_tex_coord.y);
+
 #ifdef HN_VULKAN
     // Construct a temporary sampler2D on the fly; no local sampler variables.
     outColor = texture(
                    sampler2D(u_textures[idx], u_sampler),
-                   v_tex_coord * v_tiling_factor
+                   flipped_uv * v_tiling_factor
                ) * v_color;
 #else
     outColor = texture(u_textures[idx], v_tex_coord * v_tiling_factor) * v_color;
