@@ -343,6 +343,17 @@ namespace Honey {
                 RenderCommand::set_vsync(renderer.vsync);
             }
 
+            const char* api_names[] = { "OpenGL", "Vulkan" };
+            int api_index = (static_cast<int>(renderer.api) - 1);
+            if (ImGui::Combo("Renderer API", &api_index, api_names, IM_ARRAYSIZE(api_names))) {
+                renderer.api = static_cast<RendererAPI::API>(++api_index);
+                // Show small tooltip or text: "Takes effect on next restart"
+                Settings::write_renderer_api_to_file( asset_root / ".." / "config" / "settings.yaml" );
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Renderer API changes will take effect after restarting the editor.");
+            }
+
 
 
         }
