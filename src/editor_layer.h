@@ -30,6 +30,7 @@ namespace Honey {
         void on_overlay_render();
 
         bool can_mousepick() { return (m_viewport_hovered && !ImGuizmo::IsOver() && !Input::is_key_pressed(KeyCode::LeftAlt)); }
+        Entity pick_entity_at_mouse() const;
 
         void new_scene();
         void open_scene();
@@ -58,6 +59,9 @@ namespace Honey {
         Entity m_square_ent;
         std::vector<Entity> m_camera_entities;
         Entity m_hovered_entity;
+
+        ImVec2 m_viewport_img_min = { 0.0f, 0.0f };
+        ImVec2 m_viewport_img_max = { 0.0f, 0.0f };
 
         //Editor camera
         EditorCamera m_editor_camera;
@@ -91,6 +95,14 @@ namespace Honey {
         };
 
         SceneState m_scene_state = SceneState::edit;
+
+        enum class ViewportDisplayMode {
+            Color = 0,
+            DebugPick = 1
+        };
+
+        ViewportDisplayMode m_viewport_display_mode = ViewportDisplayMode::Color;
+
 
 
     };

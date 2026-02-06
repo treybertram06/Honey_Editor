@@ -96,6 +96,8 @@ namespace Honey {
         m_framerate_counter.update(ts);
         m_framerate = m_framerate_counter.get_smoothed_fps();
 
+        Renderer2D::set_debug_pick_enabled(m_viewport_display_mode == ViewportDisplayMode::DebugPick);
+
         Renderer::set_render_target(m_framebuffer);
         Renderer::begin_pass();
 
@@ -354,7 +356,13 @@ namespace Honey {
                 ImGui::SetTooltip("Renderer API changes will take effect after restarting the editor.");
             }
 
-
+            if (ImGui::CollapsingHeader("Viewport", ImGuiTreeNodeFlags_DefaultOpen)) {
+                static const char* modes[] = { "Color", "Picking View" };
+                int mode = static_cast<int>(m_viewport_display_mode);
+                if (ImGui::Combo("Display Mode", &mode, modes, IM_ARRAYSIZE(modes))) {
+                    m_viewport_display_mode = static_cast<ViewportDisplayMode>(mode);
+                }
+            }
 
         }
 /*
@@ -432,40 +440,8 @@ namespace Honey {
             ImGui::EndDragDropTarget();
         }
 
-        const ImVec2 imgMin = ImGui::GetItemRectMin();
-        const ImVec2 imgMax = ImGui::GetItemRectMax();
-        const float  imgW   = imgMax.x - imgMin.x;
-        const float  imgH   = imgMax.y - imgMin.y;
-
-        const ImVec2 mouse = ImGui::GetMousePos();
-        float localX = mouse.x - imgMin.x;
-        float localY = mouse.y - imgMin.y;
-
-        if (localX >= 0.0f && localY >= 0.0f && localX < imgW && localY < imgH) {
-
-            const float sx = (imgW > 0.0f) ? (m_viewport_size.x / imgW) : 1.0f;
-            const float sy = (imgH > 0.0f) ? (m_viewport_size.y / imgH) : 1.0f;
-
-            const int mouse_x = (int)std::floor(localX * sx + 0.0001f);
-            const int mouse_y = (int)std::floor((imgH - localY) * sy + 0.0001f);
-
-            if (mouse_x >= 0 && mouse_y >= 0 && mouse_x < (int)m_viewport_size.x && mouse_y < (int)m_viewport_size.y) {
-                if (m_viewport_hovered) {
-                    const int id = m_framebuffer->read_pixel(1, mouse_x, mouse_y);
-
-                    if (id == -1) {
-                        m_hovered_entity = Entity{}; // invalid
-                    } else {
-                        Entity picked{ static_cast<entt::entity>(id), m_active_scene.get() };
-                        if (picked.is_valid()) {
-                            m_hovered_entity = picked;
-                        } else {
-                            m_hovered_entity = Entity{};
-                        }
-                    }
-                }
-            }
-        }
+        m_viewport_img_min = ImGui::GetItemRectMin();
+        m_viewport_img_max = ImGui::GetItemRectMax();
 
         Entity selected_entity = m_scene_hierarchy_panel.get_selected_entity();
         //Entity camera_entity = m_active_scene->get_primary_camera();
@@ -627,10 +603,51 @@ namespace Honey {
         return handled;
     }
 
+    Entity EditorLayer::pick_entity_at_mouse() const {
+        if (!m_framebuffer || !m_active_scene)
+            return Entity{};
+
+        const float imgW = m_viewport_img_max.x - m_viewport_img_min.x;
+        const float imgH = m_viewport_img_max.y - m_viewport_img_min.y;
+
+        if (imgW <= 1.0f || imgH <= 1.0f)
+            return Entity{};
+
+        const ImVec2 mouse = ImGui::GetMousePos();
+        const float localX = mouse.x - m_viewport_img_min.x;
+        const float localY = mouse.y - m_viewport_img_min.y;
+
+        if (localX < 0.0f || localY < 0.0f || localX >= imgW || localY >= imgH)
+            return Entity{};
+
+        const float sx = (imgW > 0.0f) ? (m_viewport_size.x / imgW) : 1.0f;
+        const float sy = (imgH > 0.0f) ? (m_viewport_size.y / imgH) : 1.0f;
+
+        const int mouse_x = (int)std::floor(localX * sx + 0.0001f);
+        const int mouse_y = (int)std::floor((imgH - localY) * sy + 0.0001f);
+
+        if (mouse_x < 0 || mouse_y < 0 ||
+            mouse_x >= (int)m_viewport_size.x || mouse_y >= (int)m_viewport_size.y)
+            return Entity{};
+
+        const int id = m_framebuffer->read_pixel(1, mouse_x, mouse_y);
+        if (id == -1)
+            return Entity{};
+
+        const entt::entity raw = static_cast<entt::entity>(static_cast<uint32_t>(id));
+        Entity picked{ raw, m_active_scene.get() };
+        return picked.is_valid() ? picked : Entity{};
+    }
+
     bool EditorLayer::on_mouse_button_pressed(MouseButtonPressedEvent& e) {
         if (e.get_mouse_button() == MouseButton::Left) {
-            if (can_mousepick())
-                m_scene_hierarchy_panel.set_selected_entity(m_hovered_entity);
+
+            if (can_mousepick()) {
+                // Click should be authoritative: pick right now.
+                Entity clicked = pick_entity_at_mouse();
+                m_scene_hierarchy_panel.set_selected_entity(clicked);
+            }
+
         }
         return false;
     }
