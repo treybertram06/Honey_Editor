@@ -73,17 +73,6 @@ layout (binding = 0) uniform sampler2D u_textures[MAX_TEXTURE_SLOTS];
 #endif
 
 void main() {
-#ifdef HN_DEBUG_PICK
-    // Visualize ID coverage independent of textures/alpha.
-    // (A small hash to turn IDs into colors.)
-    int id = v_entity_id;
-    float r = fract(sin(float(id) * 12.9898) * 43758.5453);
-    float g = fract(sin(float(id) * 78.233)  * 43758.5453);
-    float b = fract(sin(float(id) * 39.425)  * 43758.5453);
-    outColor = vec4(r, g, b, 1.0);
-    entity_id = id;
-    return;
-#endif
     int idx = clamp(v_tex_index, 0, MAX_TEXTURE_SLOTS - 1);
 
     vec2 flipped_uv = vec2(v_tex_coord.x, 1.0 - v_tex_coord.y);
