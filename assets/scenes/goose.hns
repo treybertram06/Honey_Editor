@@ -1,0 +1,356 @@
+Scene: Untitled
+Entities:
+  - Entity: 16866258258837315126
+    TagComponent:
+      Tag: Rightest Bush
+    TransformComponent:
+      Translation: [15, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 1]
+      Texture: ../assets/textures/flappyBird/bushes.png
+      PPU: 16
+      Pivot: [0.5, 0.5]
+    RelationshipComponent:
+      Parent: 8723531690393614471
+  - Entity: 12221266266154674043
+    TagComponent:
+      Tag: Leftest Bush
+    TransformComponent:
+      Translation: [-15, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 1]
+      Texture: ../assets/textures/flappyBird/bushes.png
+      PPU: 16
+      Pivot: [0.5, 0.5]
+    RelationshipComponent:
+      Parent: 8723531690393614471
+  - Entity: 16577535686686227417
+    TagComponent:
+      Tag: Right Bush
+    TransformComponent:
+      Translation: [5, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 1]
+      Texture: ../assets/textures/flappyBird/bushes.png
+      PPU: 16
+      Pivot: [0.5, 0.5]
+    RelationshipComponent:
+      Parent: 8723531690393614471
+  - Entity: 4041120712984994670
+    TagComponent:
+      Tag: Left Bush
+    TransformComponent:
+      Translation: [-5, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 1]
+      Texture: ../assets/textures/flappyBird/bushes.png
+      PPU: 16
+      Pivot: [0.5, 0.5]
+    RelationshipComponent:
+      Parent: 8723531690393614471
+  - Entity: 8723531690393614471
+    TagComponent:
+      Tag: Bushes
+    TransformComponent:
+      Translation: [0, -3.3, -0.97]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    ScriptComponent:
+      ScriptName: bushController
+    RelationshipComponent:
+      Parent: 1659362040097815248
+  - Entity: 3149780894790831007
+    TagComponent:
+      Tag: Right Building
+    TransformComponent:
+      Translation: [5, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 1]
+      Texture: ../assets/textures/flappyBird/buildings.png
+      PPU: 16
+      Pivot: [0.5, 0.5]
+    RelationshipComponent:
+      Parent: 9293559049144667277
+  - Entity: 17386605666261543784
+    TagComponent:
+      Tag: Left Building
+    TransformComponent:
+      Translation: [-5, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 1]
+      Texture: ../assets/textures/flappyBird/buildings.png
+      PPU: 16
+      Pivot: [0.5, 0.5]
+    RelationshipComponent:
+      Parent: 9293559049144667277
+  - Entity: 11179468670021794217
+    TagComponent:
+      Tag: Left Cloud
+    TransformComponent:
+      Translation: [-8, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 0.74509805]
+      Texture: ../assets/textures/flappyBird/clouds.png
+      PPU: 10
+      Pivot: [0.5, 0.5]
+    RelationshipComponent:
+      Parent: 9320286834203278585
+  - Entity: 9320286834203278585
+    TagComponent:
+      Tag: Clouds
+    TransformComponent:
+      Translation: [0, -2.6, -0.99]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    ScriptComponent:
+      ScriptName: cloudController
+    RelationshipComponent:
+      Parent: 1659362040097815248
+  - Entity: 9293559049144667277
+    TagComponent:
+      Tag: Buildings
+    TransformComponent:
+      Translation: [0, -3.1, -0.98]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    ScriptComponent:
+      ScriptName: buildingController
+    RelationshipComponent:
+      Parent: 1659362040097815248
+  - Entity: 15658046285869579666
+    TagComponent:
+      Tag: Horizon
+    TransformComponent:
+      Translation: [0, 0, -1]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    SpriteRendererComponent:
+      Color: [0.8030888, 0.8030888, 0.8030888, 1]
+      Texture: ../assets/textures/flappyBird/horizon.png
+      PPU: 5
+      Pivot: [0.5, 0.5]
+    RelationshipComponent:
+      Parent: 1659362040097815248
+  - Entity: 1659362040097815248
+    TagComponent:
+      Tag: Backdrop
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 7945366037937122205
+  - Entity: 6789918179675443428
+    TagComponent:
+      Tag: Floor
+    TransformComponent:
+      Translation: [0, -4.5, -0.8]
+      Rotation: [0, -0, 0]
+      Scale: [60, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 1]
+      Texture: ../assets/textures/flappyBird/grassFloor.png
+      PPU: 8
+      Pivot: [0.5, 0.5]
+    ScriptComponent:
+      ScriptName: floorController
+    RelationshipComponent:
+      Parent: 7945366037937122205
+    BoxCollider2DComponent:
+      Offset: [0, 0]
+      Size: [0.5, 0.5]
+      Density: 1
+      Friction: 0.5
+      Restitution: 0
+  - Entity: 2830517278714091412
+    TagComponent:
+      Tag: PipeSpawner
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    ScriptComponent:
+      ScriptName: pipeSpawner
+    RelationshipComponent:
+      Parent: 7945366037937122205
+  - Entity: 2640531315760632238
+    TagComponent:
+      Tag: Camera
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    CameraComponent:
+      ProjectionType: Orthographic
+      OrthographicSize: 10
+      OrthographicNear: -1
+      OrthographicFar: 1
+      PerspectiveFOV: 45
+      PerspectiveNear: 0.1
+      PerspectiveFar: 1000
+      FixedAspectRatio: false
+      Primary: true
+      Camera:
+        Position:
+          - [-0, 0, 1]
+        AspectRatio: 2.4324064
+        Rotation: 3.0665e-41
+        Size: 10
+  - Entity: 7310044952984470696
+    TagComponent:
+      Tag: Bird
+    TransformComponent:
+      Translation: [0, -3.7252903e-09, 0.1]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 1]
+      Texture: ../assets/textures/flappyBird/transparent.png
+      PPU: 445
+      Pivot: [0.5, 0.5]
+    ScriptComponent:
+      ScriptName: bird
+    Rigidbody2DComponent:
+      BodyType: 1
+      FixedRotation: false
+    CircleCollider2DComponent:
+      Offset: [0, 0]
+      Radius: 0.5
+      Density: 1
+      Friction: 0
+      Restitution: 0.74
+  - Entity: 9738890995060376672
+    TagComponent:
+      Tag: Ceiling
+    TransformComponent:
+      Translation: [0, 7, -0.9]
+      Rotation: [0, -0, 0]
+      Scale: [60, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 1]
+      Texture: ../assets/textures/missing.png
+      PPU: 2048
+      Pivot: [0.5, 0.5]
+    ScriptComponent:
+      ScriptName: floorController
+    RelationshipComponent:
+      Parent: 7945366037937122205
+    BoxCollider2DComponent:
+      Offset: [0, 0]
+      Size: [0.5, 0.5]
+      Density: 1
+      Friction: 0.5
+      Restitution: 0
+  - Entity: 7945366037937122205
+    TagComponent:
+      Tag: World
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: ~
+    Rigidbody2DComponent:
+      BodyType: 0
+      FixedRotation: false
+  - Entity: 15729517636615526613
+    TagComponent:
+      Tag: MusicController
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    ScriptComponent:
+      ScriptName: musicController
+    RelationshipComponent:
+      Parent: 7945366037937122205
+    AudioSourceComponent:
+      FilePath: ../assets/audio/crazyAhhBeat.wav
+      Loop: false
+      Pitch: 1
+      PlayOnSceneStart: false
+      Volume: 1
+  - Entity: 10419987713469719186
+    TagComponent:
+      Tag: Right Cloud
+    TransformComponent:
+      Translation: [8, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 0.74509805]
+      Texture: ../assets/textures/flappyBird/clouds.png
+      PPU: 10
+      Pivot: [0.5, 0.5]
+    RelationshipComponent:
+      Parent: 9320286834203278585
+  - Entity: 12332122460944455417
+    TagComponent:
+      Tag: Rightest Cloud
+    TransformComponent:
+      Translation: [24, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 0.74509805]
+      Texture: ../assets/textures/flappyBird/clouds.png
+      PPU: 10
+      Pivot: [0.5, 0.5]
+    RelationshipComponent:
+      Parent: 9320286834203278585
+  - Entity: 12357045458206277853
+    TagComponent:
+      Tag: Leftest Cloud
+    TransformComponent:
+      Translation: [-24, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 0.74509805]
+      Texture: ../assets/textures/flappyBird/clouds.png
+      PPU: 10
+      Pivot: [0.5, 0.5]
+    RelationshipComponent:
+      Parent: 9320286834203278585
+  - Entity: 3657565876337921650
+    TagComponent:
+      Tag: Leftest Building
+    TransformComponent:
+      Translation: [-15, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 1]
+      Texture: ../assets/textures/flappyBird/buildings.png
+      PPU: 16
+      Pivot: [0.5, 0.5]
+    RelationshipComponent:
+      Parent: 9293559049144667277
+  - Entity: 1033076722772903270
+    TagComponent:
+      Tag: Rightest Building
+    TransformComponent:
+      Translation: [15, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 1]
+      Texture: ../assets/textures/flappyBird/buildings.png
+      PPU: 15
+      Pivot: [0.5, 0.5]
+    RelationshipComponent:
+      Parent: 9293559049144667277
