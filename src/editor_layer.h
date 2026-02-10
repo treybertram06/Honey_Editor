@@ -7,6 +7,8 @@
 #include <imgui.h>
 #include <ImGuizmo.h>
 
+#include "Honey/ui/notifications.h"
+
 
 namespace Honey {
     class EditorLayer : public Layer {
@@ -37,6 +39,7 @@ namespace Honey {
         void open_scene(const std::filesystem::path& path);
         void save_scene_as(std::filesystem::path path = "");
         void save_current_scene();
+        bool has_scene_changed();
 
         void on_scene_play();
         void on_scene_stop();
@@ -69,7 +72,8 @@ namespace Honey {
         //Editor resources
         Ref<Texture2D> m_icon_play, m_icon_stop;
 
-
+        UI::NotificationCenter m_notification_center;
+        bool m_quit_requested = false;
 
         glm::vec4 m_clear_color = { 0.1f, 0.1f, 0.1f, 1.0f };
 

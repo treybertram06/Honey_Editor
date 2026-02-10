@@ -1,5 +1,6 @@
 #include "scene_hierarchy_panel.h"
 
+#include <type_traits>
 #include <filesystem>
 #include <imgui.h>
 
@@ -39,7 +40,7 @@ namespace Honey {
                 if (!current_entity.has_component<RelationshipComponent>() ||
                     current_entity.get_component<RelationshipComponent>().parent == entt::null) {
                     draw_entity_node(current_entity);
-                    }
+                }
             }
         }
 
@@ -62,6 +63,7 @@ namespace Honey {
 
                     if (dropped_entity.is_valid()) {
                         dropped_entity.set_parent(Entity{});
+                        if (m_context) m_context->mark_dirty();
                     }
                 }
             }
@@ -142,6 +144,7 @@ namespace Honey {
                         !is_descendant(dropped_entity, entity)) {
 
                         dropped_entity.set_parent(entity);
+                        if (m_context) m_context->mark_dirty();
                         }
                 }
             }
@@ -152,9 +155,23 @@ namespace Honey {
         if (ImGui::BeginPopupContextItem()) {
 
             if (ImGui::MenuItem("Delete Entity")) {
-                if (m_selected_entity == entity)
-                    m_selected_entity = {};
-                m_context->destroy_entity(entity);
+                if (m_notification_center) {
+                    m_notification_center->open_confirm("delete_entity_" + std::to_string((uint32_t)entity.get_handle()),
+                        "Delete Entity?",
+                        "Are you sure you want to delete '" + tag.tag + "'?",
+                        true,
+                        [this, entity]() {
+                            if (m_selected_entity == entity)
+                                m_selected_entity = {};
+                            m_context->destroy_entity(entity);
+                            m_notification_center->push_toast(UI::ToastType::Info, "Entity Deleted", "Deleted " + entity.get_component<TagComponent>().tag);
+                        }
+                    );
+                } else {
+                    if (m_selected_entity == entity)
+                        m_selected_entity = {};
+                    m_context->destroy_entity(entity);
+                }
                 ImGui::EndPopup();
                 if (opened && has_children)
                     ImGui::TreePop();
@@ -175,6 +192,8 @@ namespace Honey {
                 } else {
                     ImGui::OpenPopup("Save Prefab As...");
                     HN_CORE_WARN("No default path for prefab found and no custom path implementation yet");
+                    if (m_notification_center)
+                        m_notification_center->push_toast(UI::ToastType::Error, "Prefab Failed", "Could not create prefab.");
                 }
             }
 
@@ -197,9 +216,11 @@ namespace Honey {
         }
     }
 
-    static void draw_vec3_control(const std::string& label, glm::vec3& values, float reset_value = 0.0f, float column_width = 100.0f) {
+    static bool draw_vec3_control(const std::string& label, glm::vec3& values, float reset_value = 0.0f, float column_width = 100.0f) {
         ImGuiIO& io = ImGui::GetIO();
         auto extra_bold_font = io.Fonts->Fonts[1];
+
+        bool changed = false;
 
         ImGui::PushID(label.c_str());
 
@@ -218,9 +239,9 @@ namespace Honey {
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.9f, 0.2f, 0.2f, 0.7f });
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.8f, 0.1f, 0.1f, 1.0f });
         ImGui::PushFont(extra_bold_font);
-        if (ImGui::Button("X", button_size)) values.x = reset_value; ImGui::SameLine();
+        if (ImGui::Button("X", button_size)) { values.x = reset_value; changed = true; } ImGui::SameLine();
         ImGui::PopFont();
-        ImGui::DragFloat("##X", &values.x, 0.1f, 0.0f, 0.0f, "%.2f"); ImGui::SameLine();
+        changed |= ImGui::DragFloat("##X", &values.x, 0.1f, 0.0f, 0.0f, "%.2f"); ImGui::SameLine();
         ImGui::PopItemWidth();
         ImGui::PopStyleColor(3);
 
@@ -228,9 +249,9 @@ namespace Honey {
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.2f, 0.9f, 0.2f, 0.7f });
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.1f, 0.8f, 0.1f, 1.0f });
         ImGui::PushFont(extra_bold_font);
-        if (ImGui::Button("Y", button_size)) values.y = reset_value; ImGui::SameLine();
+        if (ImGui::Button("Y", button_size)) { values.y = reset_value; changed = true; } ImGui::SameLine();
         ImGui::PopFont();
-        ImGui::DragFloat("##Y", &values.y, 0.1f, 0.0f, 0.0f, "%.2f"); ImGui::SameLine();
+        changed |= ImGui::DragFloat("##Y", &values.y, 0.1f, 0.0f, 0.0f, "%.2f"); ImGui::SameLine();
         ImGui::PopItemWidth();
         ImGui::PopStyleColor(3);
 
@@ -238,55 +259,69 @@ namespace Honey {
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.2f, 0.2f, 0.9f, 0.7f });
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.1f, 0.1f, 0.8f, 1.0f });
         ImGui::PushFont(extra_bold_font);
-        if (ImGui::Button("Z", button_size)) values.z = reset_value; ImGui::SameLine();
+        if (ImGui::Button("Z", button_size)) { values.z = reset_value; changed = true; } ImGui::SameLine();
         ImGui::PopFont();
-        ImGui::DragFloat("##Z", &values.z, 0.1f, 0.0f, 0.0f, "%.2f");
+        changed |= ImGui::DragFloat("##Z", &values.z, 0.1f, 0.0f, 0.0f, "%.2f");
         ImGui::PopItemWidth();
         ImGui::PopStyleColor(3);
         ImGui::PopStyleVar();
 
-
         ImGui::Columns(1);
         ImGui::PopID();
+
+        return changed;
     }
 
     template<typename T, typename UIFunction>
-    static void draw_component(const std::string& label, Entity entity, UIFunction ui_function) {
+    static bool draw_component(const std::string& label, Entity entity, UIFunction ui_function) {
+        static_assert(std::is_same_v<std::invoke_result_t<UIFunction, T&>, bool>, "UI function must return bool");
+        const ImGuiTreeNodeFlags flags =
+            ImGuiTreeNodeFlags_DefaultOpen |
+            ImGuiTreeNodeFlags_SpanAvailWidth |
+            ImGuiTreeNodeFlags_Framed |
+            ImGuiTreeNodeFlags_FramePadding;
 
-        const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_FramePadding;// | ImGuiTreeNodeFlags_AllowItemOverlap;
+        if (!entity.has_component<T>())
+            return false;
 
-        if (entity.has_component<T>()) {
+        bool changed = false;
 
-            auto& component = entity.get_component<T>();
-            ImVec2 contentRegionAvailable = ImGui::GetContentRegionAvail();
+        auto& component = entity.get_component<T>();
+        ImVec2 contentRegionAvailable = ImGui::GetContentRegionAvail();
 
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 4, 4 });
-            float line_height = ImGui::GetFontSize() + GImGui->Style.FramePadding.y * 2.0f;
-            ImGui::Separator();
-            bool open = ImGui::TreeNodeEx((void*)typeid(T).hash_code(), flags, "%s", label.c_str());
-            ImGui::PopStyleVar();
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 4, 4 });
+        float line_height = ImGui::GetFontSize() + GImGui->Style.FramePadding.y * 2.0f;
+        ImGui::Separator();
+        bool open = ImGui::TreeNodeEx((void*)typeid(T).hash_code(), flags, "%s", label.c_str());
+        ImGui::PopStyleVar();
 
-            ImGui::SameLine(contentRegionAvailable.x - line_height * 0.5f);
-            if (ImGui::Button("+", ImVec2(line_height, line_height)))
-                ImGui::OpenPopup("Component Settings");
+        ImGui::SameLine(contentRegionAvailable.x - line_height * 0.5f);
+        if (ImGui::Button("+", ImVec2(line_height, line_height)))
+            ImGui::OpenPopup("Component Settings");
 
-            bool remove_component = false;
-            if (ImGui::BeginPopup("Component Settings")) {
-                if (ImGui::MenuItem("Remove Component"))
-                    remove_component = true;
-
-                ImGui::EndPopup();
-            }
-
-            if (open) {
-                ui_function(component);
-                ImGui::TreePop();
-            }
-            if (remove_component)
-                entity.remove_component<T>();
+        bool remove_component = false;
+        if (ImGui::BeginPopup("Component Settings")) {
+            if (ImGui::MenuItem("Remove Component"))
+                remove_component = true;
+            ImGui::EndPopup();
         }
+
+        if (open) {
+            changed |= ui_function(component);
+            ImGui::TreePop();
+        }
+
+        if (remove_component) {
+            entity.remove_component<T>();
+            changed = true;
+        }
+
+        return changed;
     }
-    void SceneHierarchyPanel::draw_components(Entity entity) {
+
+void SceneHierarchyPanel::draw_components(Entity entity) {
+        bool scene_changed = false;
+
         if (entity.has_component<TagComponent>()) {
             auto& tag = entity.get_component<TagComponent>().tag;
 
@@ -295,6 +330,7 @@ namespace Honey {
             strcpy(buffer, tag.c_str());
             if (ImGui::InputText("##Tag", buffer, sizeof(buffer))) {
                 tag = std::string(buffer);
+                scene_changed = true;
             }
         }
 
@@ -308,60 +344,70 @@ namespace Honey {
             if (!m_selected_entity.has_component<TransformComponent>()) {
                 if (ImGui::MenuItem("Transform Component")) {
                     entity.add_component<TransformComponent>();
+                    scene_changed = true;
                     ImGui::CloseCurrentPopup();
                 }
             }
             if (!m_selected_entity.has_component<SpriteRendererComponent>()) {
                 if (ImGui::MenuItem("Sprite Renderer")) {
                     entity.add_component<SpriteRendererComponent>();
+                    scene_changed = true;
                     ImGui::CloseCurrentPopup();
                 }
             }
             if (!m_selected_entity.has_component<CircleRendererComponent>()) {
                 if (ImGui::MenuItem("Circle Renderer")) {
                     entity.add_component<CircleRendererComponent>();
+                    scene_changed = true;
                     ImGui::CloseCurrentPopup();
                 }
             }
             if (!m_selected_entity.has_component<LineRendererComponent>()) {
                 if (ImGui::MenuItem("Line Renderer")) {
                     entity.add_component<LineRendererComponent>();
+                    scene_changed = true;
                     ImGui::CloseCurrentPopup();
                 }
             }
             if (!m_selected_entity.has_component<CameraComponent>()) {
                 if (ImGui::MenuItem("Camera Component")) {
                     entity.add_component<CameraComponent>();
+                    scene_changed = true;
                     ImGui::CloseCurrentPopup();
                 }
             }
             if (!m_selected_entity.has_component<NativeScriptComponent>()) {
                 if (ImGui::MenuItem("Native Script Component")) {
                     entity.add_component<NativeScriptComponent>();
+                    scene_changed = true;
                     ImGui::CloseCurrentPopup();
                 }
             }
             if (!m_selected_entity.has_component<ScriptComponent>()) {
                 if (ImGui::MenuItem("Lua Script Component")) {
                     entity.add_component<ScriptComponent>();
+                    scene_changed = true;
                     ImGui::CloseCurrentPopup();
                 }
             }
             if (!m_selected_entity.has_component<BoxCollider2DComponent>()) {
                 if (ImGui::MenuItem("Box Collider 2D")) {
                     entity.add_component<BoxCollider2DComponent>();
+                    scene_changed = true;
                     ImGui::CloseCurrentPopup();
                 }
             }
             if (!m_selected_entity.has_component<CircleCollider2DComponent>()) {
                 if (ImGui::MenuItem("Circle Collider 2D")) {
                     entity.add_component<CircleCollider2DComponent>();
+                    scene_changed = true;
                     ImGui::CloseCurrentPopup();
                 }
             }
             if (!m_selected_entity.has_component<AudioSourceComponent>()) {
                 if (ImGui::MenuItem("Audio Source Component")) {
                     entity.add_component<AudioSourceComponent>();
+                    scene_changed = true;
                     ImGui::CloseCurrentPopup();
                 }
             }
@@ -375,6 +421,7 @@ namespace Honey {
             if (!m_selected_entity.has_component<Rigidbody2DComponent>()) {
                 if (ImGui::MenuItem("Rigidbody 2D")) {
                     entity.add_component<Rigidbody2DComponent>();
+                    scene_changed = true;
                     ImGui::CloseCurrentPopup();
                 }
             }
@@ -394,79 +441,91 @@ namespace Honey {
 
         ImGui::PopItemWidth();
 
+        scene_changed |= draw_component<TransformComponent>("Transform", entity, [](auto& component) -> bool {
+            bool changed = false;
 
-        draw_component<TransformComponent>("Transform", entity, [](auto& component) {
-            draw_vec3_control("Translation", component.translation);
-                glm::vec3 rotation = glm::degrees(component.rotation);
-                draw_vec3_control("Rotation", rotation);
+            changed |= draw_vec3_control("Translation", component.translation);
+
+            glm::vec3 rotation = glm::degrees(component.rotation);
+            changed |= draw_vec3_control("Rotation", rotation);
+            if (changed) {
                 component.rotation = glm::radians(rotation);
+            }
 
-                glm::vec3 old_scale = component.scale;
-                draw_vec3_control("Scale", component.scale, 1.0f);
+            glm::vec3 old_scale = component.scale;
+            changed |= draw_vec3_control("Scale", component.scale, 1.0f);
+            if (component.scale != old_scale) {
+                component.collider_dirty = true;
+            }
 
-                if (component.scale != old_scale) {
-                    component.collider_dirty = true;
-                }
+            return changed;
         });
 
-        draw_component<CameraComponent>("Camera", entity, [](auto& component) {
+        scene_changed |= draw_component<CameraComponent>("Camera", entity, [](auto& component) -> bool {
+            bool changed = false;
             auto& camera = component.camera;
 
-                bool curr_projection_index = (int)component.projection_type;
-                const char* projection_type[] = { "Orthographic", "Perspective" };
-                if (ImGui::BeginCombo("Projection", projection_type[curr_projection_index])) {
-                    for (int i = 0; i < 2; i++) {
-                        bool is_selected = (curr_projection_index == i);
-                        if (ImGui::Selectable(projection_type[i], is_selected)) {
-                            if (component.projection_type != (CameraComponent::ProjectionType)i) {
-                                component.projection_type = (CameraComponent::ProjectionType)i;
+            int curr_projection_index = (int)component.projection_type;
+            const char* projection_type[] = { "Orthographic", "Perspective" };
+            if (ImGui::BeginCombo("Projection", projection_type[curr_projection_index])) {
+                for (int i = 0; i < 2; i++) {
+                    bool is_selected = (curr_projection_index == i);
+                    if (ImGui::Selectable(projection_type[i], is_selected)) {
+                        if (component.projection_type != (CameraComponent::ProjectionType)i) {
+                            component.projection_type = (CameraComponent::ProjectionType)i;
 
-                                float current_aspect_ratio = component.camera->get_aspect_ratio();
-                                component.update_projection(current_aspect_ratio);
-                            }
-                        }
-                        if (is_selected) {
-                            ImGui::SetItemDefaultFocus();
+                            float current_aspect_ratio = component.camera->get_aspect_ratio();
+                            component.update_projection(current_aspect_ratio);
+                            changed = true;
                         }
                     }
-                    ImGui::EndCombo();
-                }
-
-                if (component.projection_type == CameraComponent::ProjectionType::Orthographic) {
-                    bool changed = false;
-                    changed |= ImGui::DragFloat("Orthographic Size", &component.orthographic_size, 0.1f, 0.0f, 100.0f);
-                    changed |= ImGui::DragFloat("Near Clip", &component.orthographic_near, 0.01f, 0.0f, 100.0f);
-                    changed |= ImGui::DragFloat("Far Clip", &component.orthographic_far, 0.01f, 0.0f, 100.0f);
-
-                    if (changed && camera) {
-                        if (auto ortho_cam = dynamic_cast<OrthographicCamera*>(camera.get())) {
-                            ortho_cam->set_size(component.orthographic_size);
-                            ortho_cam->set_near_clip(component.orthographic_near);
-                            ortho_cam->set_far_clip(component.orthographic_far);
-                        }
+                    if (is_selected) {
+                        ImGui::SetItemDefaultFocus();
                     }
                 }
+                ImGui::EndCombo();
+            }
 
-                if (component.projection_type == CameraComponent::ProjectionType::Perspective) {
-                    bool changed = false;
-                    changed |= ImGui::DragFloat("FOV", &component.perspective_fov, 1.0f, 1.0f, 179.0f);
-                    changed |= ImGui::DragFloat("Near Clip", &component.perspective_near, 0.01f, 0.01f, 100.0f);
-                    changed |= ImGui::DragFloat("Far Clip", &component.perspective_far, 1.0f, 1.0f, 10000.0f);
+            if (component.projection_type == CameraComponent::ProjectionType::Orthographic) {
+                bool proj_changed = false;
+                proj_changed |= ImGui::DragFloat("Orthographic Size", &component.orthographic_size, 0.1f, 0.0f, 100.0f);
+                proj_changed |= ImGui::DragFloat("Near Clip", &component.orthographic_near, 0.01f, 0.0f, 100.0f);
+                proj_changed |= ImGui::DragFloat("Far Clip", &component.orthographic_far, 0.01f, 0.0f, 100.0f);
 
-                    if (changed && camera) {
-                        if (auto persp_cam = dynamic_cast<PerspectiveCamera*>(camera.get())) {
-                            persp_cam->set_fov(component.perspective_fov);
-                            persp_cam->set_near_clip(component.perspective_near);
-                            persp_cam->set_far_clip(component.perspective_far);
-                        }
+                if (proj_changed && camera) {
+                    if (auto ortho_cam = dynamic_cast<OrthographicCamera*>(camera.get())) {
+                        ortho_cam->set_size(component.orthographic_size);
+                        ortho_cam->set_near_clip(component.orthographic_near);
+                        ortho_cam->set_far_clip(component.orthographic_far);
                     }
+                    changed = true;
                 }
+            }
 
-            ImGui::Checkbox("Primary", &component.primary);
+            if (component.projection_type == CameraComponent::ProjectionType::Perspective) {
+                bool proj_changed = false;
+                proj_changed |= ImGui::DragFloat("FOV", &component.perspective_fov, 1.0f, 1.0f, 179.0f);
+                proj_changed |= ImGui::DragFloat("Near Clip", &component.perspective_near, 0.01f, 0.01f, 100.0f);
+                proj_changed |= ImGui::DragFloat("Far Clip", &component.perspective_far, 1.0f, 1.0f, 10000.0f);
+
+                if (proj_changed && camera) {
+                    if (auto persp_cam = dynamic_cast<PerspectiveCamera*>(camera.get())) {
+                        persp_cam->set_fov(component.perspective_fov);
+                        persp_cam->set_near_clip(component.perspective_near);
+                        persp_cam->set_far_clip(component.perspective_far);
+                    }
+                    changed = true;
+                }
+            }
+
+            changed |= ImGui::Checkbox("Primary", &component.primary);
+            return changed;
         });
 
-        draw_component<SpriteRendererComponent>("Sprite Renderer", entity, [](auto& component) {
-            ImGui::ColorEdit4("Color", glm::value_ptr(component.color));
+        scene_changed |= draw_component<SpriteRendererComponent>("Sprite Renderer", entity, [](auto& component) -> bool {
+            bool changed = false;
+
+            changed |= ImGui::ColorEdit4("Color", glm::value_ptr(component.color));
 
             ImGui::Button("Texture", ImVec2(100, 20));
             if (ImGui::BeginDragDropTarget()) {
@@ -476,139 +535,150 @@ namespace Honey {
                         std::filesystem::path path = path_str;
 
                         std::filesystem::path texture_path = std::filesystem::path(g_assets_dir) / path;
-
                         Ref<Texture2D> texture = Texture2D::create(texture_path.string());
 
                         component.sprite = Sprite::create_from_texture(texture, 8.0f);
                         component.sprite_path = texture_path;
+                        changed = true;
                     }
                 }
                 ImGui::EndDragDropTarget();
             }
 
             if (component.sprite) {
-                    Sprite& sprite = *component.sprite;
+                Sprite& sprite = *component.sprite;
 
-                    float ppu = sprite.get_pixels_per_unit();
-                    if (ImGui::DragFloat("Pixels Per Unit", &ppu, 0.1f, 0.01f, 1000.0f)) {
-                        sprite.set_pixels_per_unit(ppu);
-                    }
-
-                    glm::vec2 pivot = sprite.get_pivot();
-                    if (ImGui::DragFloat2("Pivot", glm::value_ptr(pivot), 0.01f, 0.0f, 1.0f)) {
-                        // Clamp to [0,1] to avoid weird values
-                        pivot.x = glm::clamp(pivot.x, 0.0f, 1.0f);
-                        pivot.y = glm::clamp(pivot.y, 0.0f, 1.0f);
-                        sprite.set_pivot(pivot);
-                    }
-
-                    if (ImGui::TreeNodeEx("Sprite Info", ImGuiTreeNodeFlags_DefaultOpen)) {
-                        glm::ivec2 px_min  = sprite.get_pixel_min();
-                        glm::ivec2 px_size = sprite.get_pixel_size();
-                        glm::vec2  world_size = sprite.get_world_size();
-
-                        ImGui::Text("Pixel Rect: min=(%d, %d), size=(%d, %d)",
-                                    px_min.x, px_min.y, px_size.x, px_size.y);
-                        ImGui::Text("World Size: (%.3f, %.3f)",
-                                    world_size.x, world_size.y);
-                        ImGui::TreePop();
-                    }
-                } else {
-                    ImGui::TextDisabled("No sprite assigned");
+                float ppu = sprite.get_pixels_per_unit();
+                if (ImGui::DragFloat("Pixels Per Unit", &ppu, 0.1f, 0.01f, 1000.0f)) {
+                    sprite.set_pixels_per_unit(ppu);
+                    changed = true;
                 }
+
+                glm::vec2 pivot = sprite.get_pivot();
+                if (ImGui::DragFloat2("Pivot", glm::value_ptr(pivot), 0.01f, 0.0f, 1.0f)) {
+                    pivot.x = glm::clamp(pivot.x, 0.0f, 1.0f);
+                    pivot.y = glm::clamp(pivot.y, 0.0f, 1.0f);
+                    sprite.set_pivot(pivot);
+                    changed = true;
+                }
+
+                if (ImGui::TreeNodeEx("Sprite Info", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    // info only, not dirty
+                    glm::ivec2 px_min  = sprite.get_pixel_min();
+                    glm::ivec2 px_size = sprite.get_pixel_size();
+                    glm::vec2  world_size = sprite.get_world_size();
+
+                    ImGui::Text("Pixel Rect: min=(%d, %d), size=(%d, %d)",
+                                px_min.x, px_min.y, px_size.x, px_size.y);
+                    ImGui::Text("World Size: (%.3f, %.3f)",
+                                world_size.x, world_size.y);
+                    ImGui::TreePop();
+                }
+            } else {
+                ImGui::TextDisabled("No sprite assigned");
+            }
+
+            return changed;
         });
 
-        draw_component<CircleRendererComponent>("Circle Renderer", entity, [](auto& component) {
-            ImGui::ColorEdit4("Color", glm::value_ptr(component.color));
+        scene_changed |= draw_component<CircleRendererComponent>("Circle Renderer", entity, [](auto& component) -> bool {
+            bool changed = false;
+
+            changed |= ImGui::ColorEdit4("Color", glm::value_ptr(component.color));
 
             ImGui::Button("Texture", ImVec2(100, 20));
             if (ImGui::BeginDragDropTarget()) {
-            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
-                if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
-                    const char* path_str = (const char*)payload->Data;
-                    std::filesystem::path path = path_str;
-                    std::filesystem::path texture_path = std::filesystem::path(g_assets_dir) / path;
-                    component.texture_path = texture_path;
-                    component.texture = Texture2D::create(texture_path.string());
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+                    if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
+                        const char* path_str = (const char*)payload->Data;
+                        std::filesystem::path path = path_str;
+                        std::filesystem::path texture_path = std::filesystem::path(g_assets_dir) / path;
+                        component.texture_path = texture_path;
+                        component.texture = Texture2D::create(texture_path.string());
+                        changed = true;
+                    }
                 }
+                ImGui::EndDragDropTarget();
             }
-            ImGui::EndDragDropTarget();
-        }
 
-            ImGui::DragFloat("Thickness", &component.thickness, 0.025f, 0.0f, 1.0f);
-            ImGui::DragFloat("Fade", &component.fade, 0.001f, 0.0f, 1.0f);
+            changed |= ImGui::DragFloat("Thickness", &component.thickness, 0.025f, 0.0f, 1.0f);
+            changed |= ImGui::DragFloat("Fade", &component.fade, 0.001f, 0.0f, 1.0f);
+
+            return changed;
         });
 
-        draw_component<LineRendererComponent>("Line Renderer", entity, [](auto& component) {
-            ImGui::ColorEdit4("Color", glm::value_ptr(component.color));
+        scene_changed |= draw_component<LineRendererComponent>("Line Renderer", entity, [](auto& component) -> bool {
+            bool changed = false;
+
+            changed |= ImGui::ColorEdit4("Color", glm::value_ptr(component.color));
 
             ImGui::Button("Texture", ImVec2(100, 20));
             if (ImGui::BeginDragDropTarget()) {
-            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
-                if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
-                    const char* path_str = (const char*)payload->Data;
-                    std::filesystem::path path = path_str;
-                    std::filesystem::path texture_path = std::filesystem::path(g_assets_dir) / path;
-                    component.texture_path = texture_path;
-                    component.texture = Texture2D::create(texture_path.string());
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+                    if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
+                        const char* path_str = (const char*)payload->Data;
+                        std::filesystem::path path = path_str;
+                        std::filesystem::path texture_path = std::filesystem::path(g_assets_dir) / path;
+                        component.texture_path = texture_path;
+                        component.texture = Texture2D::create(texture_path.string());
+                        changed = true;
+                    }
                 }
+                ImGui::EndDragDropTarget();
             }
-            ImGui::EndDragDropTarget();
-        }
 
-            ImGui::DragFloat("Fade", &component.fade, 0.001f, 0.0f, 1.0f);
+            changed |= ImGui::DragFloat("Fade", &component.fade, 0.001f, 0.0f, 1.0f);
+            return changed;
         });
 
-        draw_component<NativeScriptComponent>("Native Script", entity, [](auto& component) {
-                // Display current script name
-                std::string display_name = component.script_name.empty() ? "None" : component.script_name;
-                ImGui::Text("Script: %s", display_name.c_str());
+        scene_changed |= draw_component<NativeScriptComponent>("Native Script", entity, [](auto& component) -> bool {
+            bool changed = false;
 
-                // Drag-drop target for scripts
-                ImGui::Button("Drop Script Here", ImVec2(200, 20));
-                if (ImGui::BeginDragDropTarget()) {
-                    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
-                        if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
-                            const char* path_str = (const char*)payload->Data;
-                            std::filesystem::path path = path_str;
-
-                            // Extract script name from file path (without extension)
-                            std::string script_name = path.stem().string();
-
-                            // Check if script is registered
-                            if (ScriptRegistry::get().has_script(script_name)) {
-                                component.bind_by_name(script_name);
-                                HN_CORE_INFO("Bound script: {0}", script_name);
-                            } else {
-                                HN_CORE_WARN("Script not registered: {0}", script_name);
-                            }
-                        }
-                    }
-                    ImGui::EndDragDropTarget();
-                }
-
-                // Optional: Dropdown to select from registered scripts
-                if (ImGui::BeginCombo("Available Scripts", display_name.c_str())) {
-                    auto script_names = ScriptRegistry::get().get_all_script_names();
-                    for (const auto& name : script_names) {
-                        bool is_selected = (component.script_name == name);
-                        if (ImGui::Selectable(name.c_str(), is_selected)) {
-                            component.bind_by_name(name);
-                        }
-                        if (is_selected) {
-                            ImGui::SetItemDefaultFocus();
-                        }
-                    }
-                    ImGui::EndCombo();
-                }
-            });
-
-        draw_component<ScriptComponent>("Lua Script", entity, [&](auto& component) {
-            // Display current script name
             std::string display_name = component.script_name.empty() ? "None" : component.script_name;
             ImGui::Text("Script: %s", display_name.c_str());
 
-            // Drag & Drop to assign script
+            ImGui::Button("Drop Script Here", ImVec2(200, 20));
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+                    if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
+                        const char* path_str = (const char*)payload->Data;
+                        std::filesystem::path path = path_str;
+
+                        std::string script_name = path.stem().string();
+
+                        if (ScriptRegistry::get().has_script(script_name)) {
+                            component.bind_by_name(script_name);
+                            changed = true;
+                        }
+                    }
+                }
+                ImGui::EndDragDropTarget();
+            }
+
+            if (ImGui::BeginCombo("Available Scripts", display_name.c_str())) {
+                auto script_names = ScriptRegistry::get().get_all_script_names();
+                for (const auto& name : script_names) {
+                    bool is_selected = (component.script_name == name);
+                    if (ImGui::Selectable(name.c_str(), is_selected)) {
+                        component.bind_by_name(name);
+                        changed = true;
+                    }
+                    if (is_selected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
+            }
+
+            return changed;
+        });
+
+        draw_component<ScriptComponent>("Lua Script", entity, [&](auto& component) -> bool {
+            bool changed = false;
+
+            std::string display_name = component.script_name.empty() ? "None" : component.script_name;
+            ImGui::Text("Script: %s", display_name.c_str());
+
             ImGui::Button("Drop Lua Script Here", ImVec2(200, 20));
             if (ImGui::BeginDragDropTarget()) {
                 if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
@@ -616,17 +686,16 @@ namespace Honey {
                     std::filesystem::path path = path_str;
 
                     if (path.extension() == ".lua") {
-                        component.script_name = path.stem().string();
-                        HN_CORE_INFO("Lua script assigned: {}", component.script_name);
-                    } else {
-                        HN_CORE_WARN("Not a Lua script: {}", path.string());
+                        const std::string new_name = path.stem().string();
+                        if (component.script_name != new_name) {
+                            component.script_name = new_name;
+                            changed = true;
+                        }
                     }
                 }
-
                 ImGui::EndDragDropTarget();
             }
 
-            // Dropdown script selection
             if (ImGui::BeginCombo("Available Lua Scripts", display_name.c_str())) {
                 const std::filesystem::path script_dir = g_assets_dir / "scripts";
 
@@ -636,8 +705,12 @@ namespace Honey {
                             std::string name = entry.path().stem().string();
                             bool is_selected = (component.script_name == name);
 
-                            if (ImGui::Selectable(name.c_str(), is_selected))
-                                component.script_name = name;
+                            if (ImGui::Selectable(name.c_str(), is_selected)) {
+                                if (component.script_name != name) {
+                                    component.script_name = name;
+                                    changed = true;
+                                }
+                            }
 
                             if (is_selected)
                                 ImGui::SetItemDefaultFocus();
@@ -658,7 +731,6 @@ namespace Honey {
                     for (auto& [name, default_value] : defaults) {
                         ImGui::PushID(name.c_str());
 
-                        // Check override
                         auto it = component.property_overrides.find(name);
                         bool has_override = it != component.property_overrides.end();
 
@@ -669,6 +741,7 @@ namespace Honey {
 
                             if (ImGui::DragFloat(name.c_str(), &value, 0.1f)) {
                                 component.property_overrides[name] = value;
+                                changed = true;
                             }
 
                         } else if (std::holds_alternative<bool>(default_value)) {
@@ -678,6 +751,7 @@ namespace Honey {
 
                             if (ImGui::Checkbox(name.c_str(), &value)) {
                                 component.property_overrides[name] = value;
+                                changed = true;
                             }
 
                         } else if (std::holds_alternative<std::string>(default_value)) {
@@ -691,14 +765,15 @@ namespace Honey {
 
                             if (ImGui::InputText(name.c_str(), buffer, sizeof(buffer))) {
                                 component.property_overrides[name] = std::string(buffer);
+                                changed = true;
                             }
                         }
 
-                        // Clear override button
                         if (has_override) {
                             ImGui::SameLine();
                             if (ImGui::SmallButton("Reset")) {
                                 component.property_overrides.erase(name);
+                                changed = true;
                             }
                         }
 
@@ -719,14 +794,17 @@ namespace Honey {
 
                         component.property_overrides.clear();
                         ScriptPropertiesLoader::invalidate_cache(component.script_name);
-                    } else {
-                        HN_CORE_ERROR("Failed to write Lua defaults: {}", error);
+                        changed = true;
                     }
                 }
             }
+
+            return changed;
         });
 
-        draw_component<Rigidbody2DComponent>("Rigidbody2D", entity, [](auto& component) {
+        scene_changed |= draw_component<Rigidbody2DComponent>("Rigidbody2D", entity, [](auto& component) -> bool {
+            bool changed = false;
+
             const char* body_type[] = { "Static", "Dynamic", "Kinematic" };
             const char* curr_body_type = body_type[(int)component.body_type];
             if (ImGui::BeginCombo("Body Type", curr_body_type)) {
@@ -735,6 +813,7 @@ namespace Honey {
                     if (ImGui::Selectable(body_type[i], is_selected)) {
                         if (component.body_type != (Rigidbody2DComponent::BodyType)i) {
                             component.body_type = (Rigidbody2DComponent::BodyType)i;
+                            changed = true;
                         }
                     }
                     if (is_selected) {
@@ -744,28 +823,39 @@ namespace Honey {
                 ImGui::EndCombo();
             }
 
-            ImGui::Checkbox("Fixed Rotation", &component.fixed_rotation);
+            changed |= ImGui::Checkbox("Fixed Rotation", &component.fixed_rotation);
+            return changed;
         });
 
-        draw_component<BoxCollider2DComponent>("Box Collider 2D", entity, [](auto& component) {
-            ImGui::DragFloat2("Offset", glm::value_ptr(component.offset), 0.1f, 0.0f, 100.0f);
-            ImGui::DragFloat2("Size", glm::value_ptr(component.size), 0.1f, 0.0f, 100.0f);
+        scene_changed |= draw_component<BoxCollider2DComponent>("Box Collider 2D", entity, [](auto& component) -> bool {
+            bool changed = false;
 
-            ImGui::DragFloat("Density", &component.density, 0.01f, 0.0f, 1.0f);
-            ImGui::DragFloat("Friction", &component.friction, 0.01f, 0.0f, 1.0f);
-            ImGui::DragFloat("Restitution", &component.restitution, 0.01f, 0.0f, 1.0f);
+            changed |= ImGui::DragFloat2("Offset", glm::value_ptr(component.offset), 0.1f, 0.0f, 100.0f);
+            changed |= ImGui::DragFloat2("Size", glm::value_ptr(component.size), 0.1f, 0.0f, 100.0f);
+
+            changed |= ImGui::DragFloat("Density", &component.density, 0.01f, 0.0f, 1.0f);
+            changed |= ImGui::DragFloat("Friction", &component.friction, 0.01f, 0.0f, 1.0f);
+            changed |= ImGui::DragFloat("Restitution", &component.restitution, 0.01f, 0.0f, 1.0f);
+
+            return changed;
         });
 
-        draw_component<CircleCollider2DComponent>("Circle Collider 2D", entity, [](auto& component) {
-            ImGui::DragFloat2("Offset", glm::value_ptr(component.offset), 0.1f, 0.0f, 100.0f);
-            ImGui::DragFloat("Radius", &component.radius, 0.1f, 0.0f, 100.0f);
+        scene_changed |= draw_component<CircleCollider2DComponent>("Circle Collider 2D", entity, [](auto& component) -> bool {
+            bool changed = false;
 
-            ImGui::DragFloat("Density", &component.density, 0.01f, 0.0f, 1.0f);
-            ImGui::DragFloat("Friction", &component.friction, 0.01f, 0.0f, 1.0f);
-            ImGui::DragFloat("Restitution", &component.restitution, 0.01f, 0.0f, 1.0f);
+            changed |= ImGui::DragFloat2("Offset", glm::value_ptr(component.offset), 0.1f, 0.0f, 100.0f);
+            changed |= ImGui::DragFloat("Radius", &component.radius, 0.1f, 0.0f, 100.0f);
+
+            changed |= ImGui::DragFloat("Density", &component.density, 0.01f, 0.0f, 1.0f);
+            changed |= ImGui::DragFloat("Friction", &component.friction, 0.01f, 0.0f, 1.0f);
+            changed |= ImGui::DragFloat("Restitution", &component.restitution, 0.01f, 0.0f, 1.0f);
+
+            return changed;
         });
 
-        draw_component<AudioSourceComponent>("Audio Source Component", entity, [](auto& component) {
+        scene_changed |= draw_component<AudioSourceComponent>("Audio Source Component", entity, [](auto& component) -> bool {
+            bool changed = false;
+
             std::string label = component.file_path.empty()
                     ? std::string("Drop Audio Here")
                     : component.file_path.filename().string();
@@ -774,27 +864,34 @@ namespace Honey {
             ImGui::SameLine();
             ImGui::Button(label.c_str(), ImVec2(200, 0));
 
-
             if (ImGui::BeginDragDropTarget()) {
-                if (const ImGuiPayload* payload =
-
-                ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
                     if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
                         const char* path_str = (const char*)payload->Data;
                         std::filesystem::path path = path_str;
-                        // Optional: filter by extension: .wav, .ogg, etc.
+
                         if (path.extension() == ".wav") {
-                            component.file_path = std::filesystem::path(g_assets_dir) / path;
+                            auto new_path = std::filesystem::path(g_assets_dir) / path;
+                            if (component.file_path != new_path) {
+                                component.file_path = new_path;
+                                changed = true;
+                            }
                         }
                     }
                 }
                 ImGui::EndDragDropTarget();
             }
 
-            ImGui::DragFloat("Volume", &component.volume, 0.01f, 0.0f, 1.0f);
-            ImGui::DragFloat("Pitch",  &component.pitch,  0.01f, 0.1f, 3.0f);
-            ImGui::Checkbox("Loop", &component.loop);
-            ImGui::Checkbox("Play On Scene Start", &component.play_on_scene_start);
+            changed |= ImGui::DragFloat("Volume", &component.volume, 0.01f, 0.0f, 1.0f);
+            changed |= ImGui::DragFloat("Pitch",  &component.pitch,  0.01f, 0.1f, 3.0f);
+            changed |= ImGui::Checkbox("Loop", &component.loop);
+            changed |= ImGui::Checkbox("Play On Scene Start", &component.play_on_scene_start);
+
+            return changed;
         });
+
+        if (scene_changed && m_context) {
+            m_context->mark_dirty();
+        }
     }
 }

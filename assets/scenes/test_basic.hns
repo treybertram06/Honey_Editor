@@ -1,10 +1,49 @@
 Scene: Untitled
 Entities:
+  - Entity: 5836632335265970891
+    TagComponent:
+      Tag: Empty Entity
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+  - Entity: 12320704956848614704
+    TagComponent:
+      Tag: Pipe Spawner
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    ScriptComponent:
+      ScriptName: pipeSpawner
+  - Entity: 13642044305437278575
+    TagComponent:
+      Tag: Bird
+    TransformComponent:
+      Translation: [7.407322, 3.4073424, 6.1035018e-05]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 1]
+      Texture: ../assets/textures/transparent.png
+      PPU: 100
+      Pivot: [0.5, 0.5]
+    ScriptComponent:
+      ScriptName: bird
+    Rigidbody2DComponent:
+      BodyType: 1
+      FixedRotation: false
+    BoxCollider2DComponent:
+      Offset: [0, 0]
+      Size: [0.5, 0.5]
+      Density: 1
+      Friction: 0.5
+      Restitution: 0
   - Entity: 5287885375988831183
     TagComponent:
       Tag: Camera
     TransformComponent:
-      Translation: [0, 0, 0]
+      Translation: [0.9, 0, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     CameraComponent:
@@ -19,38 +58,7 @@ Entities:
       Primary: true
       Camera:
         Position:
-          - [0, 0, 0]
-        AspectRatio: 2.3819444
-        Rotation: 0
+          - [515, 200, 458]
+        AspectRatio: 2.3447294
+        Rotation: -10
         Size: 10
-  - Entity: 13642044305437278575
-    TagComponent:
-      Tag: Bird
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    SpriteRendererComponent:
-      Color: [1, 1, 1, 1]
-      TilingFactor: 1
-      Texture: ../assets/textures/transparent.png
-    ScriptComponent:
-      ScriptName: bird
-    Rigidbody2DComponent:
-      BodyType: 1
-      FixedRotation: false
-    BoxCollider2DComponent:
-      Offset: [0, 0]
-      Size: [0.5, 0.5]
-      Density: 1
-      Friction: 0.5
-      Restitution: 0
-  - Entity: 12320704956848614704
-    TagComponent:
-      Tag: Pipe Spawner
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    ScriptComponent:
-      ScriptName: pipeSpawner

@@ -5,7 +5,7 @@
 //#include "../assets/scripts/script_registrar.h"
 #include "../Honey/vendor/imguizmo/ImGuizmo.h"
 #include "Honey/core/settings.h"
-#include "Honey/imgui/imgui_utils.h"
+#include "../Honey/engine/src/Honey/ui/imgui_utils.h"
 
 #include "Honey/scene/scene_serializer.h"
 #include "Honey/utils/platform_utils.h"
@@ -31,6 +31,8 @@ namespace Honey {
 
         m_icon_play = Texture2D::create("../resources/icons/toolbar/play_button.png");
         m_icon_stop = Texture2D::create("../resources/icons/toolbar/stop_button.png");
+
+        m_scene_hierarchy_panel.set_notification_center(&m_notification_center);
 
         FramebufferSpecification fb_spec;
         fb_spec.attachments = { FramebufferTextureFormat::RGBA8, FramebufferTextureFormat::RED_INTEGER, FramebufferTextureFormat::Depth };
@@ -131,6 +133,23 @@ namespace Honey {
     void EditorLayer::on_imgui_render() {
         HN_PROFILE_FUNCTION();
 
+        if (m_quit_requested) {
+            if (has_scene_changed()) {
+                m_notification_center.open_confirm("quit_editor",
+                    "Quit Honey Editor?",
+                    "You have unsaved changes. Are you sure you want to quit without saving?",
+                    true,
+                    []() { Application::quit(); },
+                    [this]() { m_quit_requested = false; },
+                    "Quit without saving",
+                    "Cancel"
+                );
+            } else {
+                Application::quit();
+            }
+            m_quit_requested = false;
+        }
+
         ImGuiStyle& style = ImGui::GetStyle();
         float min_window_size = style.WindowMinSize.x;
         style.WindowMinSize.x = 370.0f;
@@ -143,7 +162,24 @@ namespace Honey {
         if (ImGui::BeginMainMenuBar()) {
             if (ImGui::BeginMenu("File")) {
                 if (ImGui::MenuItem("New", "Ctrl+N")) {
-                    new_scene();
+                    if (has_scene_changed()) {
+                        m_notification_center.open_confirm("new_scene",
+                            "Create new scene?",
+                            "This will save all changes to the current scene and create a new one.",
+                            false,
+                            [this]() {
+                                save_current_scene();
+                                new_scene();
+                                m_notification_center.push_toast(UI::ToastType::Success, "New Scene", "Created new scene and saved previous.");
+                            },
+                            nullptr,
+                            "Save and Continue",
+                            "Cancel"
+                        );
+                    } else {
+                        new_scene();
+                        m_notification_center.push_toast(UI::ToastType::Success, "New Scene", "Created new scene.");
+                    }
                 }
                 if (ImGui::MenuItem("Open...", "Ctrl+O")) {
                     open_scene();
@@ -156,7 +192,7 @@ namespace Honey {
                 }
                 ImGui::Separator();
                 if (ImGui::MenuItem("Exit")) {
-                    Application::quit();
+                    m_quit_requested = true;
                 }
                 ImGui::EndMenu();
             }
@@ -211,23 +247,26 @@ namespace Honey {
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Scripts")) {
-                if (ImGui::MenuItem("Build Scripts")) {
-                    ScriptLoader::get().unload_library();
+            if (ImGui::MenuItem("Build Scripts")) {
+                ScriptLoader::get().unload_library();
 
-                    int result = std::system("cmake --build . --target HoneyScripts");
-                    if (result == 0) {
-                        HN_CORE_INFO("Scripts built successfully, reloading...");
-                        //print current working directory
-                        std::filesystem::path current_path = std::filesystem::current_path();
-                        HN_CORE_INFO("Current working directory: {0}", current_path.string());
-                        ScriptLoader::get().reload_library("assets/scripts/libHoneyScripts.so");
-                    } else {
-                        HN_CORE_ERROR("Script build failed with code: {0}", result);
-                    }
-                }
-                if (ImGui::MenuItem("Reload Scripts")) {
+                int result = std::system("cmake --build . --target HoneyScripts");
+                if (result == 0) {
+                    HN_CORE_INFO("Scripts built successfully, reloading...");
+                    m_notification_center.push_toast(UI::ToastType::Success, "Scripts Built", "HoneyScripts built and reloaded successfully.");
+                    //print current working directory
+                    std::filesystem::path current_path = std::filesystem::current_path();
+                    HN_CORE_INFO("Current working directory: {0}", current_path.string());
                     ScriptLoader::get().reload_library("assets/scripts/libHoneyScripts.so");
+                } else {
+                    HN_CORE_ERROR("Script build failed with code: {0}", result);
+                    m_notification_center.push_toast(UI::ToastType::Error, "Build Failed", "HoneyScripts build failed. See console for details.");
                 }
+            }
+            if (ImGui::MenuItem("Reload Scripts")) {
+                ScriptLoader::get().reload_library("assets/scripts/libHoneyScripts.so");
+                m_notification_center.push_toast(UI::ToastType::Info, "Scripts Reloaded", "HoneyScripts reloaded.");
+            }
                 if (ImGui::MenuItem("Invalidate Lua Script Property Cache")) {
                     ScriptPropertiesLoader::invalidate_all();
                 }
@@ -445,6 +484,7 @@ namespace Honey {
 
         Entity selected_entity = m_scene_hierarchy_panel.get_selected_entity();
         //Entity camera_entity = m_active_scene->get_primary_camera();
+        static bool s_was_gizmo_using = false;
 
         //if (selected_entity && camera_entity && m_gizmo_type != -1) {
         if (selected_entity && m_gizmo_type != -1) {
@@ -485,7 +525,8 @@ namespace Honey {
                                  (ImGuizmo::OPERATION)m_gizmo_type, ImGuizmo::WORLD,
                                  glm::value_ptr(transform), nullptr, snap ? snap_values : nullptr);
 
-            if (ImGuizmo::IsUsing()) {
+            const bool gizmo_using = ImGuizmo::IsUsing();
+            if (gizmo_using) {
                 glm::vec3 translation, rotation, scale;
                 Math::decompose_transform(transform, translation, rotation, scale);
 
@@ -496,6 +537,15 @@ namespace Honey {
 
                 transform_component.collider_dirty = true;
             }
+
+            if (s_was_gizmo_using && !gizmo_using) {
+                if (m_scene_state == SceneState::edit && m_editor_scene)
+                    m_editor_scene->mark_dirty();
+            }
+
+            s_was_gizmo_using = gizmo_using;
+        } else {
+            s_was_gizmo_using = false;
         }
 
         ImGui::End();
@@ -505,6 +555,8 @@ namespace Honey {
         //    ImGui::GetIO().WantCaptureMouse = false;
 
         ui_toolbar();
+
+        m_notification_center.render(ImGui::GetIO().DeltaTime);
     }
 
     void EditorLayer::ui_toolbar() {
@@ -544,6 +596,13 @@ namespace Honey {
         EventDispatcher dispatcher(event);
         dispatcher.dispatch<KeyPressedEvent>(HN_BIND_EVENT_FN(EditorLayer::on_key_pressed));
         dispatcher.dispatch<MouseButtonPressedEvent>(HN_BIND_EVENT_FN(EditorLayer::on_mouse_button_pressed));
+        dispatcher.dispatch<WindowCloseEvent>([this](WindowCloseEvent& e) {
+            if (has_scene_changed()) {
+                m_quit_requested = true;
+                return true; // consume event
+            }
+            return false;
+        });
     }
 
     bool EditorLayer::on_key_pressed(KeyPressedEvent& e) {
@@ -570,7 +629,27 @@ namespace Honey {
             break;
 
         case KeyCode::N:
-            if (control) { new_scene(); handled = true; }
+            if (control) {
+                if (has_scene_changed()) {
+                    m_notification_center.open_confirm("new_scene",
+                        "Create new scene?",
+                        "This will save all changes to the current scene and create a new one.",
+                        false,
+                        [this]() {
+                            save_current_scene();
+                            new_scene();
+                            m_notification_center.push_toast(UI::ToastType::Success, "New Scene", "Created new scene and saved previous.");
+                        },
+                        nullptr,
+                        "Save and Continue",
+                        "Cancel"
+                    );
+                } else {
+                    new_scene();
+                    m_notification_center.push_toast(UI::ToastType::Success, "New Scene", "Created new scene.");
+                }
+                handled = true;
+            }
             break;
 
         // gizmo selectors
@@ -735,6 +814,7 @@ namespace Honey {
 
             m_active_scene = m_editor_scene;
             m_scene_hierarchy_panel.set_context(m_active_scene);
+            m_notification_center.push_toast(UI::ToastType::Success, "Scene Opened", "Loaded " + path.filename().string());
         }
 
         //m_active_scene = CreateRef<Scene>();
@@ -753,6 +833,8 @@ namespace Honey {
         if (!path.empty()) {
             SceneSerializer serializer(m_active_scene);
             serializer.serialize(path);
+            m_editor_scene->clear_dirty();
+            m_notification_center.push_toast(UI::ToastType::Success, "Scene Saved", "Scene saved to " + path.filename().string());
         }
     }
 
@@ -761,6 +843,10 @@ namespace Honey {
     }
 
     // Note to self, editor scene is null in some cases so the copy doesnt work, test from fresh scene on boot, ctrlN scene, and saved scene to confirm
+
+    bool EditorLayer::has_scene_changed() {
+       return m_editor_scene->get_change_version() != 0;
+    }
 
     void EditorLayer::on_scene_play() {
         m_scene_state = SceneState::play;
@@ -783,7 +869,9 @@ namespace Honey {
         if (m_scene_state != SceneState::edit) return;
 
         Entity entity = m_scene_hierarchy_panel.get_selected_entity();
-        if (entity)
+        if (entity) {
             m_editor_scene->duplicate_entity(entity);
+            m_notification_center.push_toast(UI::ToastType::Info, "Entity Duplicated", "Duplicated " + entity.get_component<TagComponent>().tag);
+        }
     }
 }
