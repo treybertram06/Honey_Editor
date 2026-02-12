@@ -404,26 +404,7 @@ namespace Honey {
             }
 
         }
-/*
-        // Debug Section
-        if (ImGui::CollapsingHeader("Debug")) {
-            static bool show_normals = false;
-            static bool show_bounding_boxes = false;
-            static bool show_grid = false;
 
-            ImGui::SameLine();
-            ImGui::Checkbox("Show Normals", &show_normals);
-
-            ImGui::Checkbox("Show Bounding Boxes", &show_bounding_boxes);
-            ImGui::SameLine();
-            ImGui::Checkbox("Show Grid", &show_grid);
-
-            ImGui::Separator();
-            ImGui::Text("Renderer Info");
-            ImGui::Text("API: OpenGL"); // You can make this dynamic
-            ImGui::Text("Version: 4.6"); // You can query this from OpenGL
-        }
-*/
         ImGui::End();
 
         ImGui::Begin("Physics Debug Panel");
