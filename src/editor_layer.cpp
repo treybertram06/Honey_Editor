@@ -376,6 +376,16 @@ namespace Honey {
                 }
             }
 
+            // Cull mode
+            {
+                static const char* cull_mode_names[] = { "None", "Back", "Front" };
+                int current_index = static_cast<int>(renderer.cull_mode);
+                if (ImGui::Combo("Cull Mode", &current_index, cull_mode_names, IM_ARRAYSIZE(cull_mode_names))) {
+                    renderer.cull_mode = static_cast<CullMode>(current_index);
+                    RenderCommand::set_cull_mode(renderer.cull_mode);
+                }
+            }
+
             if (ImGui::Checkbox("Show Physics Colliders", &renderer.show_physics_debug_draw)) {
                 m_show_physics_colliders = renderer.show_physics_debug_draw;
             }

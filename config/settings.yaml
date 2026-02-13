@@ -2,8 +2,8 @@ Renderer:
   API: Vulkan
   ClearColor: [0.1, 0.1, 0.1, 1]
   Wireframe: false
-  DepthTest: false
-  DepthWrite: false
+  DepthTest: true
+  DepthWrite: true
   FaceCulling: true
   Blending: true
   VSync: false
