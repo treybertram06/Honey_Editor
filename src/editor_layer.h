@@ -92,6 +92,7 @@ namespace Honey {
         void render_camera_info();
 
         enum class SceneState {
+
             edit = 0,
             play = 1,
             pause = 2,
