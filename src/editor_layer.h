@@ -48,7 +48,7 @@ namespace Honey {
         // ui panels
         void ui_toolbar();
 
-
+        Ref<Texture2D::AsyncHandle> m_test_async_tex;
 
         Ref<Framebuffer> m_framebuffer;
         glm::vec2 m_viewport_size = {1680.0f, 720.0f};

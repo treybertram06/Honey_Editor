@@ -276,6 +276,49 @@ namespace Honey {
             ImGui::EndMainMenuBar();
         }
 
+        ImGui::Begin("Async tex test");
+        ImGui::TextUnformatted("Async Texture Test");
+
+        static char s_path_buf[256] = {0};  // persistent buffer
+
+        // Initialize it once
+        static bool s_inited = false;
+        if (!s_inited) {
+            s_inited = true;
+            const std::string initial =
+                (asset_root / "textures" / "bung.png").string();
+            std::snprintf(s_path_buf, sizeof(s_path_buf), "%s", initial.c_str());
+        }        ImGui::InputText("Texture Path", s_path_buf, sizeof(s_path_buf));
+
+        if (ImGui::Button("Start Async Load")) {
+            // Kick off a new async load
+            m_test_async_tex = Texture2D::create_async(s_path_buf);
+        }
+
+        if (m_test_async_tex) {
+            bool done   = m_test_async_tex->done.load(std::memory_order_acquire);
+            bool failed = m_test_async_tex->failed.load(std::memory_order_acquire);
+
+            if (!done) {
+                ImGui::TextColored(ImVec4(1,1,0,1), "Status: Loading...");
+            } else if (failed || !m_test_async_tex->texture) {
+                ImGui::TextColored(ImVec4(1,0,0,1), "Status: Failed (%s)",
+                                   m_test_async_tex->error.c_str());
+            } else {
+                ImGui::TextColored(ImVec4(0,1,0,1), "Status: Loaded");
+                ImGui::Text("Size: %u x %u",
+                            m_test_async_tex->texture->get_width(),
+                            m_test_async_tex->texture->get_height());
+
+                // Show the texture thumbnail
+                ImTextureID id = m_test_async_tex->texture->get_imgui_texture_id();
+                ImGui::Image(id, ImVec2(128, 128), ImVec2(0,0), ImVec2(1,1));
+            }
+        } else {
+            ImGui::TextUnformatted("No async load started.");
+        }
+        ImGui::End();
+
         m_scene_hierarchy_panel.on_imgui_render();
         m_content_browser_panel.on_imgui_render();
 
