@@ -114,7 +114,7 @@ namespace Honey {
                     m_editor_camera.on_update(ts);
 
                 m_active_scene->on_update_editor(ts, m_editor_camera);
-                on_overlay_render();
+                //on_overlay_render();
                 break;
             }
         case SceneState::play:

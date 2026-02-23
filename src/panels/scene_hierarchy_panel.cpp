@@ -6,6 +6,7 @@
 
 #include "imgui_internal.h"
 #include "glm/gtc/type_ptr.inl"
+#include "Honey/loaders/gltf_loader.h"
 #include "Honey/renderer/texture.h"
 #include "Honey/scene/scene_serializer.h"
 #include "Honey/scene/script_registry.h"
@@ -355,6 +356,13 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                     ImGui::CloseCurrentPopup();
                 }
             }
+            if (!m_selected_entity.has_component<MeshRendererComponent>()) {
+                if (ImGui::MenuItem("Mesh Renderer")) {
+                    entity.add_component<MeshRendererComponent>();
+                    scene_changed = true;
+                    ImGui::CloseCurrentPopup();
+                }
+            }
             if (!m_selected_entity.has_component<CircleRendererComponent>()) {
                 if (ImGui::MenuItem("Circle Renderer")) {
                     entity.add_component<CircleRendererComponent>();
@@ -576,6 +584,40 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                 }
             } else {
                 ImGui::TextDisabled("No sprite assigned");
+            }
+
+            return changed;
+        });
+
+        scene_changed |= draw_component<MeshRendererComponent>("Mesh Renderer", entity, [](auto& component) -> bool {
+            bool changed = false;
+
+            changed |= ImGui::ColorEdit4("Color", glm::value_ptr(component.color));
+
+            ImGui::Button("Mesh", ImVec2(100, 20));
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+                    if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
+                        const char* path_str = (const char*)payload->Data;
+                        std::filesystem::path path = path_str;
+                        std::filesystem::path mesh_path = std::filesystem::path(g_assets_dir) / path;
+
+                        component.mesh = load_gltf_mesh(mesh_path.string());
+                        component.mesh_path = mesh_path;
+                        changed = true;
+                    }
+                }
+                ImGui::EndDragDropTarget();
+            }
+
+            if (component.mesh) {
+                Mesh& mesh = *component.mesh;
+
+                if (ImGui::TreeNodeEx("Mesh Info", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    ImGui::Text("Name: %s", mesh.get_name().c_str());
+                    ImGui::Text("# of Submeshes: %d", mesh.get_submeshes().size());
+                    ImGui::TreePop();
+                }
             }
 
             return changed;
