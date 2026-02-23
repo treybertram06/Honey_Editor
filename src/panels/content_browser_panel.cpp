@@ -13,8 +13,8 @@ namespace Honey {
 
     ContentBrowserPanel::ContentBrowserPanel()
         : m_current_directory(g_assets_dir) {
-        m_directory_icon = Texture2D::create("../resources/icons/content_browser/folder.png");
-        m_file_icon = Texture2D::create("../resources/icons/content_browser/document.png");
+        m_directory_icon = Texture2D::create_async("../resources/icons/content_browser/folder.png");
+        m_file_icon = Texture2D::create_async("../resources/icons/content_browser/document.png");
     }
 
     void ContentBrowserPanel::on_imgui_render() {
