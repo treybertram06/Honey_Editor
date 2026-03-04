@@ -297,6 +297,14 @@ namespace Honey {
         if (ImGui::CollapsingHeader("Performance", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Text("Frame Rate: %d FPS", m_framerate);
             ImGui::Text("Frame Time: %.3f ms", m_frame_time);
+
+            double gpu_ms = 0.0;
+            {
+                auto& app = Application::get();
+                auto& window = app.get_window();
+                gpu_ms = window.get_context()->get_last_gpu_frame_time_ms();
+            }
+            ImGui::Text("GPU Frame Time: %.3f ms", gpu_ms);
             ImGui::Text("Smoothed FPS: %d", m_framerate_counter.get_smoothed_fps());
 
             ImGui::Separator();
