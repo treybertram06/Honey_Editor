@@ -164,8 +164,9 @@ namespace Honey {
                         [this, entity]() {
                             if (m_selected_entity == entity)
                                 m_selected_entity = {};
+                            auto tag = entity.get_component<TagComponent>().tag; // Copy tag BEFORE destroying (duh)
                             m_context->destroy_entity(entity);
-                            m_notification_center->push_toast(UI::ToastType::Info, "Entity Deleted", "Deleted " + entity.get_component<TagComponent>().tag);
+                            m_notification_center->push_toast(UI::ToastType::Info, "Entity Deleted", "Deleted " + tag);
                         }
                     );
                 } else {

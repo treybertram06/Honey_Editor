@@ -814,7 +814,20 @@ namespace Honey {
             m_active_scene = m_editor_scene;
             m_scene_hierarchy_panel.set_context(m_active_scene);
             m_notification_center.push_toast(UI::ToastType::Success, "Scene Opened", "Loaded " + path.filename().string());
+
+            // Restore editor camera if the scene had editor meta
+            const EditorSceneMeta& meta = serializer.get_loaded_editor_meta();
+            if (meta.has_camera) {
+                // Reconstruct orbit state from yaw/pitch/fov/clip
+                m_editor_camera.set_yaw(meta.camera_yaw);
+                m_editor_camera.set_pitch(meta.camera_pitch);
+                m_editor_camera.set_fov(meta.camera_fov);
+                m_editor_camera.set_near_clip(meta.camera_near);
+                m_editor_camera.set_far_clip(meta.camera_far);
+            }
         }
+
+
 
         //m_active_scene = CreateRef<Scene>();
         //m_active_scene->on_viewport_resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
@@ -830,7 +843,18 @@ namespace Honey {
         else
             HN_CORE_INFO("Saving scene as {0}", path.string());
         if (!path.empty()) {
-            SceneSerializer serializer(m_active_scene);
+
+            // Serialize editor camera state so user can pick up exactly where they left off
+            EditorSceneMeta meta{};
+            meta.has_camera     = true;
+            meta.camera_position = m_editor_camera.get_position();
+            meta.camera_yaw     = m_editor_camera.get_yaw();
+            meta.camera_pitch   = m_editor_camera.get_pitch();
+            meta.camera_fov     = m_editor_camera.get_fov();
+            meta.camera_near    = m_editor_camera.get_near_clip();
+            meta.camera_far     = m_editor_camera.get_far_clip();
+
+            SceneSerializer serializer(m_active_scene, &meta);
             serializer.serialize(path);
             m_editor_scene->clear_dirty();
             m_notification_center.push_toast(UI::ToastType::Success, "Scene Saved", "Scene saved to " + path.filename().string());
