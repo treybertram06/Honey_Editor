@@ -603,7 +603,7 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                         std::filesystem::path path = path_str;
                         std::filesystem::path mesh_path = std::filesystem::path(g_assets_dir) / path;
 
-                        component.mesh = load_gltf_mesh(mesh_path.string());
+                        component.mesh = load_gltf_mesh(mesh_path.string(), {}, false);
                         component.mesh_path = mesh_path;
                         changed = true;
                     }
