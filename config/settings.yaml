@@ -9,7 +9,7 @@ Renderer:
   VSync: false
   ShowPhysicsDebugDraw: false
   AnisotropicFilteringLevel: 16
-  TextureFilter: Nearest
+  TextureFilter: Anisotropic
 Physics:
   Enabled: true
   Substeps: 6
