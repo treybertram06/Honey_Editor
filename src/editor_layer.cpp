@@ -305,7 +305,8 @@ namespace Honey {
                 gpu_ms = window.get_context()->get_last_gpu_frame_time_ms();
             }
             ImGui::Text("GPU Frame Time: %.3f ms", gpu_ms);
-            ImGui::Text("Smoothed FPS: %d", m_framerate_counter.get_smoothed_fps());
+            ImGui::Text("GPU time spent ratio: %.3f %%", (gpu_ms / m_frame_time) * 100.0f );
+            //ImGui::Text("Smoothed FPS: %d", m_framerate_counter.get_smoothed_fps());
 
             ImGui::Separator();
             auto stats = Renderer2D::get_stats();
