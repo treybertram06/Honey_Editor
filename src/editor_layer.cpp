@@ -473,7 +473,7 @@ namespace Honey {
                     if (path.extension() == ".hns")
                         open_scene(g_assets_dir / path);
                     else if (path.extension() == ".hnp")
-                        m_active_scene->add_prefab_to_scene(g_assets_dir / path);
+                        m_active_scene->add_prefab_to_scene((g_assets_dir / path).string());
                 }
             }
             ImGui::EndDragDropTarget();
