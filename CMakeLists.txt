@@ -38,6 +38,14 @@ add_compile_definitions(
 add_subdirectory(Honey)
 target_link_libraries(Honey_Editor PRIVATE engine)
 
+set(IMGUI_INI_SOURCE "${CMAKE_SOURCE_DIR}/resources/defaults/imgui.ini")
+
+add_custom_command(TARGET Honey_Editor POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${IMGUI_INI_SOURCE}"
+        "$<TARGET_FILE_DIR:Honey_Editor>/imgui.ini"
+)
+
 # Move shaderc dll next to executable
 if (WIN32)
     add_custom_command(TARGET Honey_Editor POST_BUILD
