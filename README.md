@@ -46,37 +46,119 @@ Honey is a modern, high-performance game engine and editor built with C++20. It 
 
 ### Platform Dependencies
 - **Linux**: Primary supported platform. Requires development headers for X11/Wayland (e.g., `libx11-dev`, `libxcursor-dev`, `libxinerama-dev`, `libxrandr-dev`, `libxi-dev`). `ccache` is highly recommended.
+- **Windows**: Requires MSVC 2019+ / Visual Studio 2022, standard Windows SDKs, and the Vulkan SDK if Vulkan support is enabled.
 - **macOS**: *Experimental / WIP*. Support is currently lacking and the project likely will not build. Requires Cocoa and Metal frameworks.
-- **Windows**: *Experimental / WIP*. Support is currently lacking and the project likely will not build. Requires MSVC 2019+ and standard Windows SDKs.
 
 ## Setup & Build
 
 ### 1. Clone the repository
-Ensure you clone with submodules if any are used (though most are vendored directly in `Honey/vendor` and `Honey/engine/vendor`):
+Ensure you clone with submodules if any are used (though most dependencies are vendored directly in `Honey/vendor` and `Honey/engine/vendor`):
+
 ```bash
 git clone https://github.com/yourusername/Honey_Editor.git
 cd Honey_Editor
 ```
 
 ### 2. Configure the Project
-Honey uses a standard CMake workflow. We recommend using a separate build directory.
+Honey uses a standard out-of-source CMake workflow.
 
 > [!WARNING]  
-> Windows and macOS support is currently very limited and the project may not build successfully on these platforms at this time. Linux is the primary development environment.
+> Windows and macOS support are still limited. Linux is the primary development environment.
+
+#### Linux / Single-config generators
+Use `CMAKE_BUILD_TYPE` with Ninja or Makefiles:
 
 ```bash
-# Create build directory and configure
-cmake -B build -DCMAKE_BUILD_TYPE=Debug
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
 ```
-*Tip: On Linux, ensure you have the required X11/Wayland development packages installed before this step.*
+
+#### Windows / Visual Studio generator
+When generating a Visual Studio solution, **do not use `CMAKE_BUILD_TYPE`**. Visual Studio is a **multi-config generator**, so the configuration is selected at build time instead.
+
+```bat
+cmake -S . -B build -G "Visual Studio 17 2022"
+```
+
+This will generate a Visual Studio solution in the `build` directory.
 
 ### 3. Build
-You can build the entire project or target the editor specifically:
+
+#### Linux
 ```bash
-# Build the Editor (recommended)
 cmake --build build --target Honey_Editor -j$(nproc)
 ```
-The `-j$(nproc)` flag tells CMake to use all available CPU cores for a faster build.
+
+#### Windows (Visual Studio generator)
+Build the Debug configuration explicitly:
+
+```bat
+cmake --build build --config Debug --target Honey_Editor
+```
+
+If opening the solution in Visual Studio:
+
+1. Open `build/Honey_Editor.sln`
+2. Set configuration to **Debug** or **Release**
+3. Build the **Honey_Editor** project
+
+## Running the Editor
+
+Run the editor from the project root so assets are located correctly.
+
+### Linux
+```bash
+./build/Honey_Editor
+```
+
+### Windows (Visual Studio generator)
+```bat
+.\build\Debug\Honey_Editor.exe
+```
+
+### Windows (Ninja)
+If configured using Ninja instead of Visual Studio:
+
+```bat
+.\build\Honey_Editor.exe
+```
+
+## Build Targets
+- **Honey_Editor** – Primary desktop editor application.
+- **application** – Minimal sandbox environment for testing engine features without editor overhead.
+
+## Notes
+
+### Vulkan on Windows
+If building Vulkan-enabled code on Windows, install the Vulkan SDK and ensure the `VULKAN_SDK` environment variable is available in the shell or IDE session used for CMake.
+
+### Generator Differences
+- **Ninja / Unix Makefiles**
+  - Single-config
+  - Uses `CMAKE_BUILD_TYPE`
+
+- **Visual Studio**
+  - Multi-config
+  - Uses `--config Debug` or `--config Release`
+
+### Recommended Windows Commands
+
+Generate Visual Studio solution:
+
+```bat
+cmake -S . -B build -G "Visual Studio 17 2022"
+```
+
+Build Debug:
+
+```bat
+cmake --build build --config Debug --target Honey_Editor
+```
+
+Build Release:
+
+```bat
+cmake --build build --config Release --target Honey_Editor
+```
 
 ## Running the Editor
 
