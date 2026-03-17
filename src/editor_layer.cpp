@@ -11,6 +11,9 @@
 #include "Honey/utils/platform_utils.h"
 
 #include "Honey/math/math.h"
+#include "Honey/renderer/frame_graph.h"
+#include "Honey/renderer/frame_graph_loader.h"
+#include "Honey/renderer/frame_graph_registry.h"
 #include "Honey/renderer/texture_cache.h"
 #include "Honey/scripting/script_properties_loader.h"
 #include "platform/vulkan/vk_framebuffer.h"
@@ -20,6 +23,28 @@
 static const std::filesystem::path asset_root = ASSET_ROOT;
 
 namespace Honey {
+    struct EditorFrameGraphExecutionContext {
+        EditorLayer* layer = nullptr;
+        Timestep timestep{};
+    };
+
+    static bool s_editor_frame_graph_executors_registered = false;
+
+    static void ensure_editor_frame_graph_executors_registered() {
+        if (s_editor_frame_graph_executors_registered)
+            return;
+
+        auto& registry = FrameGraphRegistry::get();
+
+        registry.register_executor("editor.scene", [](FrameGraphPassContext& ctx) {
+            auto* exec = ctx.user_context_as<EditorFrameGraphExecutionContext>();
+            HN_CORE_ASSERT(exec && exec->layer,
+                "editor.scene executor requires EditorFrameGraphExecutionContext with valid layer");
+            exec->layer->render_scene_for_current_state(exec->timestep);
+        });
+
+        s_editor_frame_graph_executors_registered = true;
+    }
 
     extern const std::filesystem::path g_assets_dir;
 
@@ -43,6 +68,44 @@ namespace Honey {
         new_scene();
         m_editor_camera = EditorCamera(16.0f/9.0f, 45.0f, 0.1f, 1000.0f);
 
+        ensure_editor_frame_graph_executors_registered();
+        rebuild_editor_frame_graph();
+
+    }
+
+    void EditorLayer::rebuild_editor_frame_graph() {
+        FGCompileDiagnostics diags;
+        FGCompileOptions options{};
+        options.external_framebuffers.emplace("editorViewport", m_framebuffer);
+
+        m_editor_frame_graph = FrameGraphLoader::load_and_compile_from_file(
+            asset_root / "frame_graphs" / "main.hnfg",
+            diags,
+            &options);
+
+        FrameGraphLoader::log_diagnostics(diags, "Editor Frame Graph Rebuild");
+    }
+
+    void EditorLayer::render_scene_for_current_state(Timestep ts) {
+        switch (m_scene_state) {
+        case SceneState::edit:
+            {
+                if (m_viewport_focused)
+                    m_editor_camera.on_update(ts);
+
+                m_active_scene->on_update_editor(ts, m_editor_camera);
+                break;
+            }
+        case SceneState::play:
+            {
+                m_gizmo_type = -1;
+                m_active_scene->on_update_runtime(ts);
+                on_overlay_render();
+                break;
+            }
+        default:
+            break;
+        }
     }
 
     void EditorLayer::render_camera_info() {
@@ -100,33 +163,26 @@ namespace Honey {
 
         Renderer2D::set_debug_pick_enabled(m_viewport_display_mode == ViewportDisplayMode::DebugPick);
 
-        Renderer::set_render_target(m_framebuffer);
-        Renderer::begin_pass();
+        if (!m_editor_frame_graph) {
+            rebuild_editor_frame_graph();
+        }
+
+        if (!m_editor_frame_graph) {
+            return;
+        }
 
         RenderCommand::set_clear_color(m_clear_color);
         RenderCommand::clear();
-        //m_framebuffer->clear_attachment_i32(1, -1);
 
-        switch (m_scene_state) {
-        case SceneState::edit:
-            {
-                if (m_viewport_focused)
-                    m_editor_camera.on_update(ts);
+        EditorFrameGraphExecutionContext exec_data{};
+        exec_data.layer = this;
+        exec_data.timestep = ts;
 
-                m_active_scene->on_update_editor(ts, m_editor_camera);
-                //on_overlay_render();
-                break;
-            }
-        case SceneState::play:
-            {
-                m_gizmo_type = -1;
-                m_active_scene->on_update_runtime(ts);
-                on_overlay_render();
-                break;
-            }
-        }
+        FGExecutionContext fg_exec{};
+        fg_exec.frame_index = 0;
+        fg_exec.user_context = &exec_data;
+        m_editor_frame_graph->execute(fg_exec);
 
-        Renderer::end_pass();
         Renderer::set_render_target(nullptr); // default back to main window for the rest of the frame
     }
 
@@ -247,30 +303,49 @@ namespace Honey {
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Scripts")) {
-            if (ImGui::MenuItem("Build Scripts")) {
-                ScriptLoader::get().unload_library();
+                if (ImGui::MenuItem("Build Scripts")) {
+                    ScriptLoader::get().unload_library();
 
-                int result = std::system("cmake --build . --target HoneyScripts");
-                if (result == 0) {
-                    HN_CORE_INFO("Scripts built successfully, reloading...");
-                    m_notification_center.push_toast(UI::ToastType::Success, "Scripts Built", "HoneyScripts built and reloaded successfully.");
-                    //print current working directory
-                    std::filesystem::path current_path = std::filesystem::current_path();
-                    HN_CORE_INFO("Current working directory: {0}", current_path.string());
-                    ScriptLoader::get().reload_library("assets/scripts/libHoneyScripts.so");
-                } else {
-                    HN_CORE_ERROR("Script build failed with code: {0}", result);
-                    m_notification_center.push_toast(UI::ToastType::Error, "Build Failed", "HoneyScripts build failed. See console for details.");
+                    int result = std::system("cmake --build . --target HoneyScripts");
+                    if (result == 0) {
+                        HN_CORE_INFO("Scripts built successfully, reloading...");
+                        m_notification_center.push_toast(UI::ToastType::Success, "Scripts Built", "HoneyScripts built and reloaded successfully.");
+                        //print current working directory
+                        std::filesystem::path current_path = std::filesystem::current_path();
+                        HN_CORE_INFO("Current working directory: {0}", current_path.string());
+                        ScriptLoader::get().reload_library("assets/scripts/libHoneyScripts.so");
+                    } else {
+                        HN_CORE_ERROR("Script build failed with code: {0}", result);
+                        m_notification_center.push_toast(UI::ToastType::Error, "Build Failed", "HoneyScripts build failed. See console for details.");
+                    }
                 }
-            }
-            if (ImGui::MenuItem("Reload Scripts")) {
-                ScriptLoader::get().reload_library("assets/scripts/libHoneyScripts.so");
-                m_notification_center.push_toast(UI::ToastType::Info, "Scripts Reloaded", "HoneyScripts reloaded.");
-            }
+                if (ImGui::MenuItem("Reload Scripts")) {
+                    ScriptLoader::get().reload_library("assets/scripts/libHoneyScripts.so");
+                    m_notification_center.push_toast(UI::ToastType::Info, "Scripts Reloaded", "HoneyScripts reloaded.");
+                }
                 if (ImGui::MenuItem("Invalidate Lua Script Property Cache")) {
                     ScriptPropertiesLoader::invalidate_all();
                 }
 
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("Debug Shortcuts")) {
+                if (ImGui::MenuItem("Compile Example Frame Graph")) {
+                    FGCompileDiagnostics diags;
+                    FGCompileOptions options{};
+                    options.external_framebuffers.emplace("editorViewport", m_framebuffer);
+
+                    auto graph = FrameGraphLoader::load_and_compile_from_file(
+                        asset_root / "frame_graphs" / "main.hnfg",
+                        diags,
+                        &options);
+                    FrameGraphLoader::log_diagnostics(diags, "Example Frame Graph Load/Compile");
+
+                    if (graph) {
+                        m_editor_frame_graph = graph;
+                        HN_CORE_INFO("Editor frame graph hot-reloaded from debug menu.");
+                    }
+                }
                 ImGui::EndMenu();
             }
             ImGui::EndMainMenuBar();

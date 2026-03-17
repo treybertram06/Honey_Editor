@@ -2,6 +2,7 @@
 #include <Honey.h>
 #include "panels/scene_hierarchy_panel.h"
 #include "panels/content_browser_panel.h"
+#include "Honey/renderer/frame_graph.h"
 
 #include <glm/glm/glm.hpp>
 #include <imgui.h>
@@ -24,6 +25,9 @@ namespace Honey {
         virtual void on_imgui_render() override;
         void on_event(Event &event) override;
 
+        // Used by frame-graph executors.
+        void render_scene_for_current_state(Timestep ts);
+
     private:
 
         bool on_key_pressed(KeyPressedEvent& e);
@@ -45,12 +49,15 @@ namespace Honey {
         void on_scene_stop();
         void on_duplicate_entity();
 
+        void rebuild_editor_frame_graph();
+
         // ui panels
         void ui_toolbar();
 
         Ref<Texture2D::AsyncHandle> m_test_async_tex;
 
         Ref<Framebuffer> m_framebuffer;
+        std::shared_ptr<FrameGraphCompiled> m_editor_frame_graph;
         glm::vec2 m_viewport_size = {1680.0f, 720.0f};
         bool m_viewport_focused = false, m_viewport_hovered = false;
 

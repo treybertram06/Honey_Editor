@@ -1,0 +1,15 @@
+FrameGraph:
+  Version: 1
+
+  Resources:
+    editorViewport:
+      Type: ImportedTarget
+      Kind: ExternalFramebuffer
+
+  Passes:
+    - Name: EditorScene
+      Executor: editor.scene
+      Reads: []
+      Writes: [editorViewport]
+      Clear:
+        color: [0.10, 0.10, 0.12, 1.0]
