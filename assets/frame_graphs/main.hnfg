@@ -7,7 +7,7 @@ FrameGraph:
       Kind: ExternalFramebuffer
 
   Passes:
-    - Name: EditorScene
+    - Name: SceneToViewport
       Executor: editor.scene
       Reads: []
       Writes: [editorViewport]
