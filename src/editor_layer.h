@@ -58,6 +58,10 @@ namespace Honey {
 
         Ref<Framebuffer> m_framebuffer;
         std::shared_ptr<FrameGraphCompiled> m_editor_frame_graph;
+        FGExecutionStats m_editor_frame_graph_stats{};
+        bool m_collect_frame_graph_timings = true;
+        bool m_log_frame_graph_pass_timings = false;
+        uint32_t m_frame_graph_frame_index = 0;
         glm::vec2 m_viewport_size = {1680.0f, 720.0f};
         bool m_viewport_focused = false, m_viewport_hovered = false;
 

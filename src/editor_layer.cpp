@@ -77,6 +77,7 @@ namespace Honey {
         FGCompileDiagnostics diags;
         FGCompileOptions options{};
         options.external_framebuffers.emplace("editorViewport", m_framebuffer);
+        options.requested_output_resources.emplace_back("editorViewport");
 
         m_editor_frame_graph = FrameGraphLoader::load_and_compile_from_file(
             asset_root / "frame_graphs" / "main.hnfg",
@@ -179,8 +180,11 @@ namespace Honey {
         exec_data.timestep = ts;
 
         FGExecutionContext fg_exec{};
-        fg_exec.frame_index = 0;
+        fg_exec.frame_index = m_frame_graph_frame_index++;
         fg_exec.user_context = &exec_data;
+        fg_exec.collect_cpu_timings = m_collect_frame_graph_timings;
+        fg_exec.log_pass_execution = m_log_frame_graph_pass_timings;
+        fg_exec.out_stats = &m_editor_frame_graph_stats;
         m_editor_frame_graph->execute(fg_exec);
 
         Renderer::set_render_target(nullptr); // default back to main window for the rest of the frame
@@ -334,6 +338,7 @@ namespace Honey {
                     FGCompileDiagnostics diags;
                     FGCompileOptions options{};
                     options.external_framebuffers.emplace("editorViewport", m_framebuffer);
+                    options.requested_output_resources.emplace_back("editorViewport");
 
                     auto graph = FrameGraphLoader::load_and_compile_from_file(
                         asset_root / "frame_graphs" / "main.hnfg",
@@ -344,6 +349,13 @@ namespace Honey {
                     if (graph) {
                         m_editor_frame_graph = graph;
                         HN_CORE_INFO("Editor frame graph hot-reloaded from debug menu.");
+                    }
+                }
+                if (ImGui::MenuItem("Dump Compiled Frame Graph")) {
+                    if (m_editor_frame_graph) {
+                        m_editor_frame_graph->log_debug_dump("Editor Frame Graph");
+                    } else {
+                        HN_CORE_WARN("No compiled editor frame graph to dump.");
                     }
                 }
                 ImGui::EndMenu();
@@ -392,6 +404,25 @@ namespace Honey {
 
             if (ImGui::Button("Reset Statistics")) {
                 Renderer2D::reset_stats();
+            }
+
+            ImGui::Separator();
+            ImGui::Text("Frame Graph CPU: %.3f ms", m_editor_frame_graph_stats.total_cpu_time_ms);
+            ImGui::Checkbox("Collect FG CPU Timings", &m_collect_frame_graph_timings);
+            ImGui::Checkbox("Log FG Pass Timings", &m_log_frame_graph_pass_timings);
+
+            if (ImGui::TreeNode("Frame Graph Pass Timings")) {
+                if (m_editor_frame_graph_stats.pass_stats.empty()) {
+                    ImGui::TextDisabled("No pass timing data yet.");
+                } else {
+                    for (const auto& pass_stat : m_editor_frame_graph_stats.pass_stats) {
+                        ImGui::Text("%s: %.3f ms%s",
+                                    pass_stat.pass_name.c_str(),
+                                    pass_stat.cpu_time_ms,
+                                    pass_stat.skipped ? " (skipped)" : "");
+                    }
+                }
+                ImGui::TreePop();
             }
         }
 
