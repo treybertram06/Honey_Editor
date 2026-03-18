@@ -783,9 +783,16 @@ namespace Honey {
     }
 
     void EditorLayer::on_event(Event &event) {
-        m_editor_camera.on_event(event);
-
         EventDispatcher dispatcher(event);
+
+        dispatcher.dispatch<MouseScrolledEvent>([this](MouseScrolledEvent& e) {
+                if (m_scene_state == SceneState::edit && m_viewport_hovered) {
+                    m_editor_camera.on_event(e);
+                    return true; // consume scroll so editor camera is the only receiver here
+                }
+                return false;
+            });
+
         dispatcher.dispatch<KeyPressedEvent>(HN_BIND_EVENT_FN(EditorLayer::on_key_pressed));
         dispatcher.dispatch<MouseButtonPressedEvent>(HN_BIND_EVENT_FN(EditorLayer::on_mouse_button_pressed));
         dispatcher.dispatch<WindowCloseEvent>([this](WindowCloseEvent& e) {
