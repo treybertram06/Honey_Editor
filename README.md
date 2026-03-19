@@ -1,11 +1,68 @@
 # Honey Editor
 
-Honey is a modern, high-performance game engine and editor built with C++20. It features a cross-platform architecture supporting OpenGL and Vulkan backends, a high-performance Entity Component System (ECS), and a powerful ImGui-based editor suite.
+<p align="center">
+  <img src="resources/images/honey_editor_screenshot.png" alt="Honey Editor Screenshot" width="100%">
+</p>
+
+<p align="center">
+  <b>A modern C++20 game engine & editor focused on performance, flexibility, and real-time workflows.</b>
+</p>
+
+<p align="center">
+  <!-- Build Badge -->
+  <img src="https://github.com/treybertram06/Honey_Editor/actions/workflows/ci.yml/badge.svg" alt="Build Status">
+
+  <!-- License Badge -->
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
+
+  <!-- C++ Badge -->
+  <img src="https://img.shields.io/badge/C%2B%2B-20-blue" alt="C++20">
+
+  <!-- Platform Badge -->
+  <img src="https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey" alt="Platforms">
+</p>
+
+---
+
+
+**Honey Editor** is a high-performance, modern game engine and editor written in **C++20**, designed for:
+- real-time rendering experimentation
+- building tools and editor workflows
+- learning and pushing modern graphics APIs (OpenGL + Vulkan)
+
+It combines a **custom rendering engine**, **ECS architecture**, and a **fully interactive editor** into a cohesive development environment.
+
+---
+
+## Highlights
+
+- **Batch-rendered 2D engine** (quads, circles, lines, textures)
+- **EnTT-powered ECS** for cache-friendly performance
+- **Full editor UI** with scene hierarchy & inspector
+- **ImGuizmo integration** for professional transform controls
+- **Hot-reload shaders & fast iteration workflow**
+- **Scene serialization (YAML)**
+- **Audio (SoLoud) + Physics (Box2D)**
+
+---
+
+## Project Status
+
+| Feature                | Status       |
+|----------------------|--------------|
+| Vulkan Backend        | ✅ Stable     |
+| OpenGL Renderer       | ⚠️ Unstable  |
+| Editor Tools          | ✅ Functional |
+| ECS / Scene System    | ✅ Stable     |
+| Linux Support         | ✅ Primary    |
+| Windows Support       | ✅ Working    |
+
+---
 
 ## Features
 
 ### High-Performance Rendering
-- **Multi-Backend Architecture**: Seamless support for **OpenGL 4.5** and **Vulkan** (WIP) backends.
+- **Multi-Backend Architecture**: Seamless* support for **OpenGL 4.5** and **Vulkan** (WIP) backends.
 - **Batch Renderer 2D**: Highly optimized batch rendering for quads, circles, and lines with support for textures and sub-textures.
 - **Advanced Camera Systems**: Orthographic and Perspective cameras with a dedicated Editor Camera featuring smooth interpolation and orbit/pan controls.
 - **Shader Management**: Sophisticated shader cache and hot-reloading capabilities.
@@ -184,9 +241,5 @@ Once the build is complete, you can launch the editor from the project root to e
 - `src/`: Source code for the Honey Editor application.
 - `assets/`: Default shaders, textures, and scene files used by the engine.
 
-## License
-
-This project is currently without an explicit license. Please check back later or contact the maintainer for more information.
-
 ---
-*This README was brought to you by ChatGPT, because I hate writing READMEs.*
+<sub>README assisted by ChatGPT 🤖 (because writing docs is harder than writing engines)</sub>
