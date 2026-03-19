@@ -46,29 +46,6 @@ namespace Honey {
             exec->layer->render_scene_for_current_state(exec->timestep);
         });
 
-        registry.register_executor("editor.debug_overlay", [](FrameGraphPassContext& ctx) {
-            auto* exec = ctx.user_context_as<EditorFrameGraphExecutionContext>();
-            HN_CORE_ASSERT(exec && exec->layer,
-                "editor.debug_overlay executor requires EditorFrameGraphExecutionContext with valid layer");
-
-            const bool has_scene_input = static_cast<bool>(ctx.get_input_framebuffer("sceneColorA"));
-            exec->layer->render_frame_graph_debug_overlay(ctx.params(), ctx.frame_index(), has_scene_input);
-        });
-
-        registry.register_executor("editor.scene_composite", [](FrameGraphPassContext& ctx) {
-            auto* exec = ctx.user_context_as<EditorFrameGraphExecutionContext>();
-            HN_CORE_ASSERT(exec && exec->layer,
-                "editor.scene_composite executor requires EditorFrameGraphExecutionContext with valid layer");
-
-            const bool has_overlay = static_cast<bool>(ctx.get_input_framebuffer("overlayColorB"));
-
-            // Scene update/render happens once, in the final pass that targets editorViewport.
-            exec->layer->render_scene_for_current_state(exec->timestep);
-
-            // Add an animated compositing overlay to make multi-pass flow visible.
-            exec->layer->render_frame_graph_debug_overlay(ctx.params(), ctx.frame_index(), has_overlay);
-        });
-
         s_editor_frame_graph_executors_registered = true;
     }
 
@@ -135,66 +112,6 @@ namespace Honey {
         }
     }
 
-    void EditorLayer::render_frame_graph_debug_overlay(const YAML::Node& params,
-                                                       const uint32_t frame_index,
-                                                       const bool has_scene_input)
-    {
-        float grid_alpha = 0.15f;
-        float pulse_speed = 1.25f;
-        float line_thickness = 0.06f;
-
-        if (params && params.IsMap()) {
-            try {
-                if (const auto n = params["gridAlpha"]; n && n.IsScalar())
-                    grid_alpha = n.as<float>();
-                if (const auto n = params["pulseSpeed"]; n && n.IsScalar())
-                    pulse_speed = n.as<float>();
-                if (const auto n = params["lineThickness"]; n && n.IsScalar())
-                    line_thickness = n.as<float>();
-            } catch (const YAML::BadConversion&) {
-                // Ignore malformed optional params; keep defaults.
-            }
-        }
-
-        grid_alpha = glm::clamp(grid_alpha, 0.0f, 1.0f);
-        pulse_speed = glm::clamp(pulse_speed, 0.05f, 10.0f);
-        line_thickness = glm::clamp(line_thickness, 0.005f, 1.0f);
-
-        const float t = static_cast<float>(frame_index) * (1.0f / 60.0f) * pulse_speed;
-        const float pulse = 0.5f + 0.5f * std::sin(t * 2.0f);
-
-        const glm::vec4 accent = has_scene_input
-            ? glm::vec4(0.25f + 0.45f * pulse, 0.65f + 0.30f * pulse, 1.0f, 0.80f)
-            : glm::vec4(1.0f, 0.35f, 0.35f, 0.80f);
-
-        Renderer2D::begin_scene(m_editor_camera);
-
-        for (int i = -4; i <= 4; ++i) {
-            const float x = static_cast<float>(i) * 1.5f;
-            Renderer2D::draw_quad({x, 0.0f, 0.02f}, {0.02f, 14.0f}, {accent.r, accent.g, accent.b, grid_alpha * 0.6f});
-        }
-        for (int i = -3; i <= 3; ++i) {
-            const float y = static_cast<float>(i) * 1.3f;
-            Renderer2D::draw_quad({0.0f, y, 0.02f}, {16.0f, 0.02f}, {accent.r, accent.g, accent.b, grid_alpha * 0.45f});
-        }
-
-        const float ring_radius = 1.0f + pulse * 0.5f;
-        Renderer2D::draw_circle({0.0f, 0.0f, 0.03f},
-                                {ring_radius * 2.0f, ring_radius * 2.0f},
-                                {accent.r, accent.g, accent.b, 0.55f},
-                                line_thickness,
-                                0.01f);
-
-        const float orbit_radius = 2.1f;
-        for (int i = 0; i < 6; ++i) {
-            const float a = t + glm::two_pi<float>() * (static_cast<float>(i) / 6.0f);
-            const glm::vec3 p{std::cos(a) * orbit_radius, std::sin(a) * orbit_radius, 0.03f};
-            Renderer2D::draw_circle(p, {0.28f, 0.28f}, {accent.r, accent.g, accent.b, 0.75f}, 1.0f, 0.03f);
-        }
-
-        Renderer2D::end_scene();
-    }
-
     void EditorLayer::render_camera_info() {
         if (!ImGui::CollapsingHeader("Camera Info", ImGuiTreeNodeFlags_DefaultOpen)) {
             return;
@@ -258,7 +175,6 @@ namespace Honey {
             return;
         }
 
-        RenderCommand::set_clear_color(m_clear_color);
         RenderCommand::clear();
 
         EditorFrameGraphExecutionContext exec_data{};
@@ -516,10 +432,6 @@ namespace Honey {
         if (ImGui::CollapsingHeader("Renderer Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
             auto& renderer = Settings::get().renderer;
 
-            if (ImGui::ColorEdit4("Clear Color", glm::value_ptr(renderer.clear_color))) {
-                m_clear_color = renderer.clear_color;
-            }
-
             if (ImGui::Checkbox("Wireframe Mode", &renderer.wireframe)) {
                 RenderCommand::set_wireframe(renderer.wireframe);
             }
@@ -532,10 +444,6 @@ namespace Honey {
                 RenderCommand::set_depth_write(renderer.depth_write);
             }
 
-            if (ImGui::Checkbox("Face Culling", &renderer.face_culling)) {
-                // RenderCommand::set_face_culling(renderer.face_culling);
-            }
-            ImGui::SameLine();
             if (ImGui::Checkbox("Blending", &renderer.blending)) {
                 RenderCommand::set_blend(renderer.blending);
             }

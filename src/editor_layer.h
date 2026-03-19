@@ -27,7 +27,6 @@ namespace Honey {
 
         // Used by frame-graph executors.
         void render_scene_for_current_state(Timestep ts);
-        void render_frame_graph_debug_overlay(const YAML::Node& params, uint32_t frame_index, bool has_scene_input);
 
     private:
 
@@ -86,8 +85,6 @@ namespace Honey {
 
         UI::NotificationCenter m_notification_center;
         bool m_quit_requested = false;
-
-        glm::vec4 m_clear_color = { 0.1f, 0.1f, 0.1f, 1.0f };
 
         FramerateCounter m_framerate_counter;
         int m_framerate = 0;
