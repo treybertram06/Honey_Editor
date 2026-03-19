@@ -40,7 +40,8 @@ jobs:
             vulkan-tools \
             libgl1-mesa-dev \
             mesa-common-dev \
-            libglx-dev
+            libglx-dev \
+            libgtk-3-dev
 
       - name: Install Vulkan SDK (Windows)
         if: runner.os == 'Windows'
