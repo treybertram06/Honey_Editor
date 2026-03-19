@@ -33,7 +33,11 @@ jobs:
             libxcursor-dev \
             libxinerama-dev \
             libxrandr-dev \
-            libxi-dev
+            libxi-dev \
+            libwayland-dev \
+            wayland-protocols \
+            libvulkan-dev \
+            vulkan-tools
 
       - name: Install Vulkan SDK (Windows)
         if: runner.os == 'Windows'
