@@ -21,9 +21,6 @@ jobs:
         with:
           submodules: recursive
 
-      # -------------------------
-      # Linux Setup
-      # -------------------------
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
         run: |
@@ -38,6 +35,12 @@ jobs:
             libxrandr-dev \
             libxi-dev
 
+      - name: Install Vulkan SDK (Windows)
+        if: runner.os == 'Windows'
+        uses: jakoch/install-vulkan-sdk-action@v1.2.0
+        with:
+          vulkan_version: latest
+
       - name: Configure (Linux)
         if: runner.os == 'Linux'
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.config }}
@@ -46,9 +49,6 @@ jobs:
         if: runner.os == 'Linux'
         run: cmake --build build --target Honey_Editor -j$(nproc)
 
-      # -------------------------
-      # Windows Setup
-      # -------------------------
       - name: Configure (Windows)
         if: runner.os == 'Windows'
         run: cmake -S . -B build -G "Visual Studio 17 2022"
