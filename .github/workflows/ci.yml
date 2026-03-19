@@ -37,9 +37,25 @@ jobs:
 
       - name: Install Vulkan SDK (Windows)
         if: runner.os == 'Windows'
-        uses: jakoch/install-vulkan-sdk-action@v1.2.0
-        with:
-          vulkan_version: latest
+        shell: pwsh
+        run: |
+          $version = "1.4.341.0"
+          $installer = "$env:RUNNER_TEMP\vulkansdk.exe"
+          $url = "https://sdk.lunarg.com/sdk/download/$version/windows/vulkansdk-windows-X64-$version.exe"
+          
+          Write-Host "Downloading Vulkan SDK from $url"
+          Invoke-WebRequest -Uri $url -OutFile $installer
+          
+          Write-Host "Installing Vulkan SDK..."
+          Start-Process -FilePath $installer -ArgumentList "--accept-licenses --default-answer --confirm-command install" -Wait -NoNewWindow
+          
+          $sdkPath = "C:\VulkanSDK\$version"
+          if (-not (Test-Path $sdkPath)) {
+            throw "Vulkan SDK was not installed at expected path: $sdkPath"
+          }
+          
+          "VULKAN_SDK=$sdkPath" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "$sdkPath\Bin" | Out-File -FilePath $env:GITHUB_PATH -Append
 
       - name: Configure (Linux)
         if: runner.os == 'Linux'
