@@ -37,7 +37,10 @@ jobs:
             libwayland-dev \
             wayland-protocols \
             libvulkan-dev \
-            vulkan-tools
+            vulkan-tools \
+            libgl1-mesa-dev \
+            mesa-common-dev \
+            libglx-dev
 
       - name: Install Vulkan SDK (Windows)
         if: runner.os == 'Windows'
