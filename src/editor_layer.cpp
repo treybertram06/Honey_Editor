@@ -32,6 +32,7 @@ namespace Honey {
     };
 
     static bool s_editor_frame_graph_executors_registered = false;
+    static bool s_editor_cloth_seeded = false;
 
     static void ensure_editor_frame_graph_executors_registered() {
         if (s_editor_frame_graph_executors_registered)
@@ -44,6 +45,28 @@ namespace Honey {
             HN_CORE_ASSERT(exec && exec->layer,
                 "editor.scene executor requires EditorFrameGraphExecutionContext with valid layer");
             exec->layer->render_scene_for_current_state(exec->timestep);
+        });
+
+        registry.register_executor("cloth.seed", [](FrameGraphPassContext& ctx) {
+            if (s_editor_cloth_seeded)
+                return;
+
+            const bool submitted = ctx.submit_vulkan_compute([&](VkCommandBuffer cmd) {
+                (void)cmd;
+                // TODO: one-time initialization dispatch/copy for clothStateA.
+            });
+
+            if (submitted)
+                s_editor_cloth_seeded = true;
+        });
+
+        registry.register_executor("cloth.simulate", [](FrameGraphPassContext& ctx) {
+            ctx.submit_vulkan_compute([&](VkCommandBuffer cmd) {
+                // bind compute pipeline
+                // bind descriptor sets (clothStateA + clothStateB)
+                // vkCmdDispatch(cmd, groupX, groupY, groupZ)
+                // optional vkCmdPipelineBarrier if needed for your buffer visibility model
+            });
         });
 
         s_editor_frame_graph_executors_registered = true;
@@ -81,6 +104,8 @@ namespace Honey {
         FGCompileOptions options{};
         options.external_framebuffers.emplace("editorViewport", m_framebuffer);
         options.requested_output_resources.emplace_back("editorViewport");
+
+        s_editor_cloth_seeded = false;
 
         m_editor_frame_graph = FrameGraphLoader::load_and_compile_from_file(
             asset_root / "frame_graphs" / "main.hnfg",
@@ -350,6 +375,7 @@ namespace Honey {
 
                     if (graph) {
                         m_editor_frame_graph = graph;
+                        s_editor_cloth_seeded = false;
                         HN_CORE_INFO("Editor frame graph hot-reloaded from debug menu.");
                     }
                 }
