@@ -11,6 +11,8 @@
 #include "Honey/ui/notifications.h"
 
 
+namespace Honey { class VulkanClothSim; }
+
 namespace Honey {
     class EditorLayer : public Layer {
 
@@ -27,8 +29,12 @@ namespace Honey {
 
         // Used by frame-graph executors.
         void render_scene_for_current_state(Timestep ts);
+        bool execute_cloth_seed(FrameGraphPassContext& ctx);
+        bool execute_cloth_sim(FrameGraphPassContext& ctx, Timestep ts);
 
     private:
+
+        bool ensure_cloth_sim_initialized();
 
         bool on_key_pressed(KeyPressedEvent& e);
         bool on_mouse_button_pressed(MouseButtonPressedEvent& e);
@@ -57,6 +63,8 @@ namespace Honey {
         Ref<Texture2D::AsyncHandle> m_test_async_tex;
 
         Ref<Framebuffer> m_framebuffer;
+        std::unique_ptr<VulkanClothSim> m_cloth_sim;
+        bool m_cloth_sim_init_failed = false;
         std::shared_ptr<FrameGraphCompiled> m_editor_frame_graph;
         FGExecutionStats m_editor_frame_graph_stats{};
         bool m_collect_frame_graph_timings = true;
