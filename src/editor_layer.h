@@ -12,6 +12,7 @@
 
 
 namespace Honey { class VulkanClothSim; }
+namespace Honey { class VulkanClothRenderer; }
 
 namespace Honey {
     class EditorLayer : public Layer {
@@ -64,6 +65,7 @@ namespace Honey {
 
         Ref<Framebuffer> m_framebuffer;
         std::unique_ptr<VulkanClothSim> m_cloth_sim;
+        std::unique_ptr<VulkanClothRenderer> m_cloth_renderer;
         bool m_cloth_sim_init_failed = false;
         std::shared_ptr<FrameGraphCompiled> m_editor_frame_graph;
         FGExecutionStats m_editor_frame_graph_stats{};

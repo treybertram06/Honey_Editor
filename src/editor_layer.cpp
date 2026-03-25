@@ -16,10 +16,13 @@
 #include "Honey/renderer/frame_graph_registry.h"
 #include "Honey/renderer/texture_cache.h"
 #include "Honey/scripting/script_properties_loader.h"
+#include "scripting/script_loader.h"
+
 #include "platform/vulkan/vk_cloth_sim.h"
+#include "platform/vulkan/vk_cloth_renderer.h"
+#include "platform/vulkan/vk_buffer.h"
 #include "platform/vulkan/vk_framebuffer.h"
 #include "platform/vulkan/vk_texture.h"
-#include "scripting/script_loader.h"
 
 #include <cmath>
 #include <glm/gtc/constants.hpp>
@@ -110,6 +113,15 @@ namespace Honey {
 
         m_cloth_sim_init_failed = false;
         HN_CORE_INFO("EditorLayer cloth sim initialized ({0}x{1})", cloth_w, cloth_h);
+
+        if (!m_cloth_renderer)
+            m_cloth_renderer = std::make_unique<VulkanClothRenderer>();
+
+        if (!m_cloth_renderer->valid()) {
+            if (!m_cloth_renderer->init(vk_ctx, cloth_w, cloth_h))
+                HN_CORE_WARN("EditorLayer cloth renderer init failed — cloth will not be visible");
+        }
+
         return true;
     }
 
@@ -117,14 +129,61 @@ namespace Honey {
         if (!ensure_cloth_sim_initialized())
             return false;
 
-        return ctx.submit_vulkan_compute([&](VkCommandBuffer cmd) {
+        const auto state_a = ctx.get_buffer("clothStateA");
+        const auto state_b = ctx.get_buffer("clothStateB");
+
+        if (state_a && state_b) {
+            auto vk_state_a = std::dynamic_pointer_cast<VulkanStorageBuffer>(state_a);
+            auto vk_state_b = std::dynamic_pointer_cast<VulkanStorageBuffer>(state_b);
+
+            if (vk_state_a && vk_state_b) {
+                m_cloth_sim->set_external_state_buffers(
+                    reinterpret_cast<VkBuffer>(vk_state_a->get_native_buffer()),
+                    reinterpret_cast<VkBuffer>(vk_state_b->get_native_buffer()));
+            } else {
+                HN_CORE_WARN("EditorLayer cloth seed: frame-graph cloth buffers are not VulkanStorageBuffer; using internal cloth buffers");
+                m_cloth_sim->set_external_state_buffers(VK_NULL_HANDLE, VK_NULL_HANDLE);
+            }
+        } else {
+            m_cloth_sim->set_external_state_buffers(VK_NULL_HANDLE, VK_NULL_HANDLE);
+        }
+
+        // Reseed from a known ping-pong state so the first simulation step always
+        // reads seeded data (seed writes to "write", then we swap on success).
+        m_cloth_sim->reset_ping_pong();
+
+        const bool submitted = ctx.submit_vulkan_compute([&](VkCommandBuffer cmd) {
             m_cloth_sim->record_seed(cmd);
         });
+
+        if (submitted)
+            m_cloth_sim->swap_ping_pong();
+
+        return submitted;
     }
 
     bool EditorLayer::execute_cloth_sim(FrameGraphPassContext& ctx, Timestep ts) {
         if (!ensure_cloth_sim_initialized())
             return false;
+
+        const auto state_a = ctx.get_buffer("clothStateA");
+        const auto state_b = ctx.get_buffer("clothStateB");
+
+        if (state_a && state_b) {
+            auto vk_state_a = std::dynamic_pointer_cast<VulkanStorageBuffer>(state_a);
+            auto vk_state_b = std::dynamic_pointer_cast<VulkanStorageBuffer>(state_b);
+
+            if (vk_state_a && vk_state_b) {
+                m_cloth_sim->set_external_state_buffers(
+                    reinterpret_cast<VkBuffer>(vk_state_a->get_native_buffer()),
+                    reinterpret_cast<VkBuffer>(vk_state_b->get_native_buffer()));
+            } else {
+                HN_CORE_WARN("EditorLayer cloth simulate: frame-graph cloth buffers are not VulkanStorageBuffer; using internal cloth buffers");
+                m_cloth_sim->set_external_state_buffers(VK_NULL_HANDLE, VK_NULL_HANDLE);
+            }
+        } else {
+            m_cloth_sim->set_external_state_buffers(VK_NULL_HANDLE, VK_NULL_HANDLE);
+        }
 
         const bool submitted = ctx.submit_vulkan_compute([&](VkCommandBuffer cmd) {
             m_cloth_sim->record_sim(cmd, ts.get_seconds(), m_frame_graph_frame_index);
@@ -183,6 +242,14 @@ namespace Honey {
                     m_editor_camera.on_update(ts);
 
                 m_active_scene->on_update_editor(ts, m_editor_camera);
+
+                if (m_cloth_sim && m_cloth_sim->valid() &&
+                    m_cloth_renderer && m_cloth_renderer->valid())
+                {
+                    m_cloth_renderer->record_draw(
+                        m_cloth_sim->current_read_buffer(),
+                        m_editor_camera.get_view_projection_matrix());
+                }
                 break;
             }
         case SceneState::play:
@@ -467,6 +534,21 @@ namespace Honey {
                 vendor_cache = RenderCommand::get_renderer_api()->get_vendor();
             }
             ImGui::Text("Vendor: %s", vendor_cache.c_str());
+        }
+
+        if (ImGui::CollapsingHeader("Cloth Sim", ImGuiTreeNodeFlags_DefaultOpen)) {
+            const bool initialized = (m_cloth_sim && m_cloth_sim->valid());
+            ImGui::Text("Initialized: %s", initialized ? "Yes" : "No");
+            ImGui::Text("Seeded: %s", s_editor_cloth_seeded ? "Yes" : "No");
+
+            if (initialized) {
+                ImGui::Text("Dimensions: %u x %u", m_cloth_sim->width(), m_cloth_sim->height());
+                ImGui::Text("Particles: %u", m_cloth_sim->particle_count());
+                ImGui::Text("Ping-Pong: read=%u write=%u (set=%u)",
+                            m_cloth_sim->read_index(),
+                            m_cloth_sim->write_index(),
+                            m_cloth_sim->descriptor_set_index());
+            }
         }
 
         // Performance Section
