@@ -420,6 +420,13 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                     ImGui::CloseCurrentPopup();
                 }
             }
+            if (!m_selected_entity.has_component<ClothComponent>()) {
+                if (ImGui::MenuItem("Cloth")) {
+                    entity.add_component<ClothComponent>();
+                    scene_changed = true;
+                    ImGui::CloseCurrentPopup();
+                }
+            }
 
             const bool has_parent = entity.has_parent();
 
@@ -929,6 +936,20 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
             changed |= ImGui::DragFloat("Pitch",  &component.pitch,  0.01f, 0.1f, 3.0f);
             changed |= ImGui::Checkbox("Loop", &component.loop);
             changed |= ImGui::Checkbox("Play On Scene Start", &component.play_on_scene_start);
+
+            return changed;
+        });
+
+        scene_changed |= draw_component<ClothComponent>("Cloth", entity, [](auto& component) -> bool {
+            bool changed = false;
+
+            int w = (int)component.grid_width;
+            int h = (int)component.grid_height;
+            int s = (int)component.substeps;
+
+            if (ImGui::DragInt("Grid Width",  &w, 1, 8, 512)) { component.grid_width  = (uint32_t)w; changed = true; }
+            if (ImGui::DragInt("Grid Height", &h, 1, 8, 512)) { component.grid_height = (uint32_t)h; changed = true; }
+            if (ImGui::DragInt("Substeps",    &s, 1, 1,  32)) { component.substeps    = (uint32_t)s; changed = true; }
 
             return changed;
         });

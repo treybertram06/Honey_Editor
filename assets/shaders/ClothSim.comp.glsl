@@ -16,7 +16,7 @@ const float CLOTH_WORLD_SIZE = 4.0;
 // Velocity damping rate in 1/seconds. Frame-rate and substep independent.
 // Velocity retains exp(-DAMPING_RATE) of its magnitude each second.
 // ~1.0 = light (~63% loss/s), ~3.0 = heavy (~95% loss/s).
-const float DAMPING_RATE = 1.5;
+const float DAMPING_RATE = 10.5;
 
 // Maximum particle speed (m/s). Particles faster than this are clamped.
 // Guards against instability when large constraint corrections first
