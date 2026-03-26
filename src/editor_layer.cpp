@@ -91,9 +91,6 @@ namespace Honey {
     }
 
     void EditorLayer::execute_and_render_scene_for_current_state(Timestep ts) {
-        if (paused)
-            return;
-
         switch (m_scene_state) {
         case SceneState::edit:
             {
@@ -106,7 +103,7 @@ namespace Honey {
         case SceneState::play:
             {
                 m_gizmo_type = -1;
-                m_active_scene->on_update_runtime(ts);
+                m_active_scene->on_update_runtime(ts, paused);
                 on_overlay_render();
                 break;
             }
@@ -117,7 +114,7 @@ namespace Honey {
                 if (m_viewport_focused)
                     m_editor_camera.on_update(ts);
 
-                m_active_scene->on_update_simulation(ts, m_editor_camera);
+                m_active_scene->on_update_simulation(ts, m_editor_camera, paused);
                 on_overlay_render();
                 break;
             }
