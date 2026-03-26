@@ -42,7 +42,7 @@ namespace Honey {
             auto* exec = ctx.user_context_as<EditorFrameGraphExecutionContext>();
             HN_CORE_ASSERT(exec && exec->layer,
                 "editor.scene executor requires EditorFrameGraphExecutionContext with valid layer");
-            exec->layer->render_scene_for_current_state(exec->timestep);
+            exec->layer->execute_and_render_scene_for_current_state(exec->timestep);
         });
 
         s_editor_frame_graph_executors_registered = true;
@@ -55,8 +55,10 @@ namespace Honey {
 
     void EditorLayer::on_attach() {
 
-        m_icon_play = Texture2D::create_async("../resources/icons/toolbar/play_button.png");
-        m_icon_stop = Texture2D::create_async("../resources/icons/toolbar/stop_button.png");
+        m_icon_play         = Texture2D::create_async("../resources/icons/toolbar/play_button.png");
+        m_icon_stop         = Texture2D::create_async("../resources/icons/toolbar/stop_button.png");
+        m_icon_pause        = Texture2D::create_async("../resources/icons/toolbar/pause_button.png");
+        m_icon_simulate     = Texture2D::create_async("../resources/icons/toolbar/simulate_button.png");
 
         m_scene_hierarchy_panel.set_notification_center(&m_notification_center);
 
@@ -88,7 +90,10 @@ namespace Honey {
         FrameGraphLoader::log_diagnostics(diags, "Editor Frame Graph Rebuild");
     }
 
-    void EditorLayer::render_scene_for_current_state(Timestep ts) {
+    void EditorLayer::execute_and_render_scene_for_current_state(Timestep ts) {
+        if (paused)
+            return;
+
         switch (m_scene_state) {
         case SceneState::edit:
             {
@@ -102,6 +107,17 @@ namespace Honey {
             {
                 m_gizmo_type = -1;
                 m_active_scene->on_update_runtime(ts);
+                on_overlay_render();
+                break;
+            }
+        case SceneState::simulate:
+            {
+                m_gizmo_type = -1;
+
+                if (m_viewport_focused)
+                    m_editor_camera.on_update(ts);
+
+                m_active_scene->on_update_simulation(ts, m_editor_camera);
                 on_overlay_render();
                 break;
             }
@@ -680,17 +696,40 @@ namespace Honey {
         ImGui::Begin("##toolbar", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
         float size = ImGui::GetWindowHeight() - 4.0f;
-        Ref<Texture2D> icon = m_scene_state == SceneState::edit ? m_icon_play : m_icon_stop;
-        ImGui::SameLine((ImGui::GetWindowContentRegionMax().x * 0.5f) - (size * 0.5f));
+        const Ref<Texture2D> play_stop_icon = m_scene_state == SceneState::edit ? m_icon_play : m_icon_stop;
+        const Ref<Texture2D> pause_icon = paused ? m_icon_play : m_icon_pause;
+        bool in_play = (m_scene_state == SceneState::play || m_scene_state == SceneState::simulate);
 
+        // Center all 3 buttons as a group
+        ImGui::SetCursorPosX((ImGui::GetWindowContentRegionMax().x * 0.5f) - (size * 1.5f));
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
 
-        if (UI::ImageButton("play_stop_button", icon->get_imgui_texture_id(), ImVec2(size, size))) {
+        // Play / Stop
+        if (UI::ImageButton("play_stop_button", play_stop_icon->get_imgui_texture_id(), ImVec2(size, size))) {
             if (m_scene_state == SceneState::edit)
                 on_scene_play();
-            else if (m_scene_state == SceneState::play)
+            else
                 on_scene_stop();
         }
+        ImGui::SetItemTooltip(m_scene_state == SceneState::edit ? "Play" : "Stop");
+
+        // Pause / Resume
+        ImGui::SameLine();
+        ImGui::BeginDisabled(!in_play);
+        if (UI::ImageButton("pause_button", pause_icon->get_imgui_texture_id(), ImVec2(size, size)))
+            paused = !paused;
+        ImGui::EndDisabled();
+        ImGui::SetItemTooltip(paused ? "Resume" : "Pause");
+
+        // Simulate
+        ImGui::SameLine();
+        if (UI::ImageButton("simulate_button", m_icon_simulate->get_imgui_texture_id(), ImVec2(size, size))) {
+            if (m_scene_state == SceneState::edit)
+                on_scene_simulate();
+            else if (m_scene_state == SceneState::simulate)
+                on_scene_stop();
+        }
+        ImGui::SetItemTooltip(m_scene_state == SceneState::simulate ? "Stop Simulation" : "Simulate");
 
         ImGui::PopStyleVar(3);
         ImGui::PopStyleColor(3);
@@ -995,8 +1034,18 @@ namespace Honey {
         m_scene_hierarchy_panel.set_context(m_active_scene);
     }
 
+    void EditorLayer::on_scene_simulate() {
+        m_scene_state = SceneState::simulate;
+
+        m_active_scene = Scene::copy(m_editor_scene);
+        m_active_scene->on_viewport_resize((uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y);
+        m_active_scene->on_runtime_start();
+        m_scene_hierarchy_panel.set_context(m_active_scene);
+    }
+
     void EditorLayer::on_scene_stop() {
         m_scene_state = SceneState::edit;
+        paused = false;
 
         m_active_scene->on_runtime_stop();
         m_active_scene = m_editor_scene;

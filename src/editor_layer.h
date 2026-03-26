@@ -26,7 +26,7 @@ namespace Honey {
         void on_event(Event &event) override;
 
         // Used by the editor.scene frame-graph executor.
-        void render_scene_for_current_state(Timestep ts);
+        void execute_and_render_scene_for_current_state(Timestep ts);
 
     private:
 
@@ -46,6 +46,7 @@ namespace Honey {
         bool has_scene_changed();
 
         void on_scene_play();
+        void on_scene_simulate();
         void on_scene_stop();
         void on_duplicate_entity();
 
@@ -81,7 +82,7 @@ namespace Honey {
         EditorCamera m_editor_camera;
 
         //Editor resources
-        Ref<Texture2D> m_icon_play, m_icon_stop;
+        Ref<Texture2D> m_icon_play, m_icon_stop, m_icon_pause, m_icon_simulate;
 
         UI::NotificationCenter m_notification_center;
         bool m_quit_requested = false;
@@ -106,9 +107,11 @@ namespace Honey {
             play = 1,
             pause = 2,
             stop = 3,
+            simulate = 4
         };
 
         SceneState m_scene_state = SceneState::edit;
+        bool paused = false;
 
         enum class ViewportDisplayMode {
             Color = 0,
