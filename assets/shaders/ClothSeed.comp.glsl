@@ -30,7 +30,9 @@ void main() {
 
     Particle p;
     p.pos = vec4((nx - 0.5) * 4.0, 1.5, (ny - 0.5) * 4.0, (y == 0u) ? 0.0 : 1.0);
-    p.vel = vec4(0.0, 0.0, 0.0, 0.0);
+    // vel.xyz stores the PREVIOUS position for Verlet integration.
+    // Setting prev_pos = pos gives zero initial velocity.
+    p.vel = vec4((nx - 0.5) * 4.0, 1.5, (ny - 0.5) * 4.0, 0.0);
 
     outP[idx] = p;
 }

@@ -29,10 +29,22 @@ layout(location = 0) in vec3 v_pos_ws;
 
 layout(location = 0) out vec4 o_color;
 
+vec3 hsv2rgb(float h, float s, float v) {
+    vec3 k = mod(vec3(5.0, 3.0, 1.0) + h * 6.0, 6.0);
+    return v - v * s * clamp(min(k, 4.0 - k), 0.0, 1.0);
+}
+
+float hash(uint n) {
+    n = (n ^ 61u) ^ (n >> 16u);
+    n *= 9u;
+    n ^= n >> 4u;
+    n *= 0x27d4eb2du;
+    n ^= n >> 15u;
+    return float(n) / float(0xFFFFFFFFu);
+}
+
 void main() {
-    // Simple grid-shading based on world-space height
-    float t = clamp(v_pos_ws.y * 0.5 + 0.5, 0.0, 1.0);
-    vec3 col_top    = vec3(0.70, 0.78, 0.92);
-    vec3 col_bottom = vec3(0.35, 0.40, 0.55);
-    o_color = vec4(mix(col_bottom, col_top, t), 1.0);
+    float hue = hash(uint(gl_PrimitiveID));
+    vec3 col = hsv2rgb(hue, 0.75, 0.90);
+    o_color = vec4(col, 1.0);
 }
