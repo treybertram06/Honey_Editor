@@ -71,8 +71,8 @@ layout(location = 5) flat in int v_entity_id;
 layout(location = 6) in vec2 v_half_size;
 
 #ifdef HN_VULKAN
-layout (set = 0, binding = 1) uniform sampler u_sampler;
-layout (set = 0, binding = 2) uniform texture2D u_textures[MAX_TEXTURE_SLOTS];
+layout (set = 0, binding = 2) uniform sampler u_sampler;
+layout (set = 0, binding = 3) uniform texture2D u_textures[MAX_TEXTURE_SLOTS];
 #else
 layout (binding = 0) uniform sampler2D u_textures[MAX_TEXTURE_SLOTS];
 #endif

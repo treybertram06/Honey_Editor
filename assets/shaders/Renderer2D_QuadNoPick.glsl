@@ -61,9 +61,9 @@ layout(location=3) in float v_tiling_factor;
 
 #ifdef HN_VULKAN
 // binding 1: single sampler
-layout (set = 0, binding = 1) uniform sampler u_sampler;
-// binding 2: array of texture2D (sampled images only)
-layout (set = 0, binding = 2) uniform texture2D u_textures[MAX_TEXTURE_SLOTS];
+layout (set = 0, binding = 2) uniform sampler u_sampler;
+// binding 3: array of texture2D (sampled images only)
+layout (set = 0, binding = 3) uniform texture2D u_textures[MAX_TEXTURE_SLOTS];
 #else
 layout (binding = 0) uniform sampler2D u_textures[MAX_TEXTURE_SLOTS];
 #endif

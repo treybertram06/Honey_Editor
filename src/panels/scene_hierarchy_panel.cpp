@@ -427,6 +427,27 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                     ImGui::CloseCurrentPopup();
                 }
             }
+            if (!m_selected_entity.has_component<PointLightComponent>()) {
+                if (ImGui::MenuItem("Point Light Component")) {
+                    entity.add_component<PointLightComponent>();
+                    scene_changed = true;
+                    ImGui::CloseCurrentPopup();
+                }
+            }
+            if (!m_selected_entity.has_component<DirectionalLightComponent>()) {
+                if (ImGui::MenuItem("Directional Light Component")) {
+                    entity.add_component<DirectionalLightComponent>();
+                    scene_changed = true;
+                    ImGui::CloseCurrentPopup();
+                }
+            }
+            if (!m_selected_entity.has_component<SpotLightComponent>()) {
+                if (ImGui::MenuItem("Spot Light Component")) {
+                    entity.add_component<SpotLightComponent>();
+                    scene_changed = true;
+                    ImGui::CloseCurrentPopup();
+                }
+            }
 
             const bool has_parent = entity.has_parent();
 
@@ -951,6 +972,37 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
             if (ImGui::DragInt("Grid Height", &h, 1, 8, 512)) { component.grid_height = (uint32_t)h; changed = true; }
             if (ImGui::DragInt("Substeps",    &s, 1, 1,  32)) { component.substeps    = (uint32_t)s; changed = true; }
 
+            return changed;
+        });
+
+        scene_changed |= draw_component<DirectionalLightComponent>("Directional Light", entity, [](auto& component) -> bool {
+            bool changed = false;
+            changed |= ImGui::ColorEdit3("Color", glm::value_ptr(component.color));
+            changed |= ImGui::DragFloat("Intensity", &component.intensity, 0.01f, 0.0f, 100.0f);
+            changed |= ImGui::Checkbox("Enabled", &component.enabled);
+            changed |= ImGui::Checkbox("Shadows", &component.shadows);
+            return changed;
+        });
+
+        scene_changed |= draw_component<PointLightComponent>("Point Light", entity, [](auto& component) -> bool {
+            bool changed = false;
+            changed |= ImGui::ColorEdit3("Color", glm::value_ptr(component.color));
+            changed |= ImGui::DragFloat("Intensity", &component.intensity, 0.01f, 0.0f, 100.0f);
+            changed |= ImGui::DragFloat("Range", &component.range, 0.1f, 0.0f, 1000.0f);
+            changed |= ImGui::Checkbox("Enabled", &component.enabled);
+            changed |= ImGui::Checkbox("Shadows", &component.shadows);
+            return changed;
+        });
+
+        scene_changed |= draw_component<SpotLightComponent>("Spot Light", entity, [](auto& component) -> bool {
+            bool changed = false;
+            changed |= ImGui::ColorEdit3("Color", glm::value_ptr(component.color));
+            changed |= ImGui::DragFloat("Intensity", &component.intensity, 0.01f, 0.0f, 100.0f);
+            changed |= ImGui::DragFloat("Range", &component.range, 0.1f, 0.0f, 1000.0f);
+            changed |= ImGui::DragFloat("Inner Angle", &component.inner_angle, 0.1f, 0.0f, 90.0f);
+            changed |= ImGui::DragFloat("Outer Angle", &component.outer_angle, 0.1f, 0.0f, 90.0f);
+            changed |= ImGui::Checkbox("Enabled", &component.enabled);
+            changed |= ImGui::Checkbox("Shadows", &component.shadows);
             return changed;
         });
 

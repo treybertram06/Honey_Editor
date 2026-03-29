@@ -64,8 +64,8 @@ layout(location=5) in float v_fade;
 layout(location=6) flat in int v_entity_id;
 
 #ifdef HN_VULKAN
-layout (set = 0, binding = 1) uniform sampler u_sampler;
-layout (set = 0, binding = 2) uniform texture2D u_textures[MAX_TEXTURE_SLOTS];
+layout (set = 0, binding = 2) uniform sampler u_sampler;
+layout (set = 0, binding = 3) uniform texture2D u_textures[MAX_TEXTURE_SLOTS];
 #else
 layout (binding = 0) uniform sampler2D u_textures[MAX_TEXTURE_SLOTS];
 #endif
