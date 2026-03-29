@@ -41,8 +41,8 @@ layout(location = 1) in vec3 v_normalWS;
 layout(location = 2) in vec3 v_positionWS;
 layout(location = 0) out vec4 o_color;
 
-layout(set = 0, binding = 2) uniform sampler u_Sampler;
-layout(set = 0, binding = 3) uniform texture2D u_Textures[32];
+layout(set = 0, binding = 3) uniform sampler u_Sampler;
+layout(set = 0, binding = 4) uniform texture2D u_Textures[32];
 
 struct DirectionalLight {
     vec3  direction;
@@ -66,10 +66,20 @@ layout(set = 0, binding = 0) uniform CameraUBO {
     vec3 u_CameraPos;
 } u_Camera;
 
+struct GPUMaterial {
+    vec4  base_color;
+    float metallic;
+    float roughness;
+    int   base_color_tex_index;
+    int   _pad;
+};
+layout(set = 0, binding = 2) readonly buffer MaterialBuffer {
+    GPUMaterial materials[];
+} u_Materials;
+
 layout(push_constant) uniform MaterialPC {
-    vec4 u_BaseColorFactor;
-    int  u_BaseColorTexIndex;
-    int  _pad0, _pad1, _pad2;
+    int u_MaterialIndex;
+    int _pad0, _pad1, _pad2;
 } u_Material;
 
 const float PI = 3.14159265359;
@@ -125,13 +135,14 @@ vec3 brdf(vec3 N, vec3 V, vec3 L, vec3 albedo, float metallic, float roughness, 
 }
 
 void main() {
-    int  idx    = clamp(u_Material.u_BaseColorTexIndex, 0, 31);
-    vec4 base   = texture(sampler2D(u_Textures[nonuniformEXT(idx)], u_Sampler), v_uv)
-                  * u_Material.u_BaseColorFactor;
+    GPUMaterial mat = u_Materials.materials[u_Material.u_MaterialIndex];
 
-    // Hardcoded for now — later drive these from material textures
-    float metallic  = 0.0;
-    float roughness = 0.5;
+    int  idx    = clamp(mat.base_color_tex_index, 0, 31);
+    vec4 base   = texture(sampler2D(u_Textures[nonuniformEXT(idx)], u_Sampler), v_uv)
+                  * mat.base_color;
+
+    float metallic  = mat.metallic;
+    float roughness = mat.roughness;
 
     vec3 albedo = pow(base.rgb, vec3(2.2));
     vec3 N      = normalize(v_normalWS);
