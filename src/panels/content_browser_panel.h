@@ -26,6 +26,7 @@ namespace Honey {
 
         char m_search_filter[128] = "";
         bool m_show_hidden = true;
+        bool m_recurse_search = false;
 
         ViewMode m_view_mode = ViewMode::Grid;   // default to grid view
     };

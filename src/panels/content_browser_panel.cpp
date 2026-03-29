@@ -8,6 +8,50 @@
 
 namespace Honey {
 
+    static std::vector<std::string> split(const std::string& s, const std::string& delim) {
+        std::vector<std::string> parts;
+        size_t start = 0, pos;
+        while ((pos = s.find(delim, start)) != std::string::npos) {
+            parts.push_back(s.substr(start, pos - start));
+            start = pos + delim.size();
+        }
+        parts.push_back(s.substr(start));
+        return parts;
+    }
+
+    // Supports && (AND) and || (OR); || has lower precedence.
+    // e.g. "foo && bar || baz" → (foo AND bar) OR baz
+    static bool matches_filter(const std::string& haystack, const std::string& raw_filter) {
+        std::string filter = raw_filter;
+        std::transform(filter.begin(), filter.end(), filter.begin(), ::tolower);
+
+        for (const auto& or_group : split(filter, "||")) {
+            bool all_match = true;
+            for (auto term : split(or_group, "&&")) {
+                // trim whitespace
+                auto l = term.find_first_not_of(' ');
+                auto r = term.find_last_not_of(' ');
+                term = (l == std::string::npos) ? "" : term.substr(l, r - l + 1);
+                if (!term.empty() && haystack.find(term) == std::string::npos) {
+                    all_match = false;
+                    break;
+                }
+            }
+            if (all_match) return true;
+        }
+        return false;
+    }
+
+    static bool directory_contains(const std::filesystem::path& dir, const std::string& raw_filter) {
+        for (auto& entry : std::filesystem::recursive_directory_iterator(dir)) {
+            std::string name = entry.path().filename().string();
+            std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+            if (matches_filter(name, raw_filter))
+                return true;
+        }
+        return false;
+    }
+
     //will change when theres separate projects
     extern const std::filesystem::path g_assets_dir = "../assets";
 
@@ -83,6 +127,8 @@ namespace Honey {
                              }
         ImGui::SameLine();
         ImGui::Checkbox("Show Hidden", &m_show_hidden);
+        ImGui::SameLine();
+        ImGui::Checkbox("Recurse Search", &m_recurse_search);
 
         ImGui::Separator();
 
@@ -113,12 +159,14 @@ namespace Honey {
             // --- Filter by search query ---
             if (m_search_filter[0] != '\0') {
                 std::string haystack = filename_string;
-                std::string needle   = m_search_filter;
-
                 std::transform(haystack.begin(), haystack.end(), haystack.begin(), ::tolower);
-                std::transform(needle.begin(),   needle.end(),   needle.begin(),   ::tolower);
 
-                if (haystack.find(needle) == std::string::npos)
+                bool name_matches = matches_filter(haystack, m_search_filter);
+                bool dir_matches  = false;
+                if (m_recurse_search)
+                    dir_matches = !name_matches && it.is_directory() && directory_contains(path, m_search_filter);
+
+                if (!name_matches && !dir_matches)
                     continue; // Skip this entry if it doesn't match
             }
 
