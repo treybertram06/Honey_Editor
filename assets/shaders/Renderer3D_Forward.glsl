@@ -11,6 +11,8 @@ layout(location = 4) in vec4 a_iModel1;
 layout(location = 5) in vec4 a_iModel2;
 layout(location = 6) in vec4 a_iModel3;
 
+layout(location = 7) in int a_iEntityID;
+
 layout(set = 0, binding = 0) uniform CameraUBO {
     mat4 u_ViewProjection;
     vec3 u_Position;
@@ -20,6 +22,7 @@ layout(set = 0, binding = 0) uniform CameraUBO {
 layout(location = 0) out vec2 v_uv;
 layout(location = 1) out vec3 v_normalWS;
 layout(location = 2) out vec3 v_positionWS;
+layout(location = 3) flat out int v_entityID_out;
 
 void main() {
     mat4 model = mat4(a_iModel0, a_iModel1, a_iModel2, a_iModel3);
@@ -28,6 +31,7 @@ void main() {
     v_uv         = a_uv;
     v_positionWS = worldPos.xyz;
     v_normalWS   = normalize(transpose(inverse(mat3(model))) * a_normal);
+    v_entityID_out = a_iEntityID;
 
     gl_Position  = u_Camera.u_ViewProjection * worldPos;
 }
@@ -39,7 +43,10 @@ void main() {
 layout(location = 0) in vec2 v_uv;
 layout(location = 1) in vec3 v_normalWS;
 layout(location = 2) in vec3 v_positionWS;
+layout(location = 3) flat in int v_entityID;
+
 layout(location = 0) out vec4 o_color;
+layout(location = 1) out int v_entityID_out;
 
 layout(set = 0, binding = 3) uniform sampler u_Sampler;
 layout(set = 0, binding = 4) uniform texture2D u_Textures[32];
@@ -192,4 +199,5 @@ void main() {
     color = pow(color, vec3(1.0 / 2.2));
 
     o_color = vec4(color, base.a);
+    v_entityID_out = v_entityID;
 }
