@@ -136,6 +136,8 @@ namespace Honey {
         static float thumbnail_size = 80.0f;
         float cell_size = thumbnail_size + padding;
 
+        ImGui::BeginChild("##content_browser_results", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
+
         float panel_width = ImGui::GetContentRegionAvail().x;
         int column_count = (int)(panel_width / cell_size);
         if (column_count < 1) column_count = 1;
@@ -251,6 +253,8 @@ namespace Honey {
         }
 
         ImGui::Columns(1);
+
+        ImGui::EndChild();
 
         ImGui::End();
     }

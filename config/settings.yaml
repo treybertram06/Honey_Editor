@@ -8,8 +8,17 @@ Renderer:
   Blending: true
   VSync: false
   ShowPhysicsDebugDraw: false
+  ParallelMeshSubmission: false
   AnisotropicFilteringLevel: 16
   TextureFilter: Anisotropic
+  CullMode: None
 Physics:
   Enabled: true
   Substeps: 6
+Window:
+  Title: Honey Engine
+  Width: 1802
+  Height: 695
+  PosX: 1265
+  PosY: 398
+  Fullscreen: false
