@@ -8,6 +8,7 @@
 #include "../Honey/engine/src/Honey/ui/imgui_utils.h"
 
 #include "Honey/scene/scene_serializer.h"
+#include "gltf_entity_builder.h"
 #include "Honey/scene/cloth_system.h"
 #include "Honey/utils/platform_utils.h"
 
@@ -594,6 +595,11 @@ namespace Honey {
                         open_scene(g_assets_dir / path);
                     else if (path.extension() == ".hnp")
                         m_active_scene->add_prefab_to_scene((g_assets_dir / path).string());
+                    else if (path.extension() == ".glb" || path.extension() == ".gltf") {
+                        GltfSceneTree tree = load_gltf_scene_tree(g_assets_dir / path);
+                        Entity spawned = spawn_gltf_scene_tree(*m_active_scene, tree, g_assets_dir / path);
+                        m_scene_hierarchy_panel.set_selected_entity(spawned);
+                    }
                 }
             }
             ImGui::EndDragDropTarget();
@@ -632,7 +638,7 @@ namespace Honey {
             ImGuizmo::SetOrthographic(isOrtho);
 
             auto& transform_component = selected_entity.get_component<TransformComponent>();
-            glm::mat4 transform = transform_component.get_transform();
+            glm::mat4 transform = selected_entity.get_world_transform();
 
             bool snap = Input::is_key_pressed(KeyCode::LeftControl);
             float snap_value = 0.5f; // 0.5 metres for translation and scale
@@ -647,8 +653,13 @@ namespace Honey {
 
             const bool gizmo_using = ImGuizmo::IsUsing();
             if (gizmo_using) {
+                // Convert the manipulated world matrix back to local space before writing to TransformComponent
+                glm::mat4 local_mat = transform;
+                if (selected_entity.has_parent())
+                    local_mat = glm::inverse(selected_entity.get_parent().get_world_transform()) * transform;
+
                 glm::vec3 translation, rotation, scale;
-                Math::decompose_transform(transform, translation, rotation, scale);
+                Math::decompose_transform(local_mat, translation, rotation, scale);
 
                 glm::vec3 delta_rotation = rotation - transform_component.rotation;
                 transform_component.translation = translation;
@@ -824,6 +835,16 @@ namespace Honey {
         case KeyCode::D:
             if (control) { on_duplicate_entity(); handled = true; }
             break;
+
+        case KeyCode::Delete:
+            {
+                Entity selected = m_scene_hierarchy_panel.get_selected_entity();
+                if (selected.is_valid()) {
+                    m_scene_hierarchy_panel.delete_entity(selected);
+                    handled = true;
+                }
+            }
+             break;
 
         default:
             break;

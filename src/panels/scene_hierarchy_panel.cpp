@@ -7,6 +7,7 @@
 #include "imgui_internal.h"
 #include "glm/gtc/type_ptr.inl"
 #include "Honey/loaders/gltf_loader.h"
+#include "../gltf_entity_builder.h"
 #include "Honey/renderer/texture.h"
 #include "Honey/scene/scene_serializer.h"
 #include "Honey/scene/script_registry.h"
@@ -68,6 +69,21 @@ namespace Honey {
                     }
                 }
             }
+
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+                if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
+                    std::filesystem::path rel = (const char*)payload->Data;
+                    std::filesystem::path full = std::filesystem::path(g_assets_dir) / rel;
+                    const auto& ext = full.extension();
+                    if ((ext == ".glb" || ext == ".gltf") && m_context) {
+                        GltfSceneTree tree = load_gltf_scene_tree(full);
+                        Entity spawned = spawn_gltf_scene_tree(*m_context, tree, full);
+                        m_selected_entity = spawned;
+                        m_context->mark_dirty();
+                    }
+                }
+            }
+
             ImGui::EndDragDropTarget();
                 }
 
@@ -92,6 +108,27 @@ namespace Honey {
         }
 
         ImGui::End();
+    }
+
+    void SceneHierarchyPanel::delete_entity(Entity entity) {
+        if (m_notification_center) {
+            m_notification_center->open_confirm("delete_entity_" + std::to_string((uint32_t)entity.get_handle()),
+                "Delete Entity?",
+                "Are you sure you want to delete '" + entity.get_component<TagComponent>().tag + "'?",
+                true,
+                [this, entity]() {
+                    if (m_selected_entity == entity)
+                        m_selected_entity = {};
+                    auto tag = entity.get_component<TagComponent>().tag; // Copy tag BEFORE destroying (duh)
+                    m_context->destroy_entity(entity);
+                    m_notification_center->push_toast(UI::ToastType::Info, "Entity Deleted", "Deleted " + tag);
+                }
+            );
+        } else {
+            if (m_selected_entity == entity)
+                m_selected_entity = {};
+            m_context->destroy_entity(entity);
+        }
     }
 
     bool SceneHierarchyPanel::is_descendant(Entity entity, Entity ancestor) const {
@@ -156,24 +193,7 @@ namespace Honey {
         if (ImGui::BeginPopupContextItem()) {
 
             if (ImGui::MenuItem("Delete Entity")) {
-                if (m_notification_center) {
-                    m_notification_center->open_confirm("delete_entity_" + std::to_string((uint32_t)entity.get_handle()),
-                        "Delete Entity?",
-                        "Are you sure you want to delete '" + tag.tag + "'?",
-                        true,
-                        [this, entity]() {
-                            if (m_selected_entity == entity)
-                                m_selected_entity = {};
-                            auto tag = entity.get_component<TagComponent>().tag; // Copy tag BEFORE destroying (duh)
-                            m_context->destroy_entity(entity);
-                            m_notification_center->push_toast(UI::ToastType::Info, "Entity Deleted", "Deleted " + tag);
-                        }
-                    );
-                } else {
-                    if (m_selected_entity == entity)
-                        m_selected_entity = {};
-                    m_context->destroy_entity(entity);
-                }
+                delete_entity(entity);
                 ImGui::EndPopup();
                 if (opened && has_children)
                     ImGui::TreePop();

@@ -23,6 +23,8 @@ namespace Honey {
         void set_selected_entity(Entity entity) { m_selected_entity = entity; }
 
         void set_notification_center(UI::NotificationCenter* nc) { m_notification_center = nc; }
+
+        void delete_entity(Entity entity);
     private:
         bool is_descendant(Entity entity, Entity ancestor) const;
 
