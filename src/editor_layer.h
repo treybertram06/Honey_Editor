@@ -3,6 +3,7 @@
 #include "panels/scene_hierarchy_panel.h"
 #include "panels/content_browser_panel.h"
 #include "Honey/renderer/frame_graph.h"
+#include "Honey/loaders/gltf_loader.h"
 
 #include <glm/glm/glm.hpp>
 #include <imgui.h>
@@ -120,7 +121,11 @@ namespace Honey {
 
         ViewportDisplayMode m_viewport_display_mode = ViewportDisplayMode::Color;
 
-
+        struct PendingGltfLoad {
+            Ref<GltfSceneTreeAsyncHandle> handle;
+            std::filesystem::path source_path;
+        };
+        std::vector<PendingGltfLoad> m_pending_gltf_loads;
 
     };
 }

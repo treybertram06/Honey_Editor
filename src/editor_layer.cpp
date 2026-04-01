@@ -173,6 +173,21 @@ namespace Honey {
     void EditorLayer::on_update(Timestep ts) {
         HN_PROFILE_FUNCTION();
 
+        // Poll pending async glTF loads and spawn entities when ready.
+        for (auto it = m_pending_gltf_loads.begin(); it != m_pending_gltf_loads.end(); ) {
+            if (it->handle->done.load(std::memory_order_acquire)) {
+                if (!it->handle->failed.load(std::memory_order_acquire)) {
+                    Entity spawned = spawn_gltf_scene_tree(*m_active_scene, it->handle->tree, it->source_path);
+                    m_scene_hierarchy_panel.set_selected_entity(spawned);
+                } else {
+                    HN_WARN("Async glTF load failed: {}", it->source_path.string());
+                }
+                it = m_pending_gltf_loads.erase(it);
+            } else {
+                ++it;
+            }
+        }
+
         m_frame_time = ts.get_millis();
         m_framerate_counter.update(ts);
         m_framerate = m_framerate_counter.get_smoothed_fps();
@@ -596,9 +611,8 @@ namespace Honey {
                     else if (path.extension() == ".hnp")
                         m_active_scene->add_prefab_to_scene((g_assets_dir / path).string());
                     else if (path.extension() == ".glb" || path.extension() == ".gltf") {
-                        GltfSceneTree tree = load_gltf_scene_tree(g_assets_dir / path);
-                        Entity spawned = spawn_gltf_scene_tree(*m_active_scene, tree, g_assets_dir / path);
-                        m_scene_hierarchy_panel.set_selected_entity(spawned);
+                        auto handle = load_gltf_scene_tree_async(g_assets_dir / path);
+                        m_pending_gltf_loads.push_back({handle, g_assets_dir / path});
                     }
                 }
             }
