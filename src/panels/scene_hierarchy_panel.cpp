@@ -398,6 +398,13 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                     ImGui::CloseCurrentPopup();
                 }
             }
+            if (!m_selected_entity.has_component<TextRendererComponent>()) {
+                if (ImGui::MenuItem("Text Renderer")) {
+                    entity.add_component<TextRendererComponent>();
+                    scene_changed = true;
+                    ImGui::CloseCurrentPopup();
+                }
+            }
             if (!m_selected_entity.has_component<CameraComponent>()) {
                 if (ImGui::MenuItem("Camera Component")) {
                     entity.add_component<CameraComponent>();
@@ -651,7 +658,7 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                         std::filesystem::path path = path_str;
                         std::filesystem::path mesh_path = std::filesystem::path(g_assets_dir) / path;
 
-                        component.mesh = load_gltf_mesh(mesh_path.string(), {}, false);
+                        component.async_load_handle = load_gltf_mesh_async(mesh_path.string(), {});
                         component.mesh_path = mesh_path;
                         changed = true;
                     }
@@ -719,6 +726,38 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
             }
 
             changed |= ImGui::DragFloat("Fade", &component.fade, 0.001f, 0.0f, 1.0f);
+            return changed;
+        });
+
+        scene_changed |= draw_component<TextRendererComponent>("Text Renderer", entity, [](auto& component) -> bool {
+            bool changed = false;
+
+            static char text_buf[1024];
+            strncpy(text_buf, component.text.c_str(), sizeof(text_buf) - 1);
+            text_buf[sizeof(text_buf) - 1] = '\0';
+            if (ImGui::InputTextMultiline("Text", text_buf, sizeof(text_buf))) {
+                component.text = text_buf;
+                changed = true;
+            }
+
+            changed |= ImGui::ColorEdit4("Color", glm::value_ptr(component.color));
+            changed |= ImGui::DragFloat("Font Size", &component.font_size, 1.0f, 1.0f, 512.0f);
+            changed |= ImGui::DragFloat("Line Spacing", &component.line_spacing, 0.01f, 0.1f, 10.0f);
+
+            std::string font_label = component.font_path.empty() ? "None" : component.font_path.filename().string();
+            ImGui::Button(font_label.c_str(), ImVec2(200, 20));
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+                    if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
+                        const char* path_str = (const char*)payload->Data;
+                        component.font_path = std::filesystem::path(g_assets_dir) / path_str;
+                        component.font_data.reset(); // force reload on next draw
+                        changed = true;
+                    }
+                }
+                ImGui::EndDragDropTarget();
+            }
+
             return changed;
         });
 
