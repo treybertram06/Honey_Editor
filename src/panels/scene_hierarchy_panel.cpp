@@ -405,6 +405,13 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                     ImGui::CloseCurrentPopup();
                 }
             }
+            if (!m_selected_entity.has_component<IconRendererComponent>()) {
+                if (ImGui::MenuItem("Icon Renderer")) {
+                    entity.add_component<IconRendererComponent>();
+                    scene_changed = true;
+                    ImGui::CloseCurrentPopup();
+                }
+            }
             if (!m_selected_entity.has_component<CameraComponent>()) {
                 if (ImGui::MenuItem("Camera Component")) {
                     entity.add_component<CameraComponent>();
@@ -752,6 +759,28 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                         const char* path_str = (const char*)payload->Data;
                         component.font_path = std::filesystem::path(g_assets_dir) / path_str;
                         component.font_data.reset(); // force reload on next draw
+                        changed = true;
+                    }
+                }
+                ImGui::EndDragDropTarget();
+            }
+
+            return changed;
+        });
+
+        scene_changed |= draw_component<IconRendererComponent>("Icon Renderer", entity, [](auto& component) -> bool {
+            bool changed = false;
+
+            changed |= ImGui::ColorEdit4("Tint", glm::value_ptr(component.color));
+
+            std::string icon_label = component.icon_path.empty() ? "None" : component.icon_path.filename().string();
+            ImGui::Button(icon_label.c_str(), ImVec2(200, 20));
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+                    if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
+                        const char* path_str = (const char*)payload->Data;
+                        component.icon_path = std::filesystem::path(g_assets_dir) / path_str;
+                        component.icon_data.reset(); // force reload on next draw
                         changed = true;
                     }
                 }

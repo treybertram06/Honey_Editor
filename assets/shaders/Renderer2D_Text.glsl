@@ -6,12 +6,13 @@ layout (location = 1) in vec2 a_local_tex;     // static UVs [0,1]
 
 layout (location = 2) in vec3  i_center;               // per-instance world-space centre
 layout (location = 3) in vec2  i_half_size;             // world-space half-extents
-layout (location = 4) in vec4  i_color;
-layout (location = 5) in vec2  i_bbox_min;              // glyph bbox min in font units
-layout (location = 6) in vec2  i_bbox_size;             // glyph bbox size in font units
-layout (location = 7) in uint  i_band_table_offset;
-layout (location = 8) in uint  i_num_bands;
-layout (location = 9) in int   i_entity_id;
+layout (location = 4) in float i_rotation;              // Z rotation in radians
+layout (location = 5) in vec4  i_color;
+layout (location = 6) in vec2  i_bbox_min;              // glyph bbox min in font units
+layout (location = 7) in vec2  i_bbox_size;             // glyph bbox size in font units
+layout (location = 8) in uint  i_band_table_offset;
+layout (location = 9) in uint  i_num_bands;
+layout (location = 10) in int  i_entity_id;
 
 #ifdef HN_VULKAN
 layout (set = 0, binding = 0, std140) uniform camera {
@@ -34,7 +35,13 @@ layout(location=6) flat out int  v_entity_id;
 void main()
 {
     vec2 p = a_local_pos * i_half_size * 2.0;
-    vec3 world_pos = i_center + vec3(p, 0.0);
+
+    float cos_r = cos(i_rotation);
+    float sin_r = sin(i_rotation);
+    vec2 p_rot = vec2(p.x * cos_r - p.y * sin_r,
+                      p.x * sin_r + p.y * cos_r);
+
+    vec3 world_pos = i_center + vec3(p_rot, 0.0);
 
     v_color             = i_color;
     v_local_tex         = a_local_tex;
@@ -139,8 +146,13 @@ void main()
     // Pixel footprint in font units — drives the AA width.
     float px_size = fwidth(frag_font.x);
 
-    // Select the band this fragment falls in (band 0 = bottom, matches build_glyph).
-    int band_idx = clamp(int(v_local_tex.y * float(v_num_bands)), 0, int(v_num_bands) - 1);
+    // Select the band this fragment falls in (band 0 = min-y, matches build_glyph).
+    // Derive from frag_font.y so it is correct for both text (positive bbox_size.y)
+    // and Y-flipped icons (negative bbox_size.y passed from draw_icon).
+    float bbox_y_min_svg = min(v_bbox_min.y, v_bbox_min.y + v_bbox_size.y);
+    float height_svg     = abs(v_bbox_size.y);
+    float norm_y         = (frag_font.y - bbox_y_min_svg) / height_svg;
+    int band_idx = clamp(int(norm_y * float(v_num_bands)), 0, int(v_num_bands) - 1);
 
     BandEntry band = u_band_table[v_band_table_offset + uint(band_idx)];
 
