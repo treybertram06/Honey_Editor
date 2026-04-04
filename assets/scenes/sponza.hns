@@ -110,15 +110,15 @@ Entities:
       Primary: true
       Camera:
         Position:
-          - [0, 0, 0]
-        AspectRatio: 2.2997544
+          - [6.9e-44, 0, 6.535587e+14]
+        AspectRatio: 4.283401
         FOV: 45
         Rotation: [0, 0]
 Editor:
   Camera:
-    Position: [-1.0073979, 2.2771947, -0.221572]
-    Yaw: -4.6776032
-    Pitch: 0.3576047
+    Position: [-5.977037, 2.7375746, -0.27408636]
+    Yaw: -4.7040024
+    Pitch: 0.33360463
     FOV: 45
     Near: 0.1
     Far: 1000

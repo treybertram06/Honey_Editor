@@ -8,6 +8,7 @@ Renderer:
   Blending: true
   VSync: false
   ShowPhysicsDebugDraw: false
+  GeometryPath: Classic
   ParallelMeshSubmission: false
   AnisotropicFilteringLevel: 16
   TextureFilter: Anisotropic
@@ -19,6 +20,6 @@ Window:
   Title: Honey Engine
   Width: 1802
   Height: 695
-  PosX: 628
-  PosY: 269
+  PosX: 704
+  PosY: 187
   Fullscreen: true

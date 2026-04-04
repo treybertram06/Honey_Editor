@@ -531,6 +531,16 @@ namespace Honey {
                 }
             }
 
+            // Geometry path
+            {
+                static const char* geometry_path_names[] = { "Classic", "Meshlet" };
+                int current_index = static_cast<int>(renderer.geometry_path);
+                if (ImGui::Combo("Geometry Path", &current_index, geometry_path_names, IM_ARRAYSIZE(geometry_path_names))) {
+                    renderer.geometry_path = static_cast<GeometryPath>(current_index);
+                    Renderer3D::set_geometry_render_path(renderer.geometry_path);
+                }
+            }
+
             if (ImGui::Checkbox("Show Physics Colliders", &renderer.show_physics_debug_draw)) {
                 m_show_physics_colliders = renderer.show_physics_debug_draw;
             }
