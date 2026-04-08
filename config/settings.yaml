@@ -8,7 +8,7 @@ Renderer:
   Blending: true
   VSync: false
   ShowPhysicsDebugDraw: false
-  GeometryPath: Classic
+  GeometryPath: Meshlet
   ParallelMeshSubmission: false
   AnisotropicFilteringLevel: 16
   TextureFilter: Anisotropic
