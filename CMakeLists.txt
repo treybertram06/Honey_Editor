@@ -19,6 +19,8 @@ add_executable(Honey_Editor
 # Needed for script DLLs
 set_target_properties(Honey_Editor PROPERTIES ENABLE_EXPORTS ON)
 
+set_property(TARGET Honey_Editor PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+
 # Linux dlopen
 if(UNIX AND NOT APPLE)
     target_link_libraries(Honey_Editor PRIVATE dl)
