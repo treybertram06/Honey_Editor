@@ -811,6 +811,13 @@ namespace Honey {
 
         switch (e.get_key_code()) {
 
+        case KeyCode::Escape:
+            if (m_scene_state == SceneState::play) {
+                Application::get().get_window().set_cursor_captured(false);
+                handled = true;
+            }
+            break;
+
             //scene file shortcuts
         case KeyCode::S:
             if (control && shift) { save_scene_as(); handled = true; }
@@ -923,6 +930,11 @@ namespace Honey {
 
     bool EditorLayer::on_mouse_button_pressed(MouseButtonPressedEvent& e) {
         if (e.get_mouse_button() == MouseButton::Left) {
+
+            if (m_scene_state == SceneState::play && m_viewport_hovered) {
+                Application::get().get_window().set_cursor_captured(true);
+                return false;
+            }
 
             if (can_mousepick()) {
                 // Click should be authoritative: pick right now.
@@ -1097,6 +1109,7 @@ namespace Honey {
         m_scene_state = SceneState::edit;
         paused = false;
 
+        Application::get().get_window().set_cursor_captured(false);
         m_active_scene->on_runtime_stop();
         m_active_scene = m_editor_scene;
         m_scene_hierarchy_panel.set_context(m_active_scene);
