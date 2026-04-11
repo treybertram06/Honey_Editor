@@ -49,7 +49,7 @@ layout(location = 0) out vec4 o_color;
 layout(location = 1) out int v_entityID_out;
 
 layout(set = 0, binding = 3) uniform sampler u_Sampler;
-layout(set = 0, binding = 4) uniform texture2D u_Textures[32];
+layout(set = 0, binding = 4) uniform texture2D u_Textures[];
 
 struct DirectionalLight {
     vec3  direction;
@@ -144,7 +144,7 @@ vec3 brdf(vec3 N, vec3 V, vec3 L, vec3 albedo, float metallic, float roughness, 
 void main() {
     GPUMaterial mat = u_Materials.materials[u_Material.u_MaterialIndex];
 
-    int  idx    = clamp(mat.base_color_tex_index, 0, 31);
+    int  idx    = max(mat.base_color_tex_index, 0);
     vec4 base   = texture(sampler2D(u_Textures[nonuniformEXT(idx)], u_Sampler), v_uv)
                   * mat.base_color;
 
