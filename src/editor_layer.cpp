@@ -92,6 +92,8 @@ namespace Honey {
     }
 
     void EditorLayer::execute_and_render_scene_for_current_state(Timestep ts) {
+        HN_PROFILE_FUNCTION();
+
         switch (m_scene_state) {
         case SceneState::edit:
             {
@@ -174,17 +176,20 @@ namespace Honey {
         HN_PROFILE_FUNCTION();
 
         // Poll pending async glTF loads and spawn entities when ready.
-        for (auto it = m_pending_gltf_loads.begin(); it != m_pending_gltf_loads.end(); ) {
-            if (it->handle->done.load(std::memory_order_acquire)) {
-                if (!it->handle->failed.load(std::memory_order_acquire)) {
-                    Entity spawned = spawn_gltf_scene_tree(*m_active_scene, it->handle->tree, it->source_path);
-                    m_scene_hierarchy_panel.set_selected_entity(spawned);
+        {
+            HN_PROFILE_SCOPE("PollPendingGltfLoads");
+            for (auto it = m_pending_gltf_loads.begin(); it != m_pending_gltf_loads.end(); ) {
+                if (it->handle->done.load(std::memory_order_acquire)) {
+                    if (!it->handle->failed.load(std::memory_order_acquire)) {
+                        Entity spawned = spawn_gltf_scene_tree(*m_active_scene, it->handle->tree, it->source_path);
+                        m_scene_hierarchy_panel.set_selected_entity(spawned);
+                    } else {
+                        HN_WARN("Async glTF load failed: {}", it->source_path.string());
+                    }
+                    it = m_pending_gltf_loads.erase(it);
                 } else {
-                    HN_WARN("Async glTF load failed: {}", it->source_path.string());
+                    ++it;
                 }
-                it = m_pending_gltf_loads.erase(it);
-            } else {
-                ++it;
             }
         }
 
@@ -207,17 +212,20 @@ namespace Honey {
         if (m_active_scene && m_active_scene->get_cloth_system())
             m_active_scene->get_cloth_system()->set_frame_dt(ts.get_seconds());
 
-        EditorFrameGraphExecutionContext exec_data{};
-        exec_data.layer = this;
-        exec_data.timestep = ts;
+        {
+            HN_PROFILE_SCOPE("FrameGraph");
+            EditorFrameGraphExecutionContext exec_data{};
+            exec_data.layer = this;
+            exec_data.timestep = ts;
 
-        FGExecutionContext fg_exec{};
-        fg_exec.frame_index = m_frame_graph_frame_index++;
-        fg_exec.user_context = &exec_data;
-        fg_exec.collect_cpu_timings = m_collect_frame_graph_timings;
-        fg_exec.log_pass_execution = m_log_frame_graph_pass_timings;
-        fg_exec.out_stats = &m_editor_frame_graph_stats;
-        m_editor_frame_graph->execute(fg_exec);
+            FGExecutionContext fg_exec{};
+            fg_exec.frame_index = m_frame_graph_frame_index++;
+            fg_exec.user_context = &exec_data;
+            fg_exec.collect_cpu_timings = m_collect_frame_graph_timings;
+            fg_exec.log_pass_execution = m_log_frame_graph_pass_timings;
+            fg_exec.out_stats = &m_editor_frame_graph_stats;
+            m_editor_frame_graph->execute(fg_exec);
+        }
 
         Renderer::set_render_target(nullptr); // default back to main window for the rest of the frame
     }
