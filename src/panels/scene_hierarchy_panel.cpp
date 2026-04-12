@@ -529,6 +529,9 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                 component.collider_dirty = true;
             }
 
+            if (changed)
+                component.dirty = true;
+
             return changed;
         });
 

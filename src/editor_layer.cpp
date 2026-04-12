@@ -209,6 +209,12 @@ namespace Honey {
 
         RenderCommand::clear();
 
+        // Sync s_active_scene before the frame graph runs. ClothSeed/ClothSim
+        // passes fire before the SceneToViewport pass (which normally sets it
+        // inside on_update_editor), so they would read a stale — potentially
+        // dangling — pointer after a scene switch without this.
+        Scene::set_active_scene(m_active_scene.get());
+
         if (m_active_scene && m_active_scene->get_cloth_system())
             m_active_scene->get_cloth_system()->set_frame_dt(ts.get_seconds());
 
@@ -698,6 +704,7 @@ namespace Honey {
                 transform_component.rotation += delta_rotation;
                 transform_component.scale = scale;
 
+                transform_component.dirty = true;
                 transform_component.collider_dirty = true;
             }
 
