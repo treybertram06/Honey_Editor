@@ -271,15 +271,14 @@ namespace Honey {
                     if (has_scene_changed()) {
                         m_notification_center.open_confirm("new_scene",
                             "Create new scene?",
-                            "This will save all changes to the current scene and create a new one.",
-                            false,
+                            "This will discard all changes to the current scene and create a new one.",
+                            true,
                             [this]() {
-                                save_current_scene();
                                 new_scene();
                                 m_notification_center.push_toast(UI::ToastType::Success, "New Scene", "Created new scene and saved previous.");
                             },
                             nullptr,
-                            "Save and Continue",
+                            "Discard and Continue",
                             "Cancel"
                         );
                     } else {
@@ -839,18 +838,17 @@ namespace Honey {
             if (control) {
                 if (has_scene_changed()) {
                     m_notification_center.open_confirm("new_scene",
-                        "Create new scene?",
-                        "This will save all changes to the current scene and create a new one.",
-                        false,
-                        [this]() {
-                            save_current_scene();
-                            new_scene();
-                            m_notification_center.push_toast(UI::ToastType::Success, "New Scene", "Created new scene and saved previous.");
-                        },
-                        nullptr,
-                        "Save and Continue",
-                        "Cancel"
-                    );
+                            "Create new scene?",
+                            "This will discard all changes to the current scene and create a new one.",
+                            true,
+                            [this]() {
+                                new_scene();
+                                m_notification_center.push_toast(UI::ToastType::Success, "New Scene", "Created new scene and saved previous.");
+                            },
+                            nullptr,
+                            "Discard and Continue",
+                            "Cancel"
+                        );
                 } else {
                     new_scene();
                     m_notification_center.push_toast(UI::ToastType::Success, "New Scene", "Created new scene.");
