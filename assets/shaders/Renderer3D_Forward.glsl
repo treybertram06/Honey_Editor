@@ -3,15 +3,17 @@
 
 layout(location = 0) in vec3 a_position;
 layout(location = 1) in vec3 a_normal;
-layout(location = 2) in vec2 a_uv;
+layout(location = 2) in vec4 a_tangent;
+layout(location = 3) in vec2 a_uv0;
+layout(location = 4) in vec2 a_uv1;
 
 // Instance model matrix as 4 vec4s
-layout(location = 3) in vec4 a_iModel0;
-layout(location = 4) in vec4 a_iModel1;
-layout(location = 5) in vec4 a_iModel2;
-layout(location = 6) in vec4 a_iModel3;
+layout(location = 5) in vec4 a_iModel0;
+layout(location = 6) in vec4 a_iModel1;
+layout(location = 7) in vec4 a_iModel2;
+layout(location = 8) in vec4 a_iModel3;
 
-layout(location = 7) in int a_iEntityID;
+layout(location = 9) in int a_iEntityID;
 
 layout(set = 0, binding = 0) uniform CameraUBO {
     mat4 u_ViewProjection;
@@ -19,18 +21,24 @@ layout(set = 0, binding = 0) uniform CameraUBO {
     float _pad0;
 } u_Camera;
 
-layout(location = 0) out vec2 v_uv;
-layout(location = 1) out vec3 v_normalWS;
-layout(location = 2) out vec3 v_positionWS;
-layout(location = 3) flat out int v_entityID_out;
+layout(location = 0) out vec2 v_uv0;
+layout(location = 1) out vec2 v_uv1;
+layout(location = 2) out vec3 v_normalWS;
+layout(location = 3) out vec3 v_positionWS;
+layout(location = 4) out vec4 v_tangentWS;
+layout(location = 5) flat out int v_entityID_out;
 
 void main() {
     mat4 model = mat4(a_iModel0, a_iModel1, a_iModel2, a_iModel3);
     vec4 worldPos = model * vec4(a_position, 1.0);
 
-    v_uv         = a_uv;
-    v_positionWS = worldPos.xyz;
-    v_normalWS   = normalize(transpose(inverse(mat3(model))) * a_normal);
+    mat3 normalMat = transpose(inverse(mat3(model)));
+
+    v_uv0         = a_uv0;
+    v_uv1         = a_uv1;
+    v_positionWS  = worldPos.xyz;
+    v_normalWS    = normalize(normalMat * a_normal);
+    v_tangentWS   = vec4(normalize(normalMat * a_tangent.xyz), a_tangent.w);
     v_entityID_out = a_iEntityID;
 
     gl_Position  = u_Camera.u_ViewProjection * worldPos;
@@ -40,10 +48,12 @@ void main() {
 #version 450
 #extension GL_EXT_nonuniform_qualifier : enable
 
-layout(location = 0) in vec2 v_uv;
-layout(location = 1) in vec3 v_normalWS;
-layout(location = 2) in vec3 v_positionWS;
-layout(location = 3) flat in int v_entityID;
+layout(location = 0) in vec2 v_uv0;
+layout(location = 1) in vec2 v_uv1;
+layout(location = 2) in vec3 v_normalWS;
+layout(location = 3) in vec3 v_positionWS;
+layout(location = 4) in vec4 v_tangentWS;
+layout(location = 5) flat in int v_entityID;
 
 layout(location = 0) out vec4 o_color;
 layout(location = 1) out int v_entityID_out;
@@ -75,10 +85,45 @@ layout(set = 0, binding = 0) uniform CameraUBO {
 
 struct GPUMaterial {
     vec4  base_color;
+    vec4  emissive_factor;
+
     float metallic;
     float roughness;
-    int   base_color_tex_index;
-    int   _pad;
+    float normal_scale;
+    float occlusion_strength;
+
+    float alpha_cutoff;
+    int   alpha_mode;
+    int   double_sided;
+    int   unlit;
+
+    int   base_color_tex_id;
+    int   metallic_roughness_tex_id;
+    int   normal_tex_id;
+    int   occlusion_tex_id;
+    int   emissive_tex_id;
+
+    int   base_color_uv_set;
+    int   metallic_roughness_uv_set;
+    int   normal_uv_set;
+    int   occlusion_uv_set;
+    int   emissive_uv_set;
+
+    vec4  base_color_uv_scale_offset;
+    vec4  metallic_roughness_uv_scale_offset;
+    vec4  normal_uv_scale_offset;
+    vec4  occlusion_uv_scale_offset;
+    vec4  emissive_uv_scale_offset;
+
+    float base_color_uv_rotation;
+    float metallic_roughness_uv_rotation;
+    float normal_uv_rotation;
+    float occlusion_uv_rotation;
+    float emissive_uv_rotation;
+
+    float _pad0;
+    float _pad1;
+    float _pad2;
 };
 layout(set = 0, binding = 2) readonly buffer MaterialBuffer {
     GPUMaterial materials[];
@@ -91,8 +136,6 @@ layout(push_constant) uniform MaterialPC {
 
 const float PI = 3.14159265359;
 
-// Normal Distribution Function — GGX/Trowbridge-Reitz
-// How much of the microfacet surface is aligned with the halfway vector
 float ndf_ggx(float NdotH, float roughness) {
     float a  = roughness * roughness;
     float a2 = a * a;
@@ -100,8 +143,6 @@ float ndf_ggx(float NdotH, float roughness) {
     return a2 / (PI * d * d);
 }
 
-// Geometry function — Smith/Schlick-GGX
-// Models self-shadowing of microfacets
 float geometry_schlick(float NdotV, float roughness) {
     float r = roughness + 1.0;
     float k = (r * r) / 8.0;
@@ -111,13 +152,10 @@ float geometry_smith(float NdotV, float NdotL, float roughness) {
     return geometry_schlick(NdotV, roughness) * geometry_schlick(NdotL, roughness);
 }
 
-// Fresnel — Schlick approximation
-// How much light reflects vs refracts at grazing angles
 vec3 fresnel_schlick(float cosTheta, vec3 F0) {
     return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }
 
-// Full Cook-Torrance specular BRDF + Lambertian diffuse for one light
 vec3 brdf(vec3 N, vec3 V, vec3 L, vec3 albedo, float metallic, float roughness, vec3 F0, vec3 radiance) {
     vec3  H     = normalize(V + L);
     float NdotV = max(dot(N, V), 0.001);
@@ -129,75 +167,131 @@ vec3 brdf(vec3 N, vec3 V, vec3 L, vec3 albedo, float metallic, float roughness, 
     float G   = geometry_smith(NdotV, NdotL, roughness);
     vec3  F   = fresnel_schlick(HdotV, F0);
 
-    // Cook-Torrance specular
     vec3  num         = NDF * G * F;
     float denom       = 4.0 * NdotV * NdotL + 0.001;
     vec3  specular    = num / denom;
 
-    // Energy conservation: metals have no diffuse
     vec3 kD = (1.0 - F) * (1.0 - metallic);
     vec3 diffuse = kD * albedo / PI;
 
     return (diffuse + specular) * radiance * NdotL;
 }
 
+vec2 select_uv(int set_index) {
+    return set_index == 1 ? v_uv1 : v_uv0;
+}
+
+vec2 apply_uv_transform(vec2 uv, vec4 scale_offset, float rotation) {
+    vec2 p = uv * scale_offset.xy;
+    float c = cos(rotation);
+    float s = sin(rotation);
+    p = vec2(c * p.x - s * p.y, s * p.x + c * p.y);
+    return p + scale_offset.zw;
+}
+
+vec4 sample_texture(int tex_idx, vec2 uv) {
+    return texture(sampler2D(u_Textures[nonuniformEXT(max(tex_idx, 0))], u_Sampler), uv);
+}
+
 void main() {
     GPUMaterial mat = u_Materials.materials[u_Material.u_MaterialIndex];
 
-    int  idx    = max(mat.base_color_tex_index, 0);
-    vec4 base   = texture(sampler2D(u_Textures[nonuniformEXT(idx)], u_Sampler), v_uv)
-                  * mat.base_color;
+    vec2 base_uv = apply_uv_transform(select_uv(mat.base_color_uv_set),
+                                      mat.base_color_uv_scale_offset,
+                                      mat.base_color_uv_rotation);
+    vec4 base_tex = sample_texture(mat.base_color_tex_id, base_uv);
 
-    float metallic  = mat.metallic;
-    float roughness = mat.roughness;
+    vec3 base_tex_linear = (mat.base_color_tex_id >= 0) ? pow(base_tex.rgb, vec3(2.2)) : vec3(1.0);
+    vec3 albedo = base_tex_linear * mat.base_color.rgb;
+    float alpha = base_tex.a * mat.base_color.a;
 
-    vec3 albedo = pow(base.rgb, vec3(2.2));
-    vec3 N      = normalize(v_normalWS);
-    vec3 V      = normalize(u_Camera.u_CameraPos - v_positionWS);
-
-    // F0: base reflectivity. 0.04 is a good default for dielectrics.
-    // Metals use their albedo color as F0.
-    vec3 F0 = mix(vec3(0.04), albedo, metallic);
-
-    vec3 Lo = vec3(0.0);
-
-    // Directional light
-    if (u_Lights.u_DirectionalLight.intensity > 0.0) {
-        vec3 L        = normalize(-u_Lights.u_DirectionalLight.direction);
-        vec3 radiance = u_Lights.u_DirectionalLight.color
-                        * u_Lights.u_DirectionalLight.intensity;
-        Lo += brdf(N, V, L, albedo, metallic, roughness, F0, radiance);
+    if (mat.alpha_mode == 1 && alpha < mat.alpha_cutoff) {
+        discard;
     }
 
-    // Point lights
-    int count = u_Lights.u_DirectionalLight.point_light_count;
-    for (int i = 0; i < count; ++i) {
-        PointLight pl   = u_Lights.u_PointLights[i];
-        vec3  delta     = pl.position - v_positionWS;
-        float dist      = length(delta);
+    float metallic = clamp(mat.metallic, 0.0, 1.0);
+    float roughness = clamp(mat.roughness, 0.04, 1.0);
 
-        // Skip if outside range
-        if (dist >= pl.range) continue;
-
-        vec3  L           = normalize(delta);
-        float attenuation = 1.0 / (dist * dist);   // physically correct inverse square
-
-        // Windowing function: smoothly cuts off at range boundary
-        float window      = pow(max(1.0 - pow(dist / pl.range, 4.0), 0.0), 2.0);
-        vec3  radiance    = pl.color * pl.intensity * attenuation * window;
-
-        Lo += brdf(N, V, L, albedo, metallic, roughness, F0, radiance);
+    if (mat.metallic_roughness_tex_id >= 0) {
+        vec2 mr_uv = apply_uv_transform(select_uv(mat.metallic_roughness_uv_set),
+                                        mat.metallic_roughness_uv_scale_offset,
+                                        mat.metallic_roughness_uv_rotation);
+        vec4 mr = sample_texture(mat.metallic_roughness_tex_id, mr_uv);
+        roughness *= mr.g;
+        metallic *= mr.b;
     }
 
-    // Ambient — placeholder until you have IBL
-    vec3 ambient = vec3(0.03) * albedo;
+    vec3 N = normalize(v_normalWS);
+    if (mat.normal_tex_id >= 0) {
+        vec2 n_uv = apply_uv_transform(select_uv(mat.normal_uv_set),
+                                       mat.normal_uv_scale_offset,
+                                       mat.normal_uv_rotation);
+        vec3 nrm_ts = sample_texture(mat.normal_tex_id, n_uv).xyz * 2.0 - 1.0;
+        nrm_ts.xy *= mat.normal_scale;
 
-    vec3 color = ambient + Lo;
+        vec3 T = normalize(v_tangentWS.xyz);
+        vec3 B = normalize(cross(N, T)) * v_tangentWS.w;
+        mat3 TBN = mat3(T, B, N);
+        N = normalize(TBN * nrm_ts);
+    }
 
-    // Reinhard tonemapping + gamma correction
+    vec3 emissive = mat.emissive_factor.rgb;
+    if (mat.emissive_tex_id >= 0) {
+        vec2 e_uv = apply_uv_transform(select_uv(mat.emissive_uv_set),
+                                       mat.emissive_uv_scale_offset,
+                                       mat.emissive_uv_rotation);
+        vec3 e_tex = pow(sample_texture(mat.emissive_tex_id, e_uv).rgb, vec3(2.2));
+        emissive *= e_tex;
+    }
+
+    float ao = 1.0;
+    if (mat.occlusion_tex_id >= 0) {
+        vec2 ao_uv = apply_uv_transform(select_uv(mat.occlusion_uv_set),
+                                        mat.occlusion_uv_scale_offset,
+                                        mat.occlusion_uv_rotation);
+        float occ = sample_texture(mat.occlusion_tex_id, ao_uv).r;
+        ao = mix(1.0, occ, clamp(mat.occlusion_strength, 0.0, 1.0));
+    }
+
+    vec3 V = normalize(u_Camera.u_CameraPos - v_positionWS);
+
+    vec3 color;
+    if (mat.unlit != 0) {
+        color = albedo + emissive;
+    } else {
+        vec3 F0 = mix(vec3(0.04), albedo, metallic);
+        vec3 Lo = vec3(0.0);
+
+        if (u_Lights.u_DirectionalLight.intensity > 0.0) {
+            vec3 L = normalize(-u_Lights.u_DirectionalLight.direction);
+            vec3 radiance = u_Lights.u_DirectionalLight.color * u_Lights.u_DirectionalLight.intensity;
+            Lo += brdf(N, V, L, albedo, metallic, roughness, F0, radiance);
+        }
+
+        int count = u_Lights.u_DirectionalLight.point_light_count;
+        for (int i = 0; i < count; ++i) {
+            PointLight pl = u_Lights.u_PointLights[i];
+            vec3 delta = pl.position - v_positionWS;
+            float dist = length(delta);
+            if (dist >= pl.range) continue;
+
+            vec3 L = normalize(delta);
+            float attenuation = 1.0 / (dist * dist);
+            float window = pow(max(1.0 - pow(dist / pl.range, 4.0), 0.0), 2.0);
+            vec3 radiance = pl.color * pl.intensity * attenuation * window;
+            Lo += brdf(N, V, L, albedo, metallic, roughness, F0, radiance);
+        }
+
+        vec3 ambient = vec3(0.03) * albedo * ao;
+        color = ambient + Lo + emissive;
+    }
+
     color = color / (color + vec3(1.0));
     color = pow(color, vec3(1.0 / 2.2));
 
-    o_color = vec4(color, base.a);
+    if (mat.alpha_mode == 0)
+        alpha = 1.0;
+
+    o_color = vec4(color, alpha);
     v_entityID_out = v_entityID;
 }
