@@ -12,6 +12,30 @@ FrameGraph:
       Type: ImportedTarget
       Kind: ExternalFramebuffer
 
+    gAlbedo:
+      Type: Texture
+      Format: RGBA8
+      Width: swapchain
+      Height: swapchain
+
+    gNormal:
+      Type: Texture
+      Format: rgba16f      # RG = oct-encoded normal, BA = emissive RGB (packed as rg+b in BA)
+      Width: swapchain
+      Height: swapchain
+
+    gPBRParams:
+      Type: Texture
+      Format: RGBA8
+      Width: swapchain
+      Height: swapchain
+
+    gDepth:
+      Type: Texture
+      Format: DEPTH24STENCIL8
+      Width: swapchain
+      Height: swapchain
+
   Passes:
     - Name: ClothSeed
       Executor: cloth.seed
@@ -39,3 +63,25 @@ FrameGraph:
       Writes: [editorViewport]
       Clear:
         color: [0.1, 0.1, 0.1, 1.0]
+
+
+    - Name: GBuffer
+      Executor: deferred.gbuffer
+      Queue: graphics
+      Writes: [gAlbedo, gNormal, gPBRParams, gDepth]
+      Clear:
+        color: [0.0, 0.0, 0.0, 1.0]
+
+    #- Name: DeferredLighting
+    #  Executor: deferred.lighting
+    #  Queue: graphics
+    #  ReadBindings:
+    #    - Name: gAlbedo
+    #      Usage: sampled
+    #    - Name: gNormal
+    #      Usage: sampled
+    #    - Name: gPBRParams
+    #      Usage: sampled
+    #    - Name: gDepth
+    #      Usage: sampled
+    #  Writes: [editorViewport]

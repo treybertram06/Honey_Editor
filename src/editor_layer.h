@@ -61,6 +61,7 @@ namespace Honey {
         Ref<Framebuffer> m_framebuffer;
         std::shared_ptr<FrameGraphCompiled> m_editor_frame_graph;
         FGExecutionStats m_editor_frame_graph_stats{};
+        bool m_frame_graph_dirty = false;  // set when rebuild is needed but must be deferred to next on_update
         bool m_collect_frame_graph_timings = true;
         bool m_log_frame_graph_pass_timings = false;
         uint32_t m_frame_graph_frame_index = 0;

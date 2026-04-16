@@ -39,10 +39,26 @@ namespace Honey {
 
         auto& registry = FrameGraphRegistry::get();
 
+
+        // I think a lot of the logic that execute_and_render_scene_for_current_state should be somehow pulled out
+        // of the editor and should belong to the renderer, because this current setup is dumb... TODO: fix please!
         registry.register_executor("editor.scene", [](FrameGraphPassContext& ctx) {
             auto* exec = ctx.user_context_as<EditorFrameGraphExecutionContext>();
             HN_CORE_ASSERT(exec && exec->layer,
                 "editor.scene executor requires EditorFrameGraphExecutionContext with valid layer");
+
+            if (Settings::get().renderer.renderer_type == RendererSettings::RendererType::deferred)
+                return;
+            exec->layer->execute_and_render_scene_for_current_state(exec->timestep);
+        });
+
+        registry.register_executor("deferred.gbuffer", [](FrameGraphPassContext& ctx) {
+            auto* exec = ctx.user_context_as<EditorFrameGraphExecutionContext>();
+            HN_CORE_ASSERT(exec && exec->layer,
+                "editor.scene executor requires EditorFrameGraphExecutionContext with valid layer");
+
+            if (Settings::get().renderer.renderer_type != RendererSettings::RendererType::deferred)
+                return;
             exec->layer->execute_and_render_scene_for_current_state(exec->timestep);
         });
 
@@ -82,6 +98,7 @@ namespace Honey {
         FGCompileOptions options{};
         options.external_framebuffers.emplace("editorViewport", m_framebuffer);
         options.requested_output_resources.emplace_back("editorViewport");
+        options.requested_output_resources.emplace_back("gAlbedo"); // keeps gbuffer pass from getting culled
 
         m_editor_frame_graph = FrameGraphLoader::load_and_compile_from_file(
             asset_root / "frame_graphs" / "main.hnfg",
@@ -199,8 +216,9 @@ namespace Honey {
 
         Renderer2D::set_debug_pick_enabled(m_viewport_display_mode == ViewportDisplayMode::DebugPick);
 
-        if (!m_editor_frame_graph) {
+        if (m_frame_graph_dirty || !m_editor_frame_graph) {
             rebuild_editor_frame_graph();
+            m_frame_graph_dirty = false;
         }
 
         if (!m_editor_frame_graph) {
@@ -379,23 +397,6 @@ namespace Honey {
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Debug Shortcuts")) {
-                if (ImGui::MenuItem("Compile Example Frame Graph")) {
-                    FGCompileDiagnostics diags;
-                    FGCompileOptions options{};
-                    options.external_framebuffers.emplace("editorViewport", m_framebuffer);
-                    options.requested_output_resources.emplace_back("editorViewport");
-
-                    auto graph = FrameGraphLoader::load_and_compile_from_file(
-                        asset_root / "frame_graphs" / "main.hnfg",
-                        diags,
-                        &options);
-                    FrameGraphLoader::log_diagnostics(diags, "Example Frame Graph Load/Compile");
-
-                    if (graph) {
-                        m_editor_frame_graph = graph;
-                        HN_CORE_INFO("Editor frame graph hot-reloaded from debug menu.");
-                    }
-                }
                 if (ImGui::MenuItem("Dump Compiled Frame Graph")) {
                     if (m_editor_frame_graph) {
                         m_editor_frame_graph->log_debug_dump("Editor Frame Graph");
@@ -554,6 +555,15 @@ namespace Honey {
                 }
             }
 
+            // Renderer type
+            {
+                static const char* renderer_type_names[] = { "Forward", "Deferred" };
+                int current_index = static_cast<int>(renderer.renderer_type);
+                if (ImGui::Combo("Renderer Type", &current_index, renderer_type_names, IM_ARRAYSIZE(renderer_type_names))) {
+                    renderer.renderer_type = static_cast<RendererSettings::RendererType>(current_index);
+                }
+            }
+
             if (ImGui::Checkbox("Show Physics Colliders", &renderer.show_physics_debug_draw)) {
                 m_show_physics_colliders = renderer.show_physics_debug_draw;
             }
@@ -613,7 +623,9 @@ namespace Honey {
             m_framebuffer->resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
             m_editor_camera.set_viewport_size(m_viewport_size.x, m_viewport_size.y);
             m_active_scene->on_viewport_resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
-
+            // Defer frame graph rebuild to next on_update — rebuilding mid-frame would destroy transient
+            // framebuffers that the current frame's packet still holds raw pointers to (use-after-free).
+            m_frame_graph_dirty = true;
         }
 
         ImTextureID imgui_tex_id = m_framebuffer->get_imgui_color_texture_id(0);

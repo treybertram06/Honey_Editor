@@ -8,8 +8,9 @@ Renderer:
   Blending: true
   VSync: false
   ShowPhysicsDebugDraw: false
-  GeometryPath: Meshlet
+  GeometryPath: Classic
   ParallelMeshSubmission: false
+  RendererType: Deferred
   AnisotropicFilteringLevel: 16
   TextureFilter: Anisotropic
   CullMode: None
