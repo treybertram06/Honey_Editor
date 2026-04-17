@@ -72,16 +72,14 @@ FrameGraph:
       Clear:
         color: [0.0, 0.0, 0.0, 1.0]
 
-    #- Name: DeferredLighting
-    #  Executor: deferred.lighting
-    #  Queue: graphics
-    #  ReadBindings:
-    #    - Name: gAlbedo
-    #      Usage: sampled
-    #    - Name: gNormal
-    #      Usage: sampled
-    #    - Name: gPBRParams
-    #      Usage: sampled
-    #    - Name: gDepth
-    #      Usage: sampled
-    #  Writes: [editorViewport]
+    - Name: DeferredLighting
+      Executor: deferred.lighting
+      Queue: graphics
+      ReadBindings:
+        - Name: gAlbedo
+          Usage: sampled
+        - Name: gNormal
+          Usage: sampled
+        - Name: gPBRParams
+          Usage: sampled
+      Writes: [editorViewport]

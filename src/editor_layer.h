@@ -59,6 +59,7 @@ namespace Honey {
         Ref<Texture2D::AsyncHandle> m_test_async_tex;
 
         Ref<Framebuffer> m_framebuffer;
+        Ref<Framebuffer> m_gbuffer_framebuffer;  // GBuffer for deferred path (same size as m_framebuffer)
         std::shared_ptr<FrameGraphCompiled> m_editor_frame_graph;
         FGExecutionStats m_editor_frame_graph_stats{};
         bool m_frame_graph_dirty = false;  // set when rebuild is needed but must be deferred to next on_update

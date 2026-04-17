@@ -62,6 +62,20 @@ namespace Honey {
             exec->layer->execute_and_render_scene_for_current_state(exec->timestep);
         });
 
+        registry.register_executor("deferred.lighting", [](FrameGraphPassContext& ctx) {
+            if (Settings::get().renderer.renderer_type != RendererSettings::RendererType::deferred)
+                return;
+
+            Ref<Framebuffer> gbuffer_fb = ctx.get_input_framebuffer("gBuffer");
+            if (!gbuffer_fb) {
+                HN_CORE_WARN("deferred.lighting: could not get GBuffer framebuffer");
+                return;
+            }
+
+            Renderer3D::begin_deferred_lighting_scene(gbuffer_fb);
+            Renderer3D::flush_deferred_lighting();
+        });
+
         s_editor_frame_graph_executors_registered = true;
     }
 
@@ -85,6 +99,17 @@ namespace Honey {
         fb_spec.height = 720;
         m_framebuffer = Framebuffer::create(fb_spec);
 
+        FramebufferSpecification gbuffer_spec;
+        gbuffer_spec.attachments = {
+            FramebufferTextureFormat::RGBA8,    // attachment 0: gAlbedo
+            FramebufferTextureFormat::RGBA16F,  // attachment 1: gNormal
+            FramebufferTextureFormat::RGBA8,    // attachment 2: gPBRParams
+            FramebufferTextureFormat::Depth     // depth
+        };
+        gbuffer_spec.width = 1280;
+        gbuffer_spec.height = 720;
+        m_gbuffer_framebuffer = Framebuffer::create(gbuffer_spec);
+
         new_scene();
         m_editor_camera = EditorCamera(16.0f/9.0f, 45.0f, 0.1f, 1000.0f);
 
@@ -97,11 +122,14 @@ namespace Honey {
         FGCompileDiagnostics diags;
         FGCompileOptions options{};
         options.external_framebuffers.emplace("editorViewport", m_framebuffer);
+        options.external_framebuffers.emplace("gBuffer", m_gbuffer_framebuffer);
         options.requested_output_resources.emplace_back("editorViewport");
-        options.requested_output_resources.emplace_back("gAlbedo"); // keeps gbuffer pass from getting culled
+
+        bool deferred = Settings::get().renderer.renderer_type == RendererSettings::RendererType::deferred;
+        const char* fg_file = deferred ? "main_deferred.hnfg" : "main_forward.hnfg";
 
         m_editor_frame_graph = FrameGraphLoader::load_and_compile_from_file(
-            asset_root / "frame_graphs" / "main.hnfg",
+            asset_root / "frame_graphs" / fg_file,
             diags,
             &options);
 
@@ -561,6 +589,7 @@ namespace Honey {
                 int current_index = static_cast<int>(renderer.renderer_type);
                 if (ImGui::Combo("Renderer Type", &current_index, renderer_type_names, IM_ARRAYSIZE(renderer_type_names))) {
                     renderer.renderer_type = static_cast<RendererSettings::RendererType>(current_index);
+                    m_frame_graph_dirty = true;
                 }
             }
 
@@ -621,6 +650,7 @@ namespace Honey {
         if (m_viewport_size != *((glm::vec2*)&viewport_panel_size)) {
             m_viewport_size = {viewport_panel_size.x, viewport_panel_size.y};
             m_framebuffer->resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
+            m_gbuffer_framebuffer->resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
             m_editor_camera.set_viewport_size(m_viewport_size.x, m_viewport_size.y);
             m_active_scene->on_viewport_resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
             // Defer frame graph rebuild to next on_update — rebuilding mid-frame would destroy transient
