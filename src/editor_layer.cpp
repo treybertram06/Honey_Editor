@@ -13,9 +13,6 @@
 #include "Honey/utils/platform_utils.h"
 
 #include "Honey/math/math.h"
-#include "Honey/renderer/frame_graph.h"
-#include "Honey/renderer/frame_graph_loader.h"
-#include "Honey/renderer/frame_graph_registry.h"
 #include "Honey/renderer/texture_cache.h"
 #include "Honey/scripting/script_properties_loader.h"
 #include "scripting/script_loader.h"
@@ -26,59 +23,6 @@
 static const std::filesystem::path asset_root = ASSET_ROOT;
 
 namespace Honey {
-    struct EditorFrameGraphExecutionContext {
-        EditorLayer* layer = nullptr;
-        Timestep timestep{};
-    };
-
-    static bool s_editor_frame_graph_executors_registered = false;
-
-    static void ensure_editor_frame_graph_executors_registered() {
-        if (s_editor_frame_graph_executors_registered)
-            return;
-
-        auto& registry = FrameGraphRegistry::get();
-
-
-        // I think a lot of the logic that execute_and_render_scene_for_current_state should be somehow pulled out
-        // of the editor and should belong to the renderer, because this current setup is dumb... TODO: fix please!
-        registry.register_executor("editor.scene", [](FrameGraphPassContext& ctx) {
-            auto* exec = ctx.user_context_as<EditorFrameGraphExecutionContext>();
-            HN_CORE_ASSERT(exec && exec->layer,
-                "editor.scene executor requires EditorFrameGraphExecutionContext with valid layer");
-
-            if (Settings::get().renderer.renderer_type == RendererSettings::RendererType::deferred)
-                return;
-            exec->layer->execute_and_render_scene_for_current_state(exec->timestep);
-        });
-
-        registry.register_executor("deferred.gbuffer", [](FrameGraphPassContext& ctx) {
-            auto* exec = ctx.user_context_as<EditorFrameGraphExecutionContext>();
-            HN_CORE_ASSERT(exec && exec->layer,
-                "editor.scene executor requires EditorFrameGraphExecutionContext with valid layer");
-
-            if (Settings::get().renderer.renderer_type != RendererSettings::RendererType::deferred)
-                return;
-            exec->layer->execute_and_render_scene_for_current_state(exec->timestep);
-        });
-
-        registry.register_executor("deferred.lighting", [](FrameGraphPassContext& ctx) {
-            if (Settings::get().renderer.renderer_type != RendererSettings::RendererType::deferred)
-                return;
-
-            Ref<Framebuffer> gbuffer_fb = ctx.get_input_framebuffer("gBuffer");
-            if (!gbuffer_fb) {
-                HN_CORE_WARN("deferred.lighting: could not get GBuffer framebuffer");
-                return;
-            }
-
-            Renderer3D::begin_deferred_lighting_scene(gbuffer_fb);
-            Renderer3D::flush_deferred_lighting();
-        });
-
-        s_editor_frame_graph_executors_registered = true;
-    }
-
     extern const std::filesystem::path g_assets_dir;
 
     EditorLayer::EditorLayer()
@@ -93,50 +37,13 @@ namespace Honey {
 
         m_scene_hierarchy_panel.set_notification_center(&m_notification_center);
 
-        FramebufferSpecification fb_spec;
-        fb_spec.attachments = { FramebufferTextureFormat::RGBA8, FramebufferTextureFormat::RED_INTEGER, FramebufferTextureFormat::Depth };
-        fb_spec.width = 1280;
-        fb_spec.height = 720;
-        m_framebuffer = Framebuffer::create(fb_spec);
-
-        FramebufferSpecification gbuffer_spec;
-        gbuffer_spec.attachments = {
-            FramebufferTextureFormat::RGBA8,    // attachment 0: gAlbedo
-            FramebufferTextureFormat::RGBA16F,  // attachment 1: gNormal
-            FramebufferTextureFormat::RGBA8,    // attachment 2: gPBRParams
-            FramebufferTextureFormat::Depth     // depth
-        };
-        gbuffer_spec.width = 1280;
-        gbuffer_spec.height = 720;
-        m_gbuffer_framebuffer = Framebuffer::create(gbuffer_spec);
-
         new_scene();
         m_editor_camera = EditorCamera(16.0f/9.0f, 45.0f, 0.1f, 1000.0f);
-
-        ensure_editor_frame_graph_executors_registered();
-        rebuild_editor_frame_graph();
-
+        m_scene_viewport_renderer.initialize();
+        m_scene_viewport_renderer.resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
     }
 
-    void EditorLayer::rebuild_editor_frame_graph() {
-        FGCompileDiagnostics diags;
-        FGCompileOptions options{};
-        options.external_framebuffers.emplace("editorViewport", m_framebuffer);
-        options.external_framebuffers.emplace("gBuffer", m_gbuffer_framebuffer);
-        options.requested_output_resources.emplace_back("editorViewport");
-
-        bool deferred = Settings::get().renderer.renderer_type == RendererSettings::RendererType::deferred;
-        const char* fg_file = deferred ? "main_deferred.hnfg" : "main_forward.hnfg";
-
-        m_editor_frame_graph = FrameGraphLoader::load_and_compile_from_file(
-            asset_root / "frame_graphs" / fg_file,
-            diags,
-            &options);
-
-        FrameGraphLoader::log_diagnostics(diags, "Editor Frame Graph Rebuild");
-    }
-
-    void EditorLayer::execute_and_render_scene_for_current_state(Timestep ts) {
+    bool EditorLayer::update_scene_for_current_state(Timestep ts) {
         HN_PROFILE_FUNCTION();
 
         switch (m_scene_state) {
@@ -146,14 +53,13 @@ namespace Honey {
                     m_editor_camera.on_update(ts);
 
                 m_active_scene->on_update_editor(ts, m_editor_camera);
-                break;
+                return true;
             }
         case SceneState::play:
             {
                 m_gizmo_type = -1;
                 m_active_scene->on_update_runtime(ts, paused);
-                on_overlay_render();
-                break;
+                return m_active_scene->get_primary_camera().is_valid();
             }
         case SceneState::simulate:
             {
@@ -163,12 +69,43 @@ namespace Honey {
                     m_editor_camera.on_update(ts);
 
                 m_active_scene->on_update_simulation(ts, m_editor_camera, paused);
-                on_overlay_render();
-                break;
+                return true;
             }
         default:
-            break;
+            return false;
         }
+    }
+
+    SceneViewportRenderContext EditorLayer::build_scene_viewport_render_context(Timestep ts) {
+        SceneViewportRenderContext context{};
+        context.scene = m_active_scene.get();
+        context.timestep = ts;
+
+        if (m_scene_state == SceneState::play) {
+            Entity camera_entity = m_active_scene ? m_active_scene->get_primary_camera() : Entity{};
+            if (camera_entity.is_valid()) {
+                auto& cc = camera_entity.get_component<CameraComponent>();
+                auto& tc = camera_entity.get_component<TransformComponent>();
+
+                if (Camera* primary_camera = cc.get_camera()) {
+                    const glm::mat4 transform = camera_entity.get_world_transform();
+                    context.view = glm::inverse(transform);
+                    context.projection = primary_camera->get_projection_matrix();
+                    context.camera_position = tc.translation;
+                    context.scene_is_runtime_camera = true;
+                }
+            }
+
+            context.post_scene_overlay_render = [this]() { on_overlay_render(); };
+            return context;
+        }
+
+        context.view = m_editor_camera.get_view_matrix();
+        context.projection = m_editor_camera.get_projection_matrix();
+        context.camera_position = m_editor_camera.get_position();
+        if (m_scene_state == SceneState::simulate)
+            context.post_scene_overlay_render = [this]() { on_overlay_render(); };
+        return context;
     }
 
     void EditorLayer::render_camera_info() {
@@ -211,7 +148,7 @@ namespace Honey {
         if (ctx)
             ctx->wait_idle();
 
-        m_framebuffer.reset();
+        m_scene_viewport_renderer.shutdown();
         m_active_scene.reset();
         m_icon_play.reset();
         m_icon_stop.reset();
@@ -242,44 +179,23 @@ namespace Honey {
         m_framerate_counter.update(ts);
         m_framerate = m_framerate_counter.get_smoothed_fps();
 
-        Renderer2D::set_debug_pick_enabled(m_viewport_display_mode == ViewportDisplayMode::DebugPick);
-
-        if (m_frame_graph_dirty || !m_editor_frame_graph) {
-            rebuild_editor_frame_graph();
-            m_frame_graph_dirty = false;
-        }
-
-        if (!m_editor_frame_graph) {
-            return;
-        }
-
-        RenderCommand::clear();
-
-        // Sync s_active_scene before the frame graph runs. ClothSeed/ClothSim
-        // passes fire before the SceneToViewport pass (which normally sets it
-        // inside on_update_editor), so they would read a stale — potentially
-        // dangling — pointer after a scene switch without this.
-        Scene::set_active_scene(m_active_scene.get());
-
         if (m_active_scene && m_active_scene->get_cloth_system())
             m_active_scene->get_cloth_system()->set_frame_dt(ts.get_seconds());
 
-        {
-            HN_PROFILE_SCOPE("FrameGraph");
-            EditorFrameGraphExecutionContext exec_data{};
-            exec_data.layer = this;
-            exec_data.timestep = ts;
+        const bool should_render_scene = update_scene_for_current_state(ts);
 
-            FGExecutionContext fg_exec{};
-            fg_exec.frame_index = m_frame_graph_frame_index++;
-            fg_exec.user_context = &exec_data;
-            fg_exec.collect_cpu_timings = m_collect_frame_graph_timings;
-            fg_exec.log_pass_execution = m_log_frame_graph_pass_timings;
-            fg_exec.out_stats = &m_editor_frame_graph_stats;
-            m_editor_frame_graph->execute(fg_exec);
-        }
+        RenderCommand::clear();
 
-        Renderer::set_render_target(nullptr); // default back to main window for the rest of the frame
+        SceneViewportRenderSettings viewport_settings{};
+        viewport_settings.renderer_type = Settings::get().renderer.renderer_type;
+        viewport_settings.geometry_path = Settings::get().renderer.geometry_path;
+        viewport_settings.collect_frame_graph_timings = m_collect_frame_graph_timings;
+        viewport_settings.log_frame_graph_pass_timings = m_log_frame_graph_pass_timings;
+        viewport_settings.debug_pick_enabled = m_viewport_display_mode == ViewportDisplayMode::DebugPick;
+        m_scene_viewport_renderer.set_settings(viewport_settings);
+
+        if (should_render_scene)
+            m_scene_viewport_renderer.render(build_scene_viewport_render_context(ts));
     }
 
     void EditorLayer::on_imgui_render() {
@@ -426,8 +342,8 @@ namespace Honey {
             }
             if (ImGui::BeginMenu("Debug Shortcuts")) {
                 if (ImGui::MenuItem("Dump Compiled Frame Graph")) {
-                    if (m_editor_frame_graph) {
-                        m_editor_frame_graph->log_debug_dump("Editor Frame Graph");
+                    if (m_scene_viewport_renderer.get_output_framebuffer()) {
+                        m_scene_viewport_renderer.log_debug_dump("Editor Frame Graph");
                     } else {
                         HN_CORE_WARN("No compiled editor frame graph to dump.");
                     }
@@ -487,15 +403,16 @@ namespace Honey {
             }
 
             ImGui::Separator();
-            ImGui::Text("Frame Graph CPU: %.3f ms", m_editor_frame_graph_stats.total_cpu_time_ms);
+            const auto& fg_stats = m_scene_viewport_renderer.get_frame_graph_stats();
+            ImGui::Text("Frame Graph CPU: %.3f ms", fg_stats.total_cpu_time_ms);
             ImGui::Checkbox("Collect FG CPU Timings", &m_collect_frame_graph_timings);
             ImGui::Checkbox("Log FG Pass Timings", &m_log_frame_graph_pass_timings);
 
             if (ImGui::TreeNode("Frame Graph Pass Timings")) {
-                if (m_editor_frame_graph_stats.pass_stats.empty()) {
+                if (fg_stats.pass_stats.empty()) {
                     ImGui::TextDisabled("No pass timing data yet.");
                 } else {
-                    for (const auto& pass_stat : m_editor_frame_graph_stats.pass_stats) {
+                    for (const auto& pass_stat : fg_stats.pass_stats) {
                         ImGui::Text("%s: %.3f ms%s",
                                     pass_stat.pass_name.c_str(),
                                     pass_stat.cpu_time_ms,
@@ -589,7 +506,7 @@ namespace Honey {
                 int current_index = static_cast<int>(renderer.renderer_type);
                 if (ImGui::Combo("Renderer Type", &current_index, renderer_type_names, IM_ARRAYSIZE(renderer_type_names))) {
                     renderer.renderer_type = static_cast<RendererSettings::RendererType>(current_index);
-                    m_frame_graph_dirty = true;
+                    m_scene_viewport_renderer.mark_frame_graph_dirty();
                 }
             }
 
@@ -649,16 +566,12 @@ namespace Honey {
         ImVec2 viewport_panel_size = ImGui::GetContentRegionAvail();
         if (m_viewport_size != *((glm::vec2*)&viewport_panel_size)) {
             m_viewport_size = {viewport_panel_size.x, viewport_panel_size.y};
-            m_framebuffer->resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
-            m_gbuffer_framebuffer->resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
+            m_scene_viewport_renderer.resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
             m_editor_camera.set_viewport_size(m_viewport_size.x, m_viewport_size.y);
             m_active_scene->on_viewport_resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
-            // Defer frame graph rebuild to next on_update — rebuilding mid-frame would destroy transient
-            // framebuffers that the current frame's packet still holds raw pointers to (use-after-free).
-            m_frame_graph_dirty = true;
         }
 
-        ImTextureID imgui_tex_id = m_framebuffer->get_imgui_color_texture_id(0);
+        ImTextureID imgui_tex_id = m_scene_viewport_renderer.get_imgui_texture_id();
 
         UI::Image(imgui_tex_id,
                          ImVec2(m_viewport_size.x, m_viewport_size.y),
@@ -940,7 +853,7 @@ namespace Honey {
     }
 
     Entity EditorLayer::pick_entity_at_mouse() const {
-        if (!m_framebuffer || !m_active_scene)
+        if (!m_active_scene)
             return Entity{};
 
         const float imgW = m_viewport_img_max.x - m_viewport_img_min.x;
@@ -966,13 +879,10 @@ namespace Honey {
             mouse_x >= (int)m_viewport_size.x || mouse_y >= (int)m_viewport_size.y)
             return Entity{};
 
-        const int id = m_framebuffer->read_pixel(1, mouse_x, mouse_y);
-        if (id == -1)
-            return Entity{};
-
-        const entt::entity raw = static_cast<entt::entity>(static_cast<uint32_t>(id));
-        Entity picked{ raw, m_active_scene.get() };
-        return picked.is_valid() ? picked : Entity{};
+        return m_scene_viewport_renderer.pick_entity(
+            static_cast<uint32_t>(mouse_x),
+            static_cast<uint32_t>(mouse_y),
+            m_active_scene.get());
     }
 
     bool EditorLayer::on_mouse_button_pressed(MouseButtonPressedEvent& e) {

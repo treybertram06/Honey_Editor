@@ -2,7 +2,7 @@
 #include <Honey.h>
 #include "panels/scene_hierarchy_panel.h"
 #include "panels/content_browser_panel.h"
-#include "Honey/renderer/frame_graph.h"
+#include "Honey/renderer/scene_viewport_renderer.h"
 #include "Honey/loaders/gltf_loader.h"
 
 #include <glm/glm/glm.hpp>
@@ -26,9 +26,6 @@ namespace Honey {
         virtual void on_imgui_render() override;
         void on_event(Event &event) override;
 
-        // Used by the editor.scene frame-graph executor.
-        void execute_and_render_scene_for_current_state(Timestep ts);
-
     private:
 
         bool on_key_pressed(KeyPressedEvent& e);
@@ -50,22 +47,17 @@ namespace Honey {
         void on_scene_simulate();
         void on_scene_stop();
         void on_duplicate_entity();
-
-        void rebuild_editor_frame_graph();
+        bool update_scene_for_current_state(Timestep ts);
+        SceneViewportRenderContext build_scene_viewport_render_context(Timestep ts);
 
         // ui panels
         void ui_toolbar();
 
         Ref<Texture2D::AsyncHandle> m_test_async_tex;
 
-        Ref<Framebuffer> m_framebuffer;
-        Ref<Framebuffer> m_gbuffer_framebuffer;  // GBuffer for deferred path (same size as m_framebuffer)
-        std::shared_ptr<FrameGraphCompiled> m_editor_frame_graph;
-        FGExecutionStats m_editor_frame_graph_stats{};
-        bool m_frame_graph_dirty = false;  // set when rebuild is needed but must be deferred to next on_update
+        SceneViewportRenderer m_scene_viewport_renderer;
         bool m_collect_frame_graph_timings = true;
         bool m_log_frame_graph_pass_timings = false;
-        uint32_t m_frame_graph_frame_index = 0;
         glm::vec2 m_viewport_size = {1680.0f, 720.0f};
         bool m_viewport_focused = false, m_viewport_hovered = false;
 
