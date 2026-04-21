@@ -1,0 +1,51 @@
+FrameGraph:
+  Version: 1
+
+  Resources:
+    clothStateA:
+      Type: Buffer
+      Size: 1048576
+    clothStateB:
+      Type: Buffer
+      Size: 1048576
+    editorViewport:
+      Type: ImportedTarget
+      Kind: ExternalFramebuffer
+    gBuffer:
+      Type: ImportedTarget
+      Kind: ExternalFramebuffer
+
+  Passes:
+    - Name: ClothSeed
+      Executor: cloth.seed
+      Queue: compute
+      WriteBindings:
+        - Name: clothStateA
+          Usage: storage_write
+
+    - Name: ClothSim
+      Executor: cloth.simulate
+      Queue: compute
+      ReadBindings:
+        - Name: clothStateA
+          Usage: storage_read
+      WriteBindings:
+        - Name: clothStateB
+          Usage: storage_write
+
+    - Name: GBuffer
+      Executor: deferred.gbuffer
+      Queue: graphics
+      Writes: [gBuffer]
+      Clear:
+        color: [0.0, 0.0, 0.0, 0.0]
+
+    - Name: DeferredLighting
+      Executor: deferred.lighting
+      Queue: graphics
+      ReadBindings:
+        - Name: gBuffer
+          Usage: sampled
+      Writes: [editorViewport]
+      Clear:
+        color: [0.1, 0.1, 0.1, 1.0]
