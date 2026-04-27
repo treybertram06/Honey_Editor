@@ -1,91 +1,5 @@
 Scene: Untitled
 Entities:
-  - Entity: 13280842437852669421
-    TagComponent:
-      Tag: LightSpawner
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    ScriptComponent:
-      ScriptName: lightSpawner
-  - Entity: 9504742152750263155
-    TagComponent:
-      Tag: Sponza
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    RelationshipComponent:
-      Parent: ~
-  - Entity: 3523264260324934755
-    TagComponent:
-      Tag: Velvet Couch
-    TransformComponent:
-      Translation: [5.2274075, -0.0004977882, -0.22762495]
-      Rotation: [-3.141592, -1.1858293, -3.1415925]
-      Scale: [0.99999714, 1, 0.99999714]
-    MeshRendererComponent:
-      Color: [1, 1, 1, 1]
-      MeshPath: ../assets/models/GlamVelvetSofa/glTF-Binary/GlamVelvetSofa.glb
-      GltfSourcePath: ""
-      GltfNodeName: ""
-  - Entity: 13101235828097821383
-    TagComponent:
-      Tag: LightLeft
-    TransformComponent:
-      Translation: [3.909878, 1, -1.7893072]
-      Rotation: [0, -0, 0]
-      Scale: [1, 1, 1]
-    RelationshipComponent:
-      Parent: 9504742152750263155
-    PointLightComponent:
-      Color: [0, 0.11764706, 1]
-      Intensity: 25
-      Range: 30
-      Enabled: true
-      Shadows: true
-  - Entity: 10383072814909080190
-    TagComponent:
-      Tag: LightRight
-    TransformComponent:
-      Translation: [3.91, 1, 1.1476245]
-      Rotation: [0, -0, 0]
-      Scale: [1, 1, 1]
-    RelationshipComponent:
-      Parent: 9504742152750263155
-    PointLightComponent:
-      Color: [1, 0.11583012, 0]
-      Intensity: 25
-      Range: 30
-      Enabled: true
-      Shadows: true
-  - Entity: 8835844549463229469
-    TagComponent:
-      Tag: Skybox
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0.7853982, 0, 0.7853982]
-      Scale: [1, 1, 1]
-    DirectionalLightComponent:
-      Color: [1, 1, 1]
-      Intensity: 1
-      Enabled: true
-      Shadows: true
-  - Entity: 12190077700217370270
-    TagComponent:
-      Tag: Flight Helmet
-    TransformComponent:
-      Translation: [3.6574566, 0, -0.35776797]
-      Rotation: [-2.3887037e-07, -1.55804, 2.3888344e-07]
-      Scale: [0.99999154, 1, 0.99999154]
-    MeshRendererComponent:
-      Color: [1, 1, 1, 1]
-      MeshPath: ../assets/models/FlightHelmet/glTF/FlightHelmet.gltf
-      GltfSourcePath: ""
-      GltfNodeName: ""
-    ScriptComponent:
-      ScriptName: bob_and_spin
   - Entity: 554297819093392189
     TagComponent:
       Tag: Camera
@@ -105,10 +19,87 @@ Entities:
       Primary: true
       Camera:
         Position:
-          - [0, 0, 3.14e-43]
-        AspectRatio: 1.907563
+          - [3.6290777e+15, 3.0611e-41, 0]
+        AspectRatio: 1.9156119
         FOV: 45
         Rotation: [0, 0]
+  - Entity: 12190077700217370270
+    TagComponent:
+      Tag: Flight Helmet
+    TransformComponent:
+      Translation: [3.6574566, 0, -0.35776797]
+      Rotation: [-2.3887037e-07, -1.55804, 2.3888344e-07]
+      Scale: [0.99999154, 1, 0.99999154]
+    MeshRendererComponent:
+      Color: [1, 1, 1, 1]
+      MeshPath: ../assets/models/FlightHelmet/glTF/FlightHelmet.gltf
+      GltfSourcePath: ""
+      GltfNodeName: ""
+    ScriptComponent:
+      ScriptName: bob_and_spin
+  - Entity: 8835844549463229469
+    TagComponent:
+      Tag: Skybox
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0.7853982, 0, 0.7853982]
+      Scale: [1, 1, 1]
+    DirectionalLightComponent:
+      Color: [1, 1, 1]
+      Intensity: 1
+      Enabled: true
+      Shadows: true
+  - Entity: 10383072814909080190
+    TagComponent:
+      Tag: LightRight
+    TransformComponent:
+      Translation: [3.91, 1, 1.1476245]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 9504742152750263155
+    PointLightComponent:
+      Color: [1, 0.11583012, 0]
+      Intensity: 25
+      Range: 30
+      Enabled: true
+      Shadows: true
+  - Entity: 13101235828097821383
+    TagComponent:
+      Tag: LightLeft
+    TransformComponent:
+      Translation: [3.909878, 1, -1.7893072]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: 9504742152750263155
+    PointLightComponent:
+      Color: [0, 0.11764706, 1]
+      Intensity: 25
+      Range: 30
+      Enabled: true
+      Shadows: true
+  - Entity: 3523264260324934755
+    TagComponent:
+      Tag: Velvet Couch
+    TransformComponent:
+      Translation: [5.2274075, -0.0004977882, -0.22762495]
+      Rotation: [-3.141592, -1.1858293, -3.1415925]
+      Scale: [0.99999714, 1, 0.99999714]
+    MeshRendererComponent:
+      Color: [1, 1, 1, 1]
+      MeshPath: ../assets/models/GlamVelvetSofa/glTF-Binary/GlamVelvetSofa.glb
+      GltfSourcePath: ""
+      GltfNodeName: ""
+  - Entity: 9504742152750263155
+    TagComponent:
+      Tag: Sponza
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    RelationshipComponent:
+      Parent: ~
   - Entity: 17074185467978787381
     TagComponent:
       Tag: Node_0
@@ -125,9 +116,9 @@ Entities:
       Parent: 9504742152750263155
 Editor:
   Camera:
-    Position: [-2.3645248, 2.8657265, -0.3626289]
-    Yaw: -4.7064114
-    Pitch: 0.41520458
+    Position: [-2.0653653, 2.6499143, -0.01943338]
+    Yaw: -4.7543955
+    Pitch: 0.35760412
     FOV: 45
     Near: 0.1
     Far: 1000
