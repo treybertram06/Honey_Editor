@@ -1,19 +1,14 @@
 Scene: Untitled
 Entities:
-  - Entity: 17074185467978787381
+  - Entity: 13280842437852669421
     TagComponent:
-      Tag: Node_0
+      Tag: LightSpawner
     TransformComponent:
       Translation: [0, 0, 0]
-      Rotation: [0, -0, 0]
-      Scale: [0.008, 0.008, 0.008]
-    MeshRendererComponent:
-      Color: [1, 1, 1, 1]
-      MeshPath: ""
-      GltfSourcePath: ../assets/models/Sponza/glTF/Sponza.gltf
-      GltfNodeName: Node_0
-    RelationshipComponent:
-      Parent: 9504742152750263155
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    ScriptComponent:
+      ScriptName: lightSpawner
   - Entity: 9504742152750263155
     TagComponent:
       Tag: Sponza
@@ -110,15 +105,29 @@ Entities:
       Primary: true
       Camera:
         Position:
-          - [6.9e-44, 0, 6.535587e+14]
-        AspectRatio: 4.283401
+          - [0, 0, 3.14e-43]
+        AspectRatio: 1.907563
         FOV: 45
         Rotation: [0, 0]
+  - Entity: 17074185467978787381
+    TagComponent:
+      Tag: Node_0
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.008, 0.008, 0.008]
+    MeshRendererComponent:
+      Color: [1, 1, 1, 1]
+      MeshPath: ""
+      GltfSourcePath: ../assets/models/Sponza/glTF/Sponza.gltf
+      GltfNodeName: Node_0
+    RelationshipComponent:
+      Parent: 9504742152750263155
 Editor:
   Camera:
-    Position: [-5.977037, 2.7375746, -0.27408636]
-    Yaw: -4.7040024
-    Pitch: 0.33360463
+    Position: [-2.3645248, 2.8657265, -0.3626289]
+    Yaw: -4.7064114
+    Pitch: 0.41520458
     FOV: 45
     Near: 0.1
     Far: 1000

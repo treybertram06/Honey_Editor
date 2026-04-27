@@ -1,0 +1,17 @@
+Prefab: SpawnedLight
+Entity:
+  Entity: 16766910066477560725
+  TagComponent:
+    Tag: SpawnedLight
+  TransformComponent:
+    Translation: [0, 0.3, 0]
+    Rotation: [0, 0, 0]
+    Scale: [1, 1, 1]
+  ScriptComponent:
+    ScriptName: lightWander
+  PointLightComponent:
+    Color: [1, 1, 1]
+    Intensity: 10
+    Range: 3
+    Enabled: true
+    Shadows: true
