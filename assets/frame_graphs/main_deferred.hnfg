@@ -15,6 +15,15 @@ FrameGraph:
       Type: ImportedTarget
       Kind: ExternalFramebuffer
 
+    shadowCubemap:
+      Type: Texture
+      Format: D32_SFLOAT
+      Width: 2048
+      Height: 2048
+      Layers: 48
+      CubeCompatible: true
+      DepthCompare: true
+
   Passes:
     - Name: ClothSeed
       Executor: cloth.seed
@@ -40,11 +49,20 @@ FrameGraph:
       Clear:
         color: [0.0, 0.0, 0.0, 0.0]
 
+    - Name: ShadowDraw
+      Executor: shadow.draw
+      Queue: compute
+      WriteBindings:
+        - Name: shadowCubemap
+          Usage: storage_write
+
     - Name: DeferredLighting
       Executor: deferred.lighting
       Queue: graphics
       ReadBindings:
         - Name: gBuffer
+          Usage: sampled
+        - Name: shadowCubemap
           Usage: sampled
       Writes: [editorViewport]
       Clear:

@@ -62,11 +62,25 @@ layout(set = 0, binding = 5, std430) readonly buffer TiledLightingBuffer {
     uint tile_light_masks[];
 } u_TiledLighting;
 
+struct ShadowLightMatrices {
+    mat4  face_view_proj[6];
+    vec3  position;
+    float range;
+};
+layout(set = 0, binding = 6, std430) readonly buffer ShadowMatricesBuffer {
+    uint shadow_light_count;
+    uint shadow_light_point_indices[8];
+    uint _pad2[3];
+    ShadowLightMatrices lights[];
+} u_ShadowMatrices;
+
 // ---- set=1 G-buffer textures ----
 layout(set = 1, binding = 0) uniform sampler2D u_gAlbedo;
 layout(set = 1, binding = 1) uniform sampler2D u_gNormal;
 layout(set = 1, binding = 2) uniform sampler2D u_gPBRParams;
 layout(set = 1, binding = 3) uniform sampler2D u_gDepth;
+// binding 4: shadow cube array (comparison sampler — texture() returns [0,1] shadow factor)
+layout(set = 1, binding = 4) uniform samplerCubeArrayShadow u_ShadowCubeArray;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -107,6 +121,50 @@ float geometry_smith(float NdotV, float NdotL, float roughness) {
 
 vec3 fresnel_schlick(float cos_theta, vec3 F0) {
     return F0 + (1.0 - F0) * pow(clamp(1.0 - cos_theta, 0.0, 1.0), 5.0);
+}
+
+// Convert world-space fragment-to-light distance to NDC depth in the shadow map.
+// perspectiveRH_ZO with near=0.05, far=range: z_ndc = range*(dist-near)/(dist*(range-near))
+float shadow_ndc_depth(float dist, float range) {
+    const float near = 0.05;
+    return (range * (dist - near)) / (dist * (range - near));
+}
+
+// 8-tap PCF shadow lookup in the cube-array shadow map.
+// Kernel radius scales with distance so the penumbra footprint stays
+// roughly constant in world space regardless of how far the fragment is.
+float sample_shadow(int shadow_slot, vec3 world_pos) {
+    vec3  dir  = world_pos - u_ShadowMatrices.lights[shadow_slot].position;
+    // Use the major-axis component, not 3D distance — the shadow map stores NDC depth based on
+    // the perspective view-space z of the selected face, which equals max(|rx|,|ry|,|rz|).
+    float dist = max(abs(dir.x), max(abs(dir.y), abs(dir.z)));
+    float ref  = shadow_ndc_depth(dist, u_ShadowMatrices.lights[shadow_slot].range) - 0.0001;
+    ref = clamp(ref, 0.0, 1.0);
+
+    // Build a stable orthonormal basis perpendicular to the shadow ray.
+    vec3 p1 = normalize(cross(dir, vec3(0.0, 1.0, 0.01)));
+    vec3 p2 = normalize(cross(dir, p1));
+
+    // Radius is proportional to distance so each tap covers ~3 shadow-map texels
+    // regardless of how close or far the fragment is from the light.
+    // Increase this constant for softer (wider) penumbrae.
+    const float k_pcf_scale = 0.003;
+    float r = dist * k_pcf_scale;
+
+    // 8 evenly-spaced directions on the unit circle in the (p1, p2) plane.
+    const vec2 taps[8] = vec2[8](
+        vec2( 1.000,  0.000), vec2( 0.707,  0.707),
+        vec2( 0.000,  1.000), vec2(-0.707,  0.707),
+        vec2(-1.000,  0.000), vec2(-0.707, -0.707),
+        vec2( 0.000, -1.000), vec2( 0.707, -0.707)
+    );
+
+    float s = 0.0;
+    for (int i = 0; i < 8; ++i) {
+        vec3 offset = taps[i].x * p1 + taps[i].y * p2;
+        s += texture(u_ShadowCubeArray, vec4(dir + offset * r, float(shadow_slot)), ref);
+    }
+    return s / 8.0;
 }
 
 vec3 pbr_point_light(vec3 world_pos, vec3 N, vec3 V, vec3 F0, vec3 albedo, float metallic, float roughness, uint light_idx) {
@@ -194,14 +252,22 @@ void main() {
               u_Lights.u_DirectionalLight.color * u_Lights.u_DirectionalLight.intensity * NdotL;
     }
 
-    // Tiled point lights
+    // Tiled point lights with optional shadow
     ivec2 tile_coord = ivec2(gl_FragCoord.xy) / TILE_SIZE;
     uint  tile_index = uint(tile_coord.y) * u_TiledLighting.tile_count_x + uint(tile_coord.x);
     uint  mask       = u_TiledLighting.tile_light_masks[tile_index];
     while (mask != 0u) {
         uint bit = uint(findLSB(int(mask)));
         mask &= mask - 1u;
-        Lo += pbr_point_light(world_pos, N, V, F0, albedo, metallic, roughness, bit);
+        vec3 contrib = pbr_point_light(world_pos, N, V, F0, albedo, metallic, roughness, bit);
+        // Apply shadow if this point light has a shadow slot
+        for (uint si = 0u; si < u_ShadowMatrices.shadow_light_count; ++si) {
+            if (u_ShadowMatrices.shadow_light_point_indices[si] == bit) {
+                contrib *= sample_shadow(int(si), world_pos);
+                break;
+            }
+        }
+        Lo += contrib;
     }
 
     // Ambient
