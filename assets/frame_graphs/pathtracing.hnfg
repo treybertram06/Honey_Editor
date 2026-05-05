@@ -1,0 +1,13 @@
+FrameGraph:
+  Version: 1
+
+  Resources:
+    editorViewport:
+      Type: ImportedTarget
+      Kind: ExternalFramebuffer
+
+  Passes:
+    - Name: PathTrace
+      Executor: pathtracing.trace
+      Queue: compute
+      Writes: [editorViewport]

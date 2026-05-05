@@ -502,7 +502,7 @@ namespace Honey {
 
             // Renderer type
             {
-                static const char* renderer_type_names[] = { "Forward", "Deferred" };
+                static const char* renderer_type_names[] = { "Forward", "Deferred", "Path Tracer" };
                 int current_index = static_cast<int>(renderer.renderer_type);
                 if (ImGui::Combo("Renderer Type", &current_index, renderer_type_names, IM_ARRAYSIZE(renderer_type_names))) {
                     renderer.renderer_type = static_cast<RendererSettings::RendererType>(current_index);

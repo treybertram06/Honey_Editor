@@ -1,0 +1,45 @@
+#version 460
+#extension GL_EXT_ray_tracing : require
+
+layout(set = 0, binding = 0) uniform accelerationStructureEXT tlas;
+layout(set = 0, binding = 1, rgba32f) uniform image2D accum_image;
+
+layout(push_constant) uniform PC {
+    mat4 inv_view;
+    mat4 inv_proj;
+    uint frame_count;
+} pc;
+
+layout(location = 0) rayPayloadEXT vec3 payload;
+
+void main() {
+    const vec2 pixel = vec2(gl_LaunchIDEXT.xy) + 0.5;
+    vec2 uv = pixel / vec2(gl_LaunchSizeEXT.xy) * 2.0 - 1.0;
+    uv.y = -uv.y;
+
+    // Reconstruct ray from inverse VP matrices.
+    vec4 origin    = pc.inv_view * vec4(0, 0, 0, 1);
+    vec4 target    = pc.inv_proj * vec4(uv, 1, 1);
+    vec4 direction = pc.inv_view * vec4(normalize(target.xyz), 0);
+
+    payload = vec3(0.0);
+
+    traceRayEXT(
+        tlas,
+        gl_RayFlagsOpaqueEXT,
+        0xFF,           // cull mask — hit everything
+        0,              // SBT offset (hit group 0)
+        0,              // SBT stride
+        0,              // miss index
+        origin.xyz,
+        0.001,          // tMin
+        direction.xyz,
+        10000.0,        // tMax
+        0               // payload location
+    );
+
+    // Accumulate: blend new sample with history.
+    vec3 prev = imageLoad(accum_image, ivec2(gl_LaunchIDEXT.xy)).rgb;
+    float t = 1.0 / float(pc.frame_count + 1);
+    imageStore(accum_image, ivec2(gl_LaunchIDEXT.xy), vec4(mix(prev, payload, t), 1.0));
+}
