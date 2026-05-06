@@ -10,36 +10,105 @@ layout(push_constant) uniform PC {
     uint frame_count;
 } pc;
 
-layout(location = 0) rayPayloadEXT vec3 payload;
+#define MAX_BOUNCES 64
+
+// Scene exposure: path tracer radiance is in physical units (intensity * albedo * NdotL),
+// which can be >> 1 for lights calibrated for a rasterizer. Scale down before tonemapping.
+// Decrease if the image is too bright; increase if too dark.
+#define EXPOSURE 0.25
+
+// Shared payload struct — must match closest hit and miss shaders exactly.
+struct HitPayload {
+    vec3  radiance;       // direct lighting contribution at the hit point
+    float _pad0;
+    vec3  throughput;     // surface albedo (caller multiplies into path weight)
+    float _pad1;
+    vec3  next_origin;    // bounce ray origin
+    float _pad2;
+    vec3  next_direction; // bounce ray direction; vec3(0) signals path end
+    uint  seed;           // PCG RNG state, mutated by closest hit when sampling bounce dir
+};
+
+layout(location = 0) rayPayloadEXT HitPayload payload;
+
+// Wang hash — fully decorrelates adjacent pixels so they have independent seeds.
+// Without this, seeds differing by 1 produce visually correlated bounce directions → stripes.
+uint wang_hash(uint v) {
+    v = (v ^ 61u) ^ (v >> 16u);
+    v *= 9u;
+    v ^= v >> 4u;
+    v *= 0x27d4eb2du;
+    v ^= v >> 15u;
+    return v;
+}
+
+uint rng_next(inout uint seed) {
+    seed = seed * 747796405u + 2891336453u;
+    uint w = ((seed >> ((seed >> 28u) + 4u)) ^ seed) * 277803737u;
+    return (w >> 22u) ^ w;
+}
+
+// ACES filmic tone mapping (Narkowicz approximation)
+vec3 aces_tonemap(vec3 x) {
+    const float a = 2.51, b = 0.03, c = 2.43, d = 0.59, e = 0.14;
+    return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
+}
 
 void main() {
+    // Hash pixel + frame together to produce fully independent seeds per pixel per frame.
+    // XOR-nesting means a change in any component scrambles the entire seed.
+    uint seed = wang_hash(gl_LaunchIDEXT.x ^ wang_hash(gl_LaunchIDEXT.y ^ wang_hash(pc.frame_count + 1u)));
+
     const vec2 pixel = vec2(gl_LaunchIDEXT.xy) + 0.5;
     vec2 uv = pixel / vec2(gl_LaunchSizeEXT.xy) * 2.0 - 1.0;
     uv.y = -uv.y;
 
-    // Reconstruct ray from inverse VP matrices.
     vec4 origin    = pc.inv_view * vec4(0, 0, 0, 1);
     vec4 target    = pc.inv_proj * vec4(uv, 1, 1);
     vec4 direction = pc.inv_view * vec4(normalize(target.xyz), 0);
 
-    payload = vec3(0.0);
+    vec3 ray_origin    = origin.xyz;
+    vec3 ray_direction = direction.xyz;
 
-    traceRayEXT(
-        tlas,
-        gl_RayFlagsOpaqueEXT,
-        0xFF,           // cull mask — hit everything
-        0,              // SBT offset (hit group 0)
-        0,              // SBT stride
-        0,              // miss index
-        origin.xyz,
-        0.001,          // tMin
-        direction.xyz,
-        10000.0,        // tMax
-        0               // payload location
-    );
+    vec3 accumulated_color = vec3(0.0);
+    vec3 path_throughput   = vec3(1.0);
 
-    // Accumulate: blend new sample with history.
-    vec3 prev = imageLoad(accum_image, ivec2(gl_LaunchIDEXT.xy)).rgb;
-    float t = 1.0 / float(pc.frame_count + 1);
-    imageStore(accum_image, ivec2(gl_LaunchIDEXT.xy), vec4(mix(prev, payload, t), 1.0));
+    for (int bounce = 0; bounce < MAX_BOUNCES; bounce++) {
+        payload.seed           = seed;
+        payload.next_direction = vec3(0.0); // miss shader leaves this at 0 to signal termination
+
+        traceRayEXT(tlas, gl_RayFlagsOpaqueEXT, 0xFF,
+                    0, 0, 0, // sbt offset/stride/miss index 0 → primary miss
+                    ray_origin, 0.001, ray_direction, 10000.0,
+                    0); // payload location 0
+
+        accumulated_color += path_throughput * payload.radiance;
+        seed = payload.seed;
+
+        // Miss shader sets next_direction = vec3(0) — stop tracing
+        if (dot(payload.next_direction, payload.next_direction) < 1e-6)
+            break;
+
+        path_throughput *= payload.throughput;
+
+        // Early exit when path contribution is negligible
+        if (max(path_throughput.r, max(path_throughput.g, path_throughput.b)) < 0.001)
+            break;
+
+        ray_origin    = payload.next_origin;
+        ray_direction = payload.next_direction;
+    }
+
+    // Apply exposure, ACES tone mapping, and gamma correction to the new sample.
+    vec3 display = aces_tonemap(accumulated_color * EXPOSURE);
+    display      = pow(display, vec3(1.0 / 2.2));
+
+    // On frame 0, write directly — skip mix to avoid stale accum data bleeding in.
+    if (pc.frame_count == 0u) {
+        imageStore(accum_image, ivec2(gl_LaunchIDEXT.xy), vec4(display, 1.0));
+    } else {
+        vec3  prev = imageLoad(accum_image, ivec2(gl_LaunchIDEXT.xy)).rgb;
+        float t    = 1.0 / float(pc.frame_count + 1);
+        imageStore(accum_image, ivec2(gl_LaunchIDEXT.xy), vec4(mix(prev, display, t), 1.0));
+    }
 }
