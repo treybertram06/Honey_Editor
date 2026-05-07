@@ -12,11 +12,6 @@ layout(push_constant) uniform PC {
 
 #define MAX_BOUNCES 64
 
-// Scene exposure: path tracer radiance is in physical units (intensity * albedo * NdotL),
-// which can be >> 1 for lights calibrated for a rasterizer. Scale down before tonemapping.
-// Decrease if the image is too bright; increase if too dark.
-#define EXPOSURE 0.25
-
 // Shared payload struct — must match closest hit and miss shaders exactly.
 struct HitPayload {
     vec3  radiance;       // direct lighting contribution at the hit point
@@ -48,10 +43,8 @@ uint rng_next(inout uint seed) {
     return (w >> 22u) ^ w;
 }
 
-// ACES filmic tone mapping (Narkowicz approximation)
-vec3 aces_tonemap(vec3 x) {
-    const float a = 2.51, b = 0.03, c = 2.43, d = 0.59, e = 0.14;
-    return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
+float rand_f_rg(inout uint seed) {
+    return float(rng_next(seed)) / 4294967295.0;
 }
 
 void main() {
@@ -91,16 +84,21 @@ void main() {
 
         path_throughput *= payload.throughput;
 
-        // Early exit when path contribution is negligible
-        if (max(path_throughput.r, max(path_throughput.g, path_throughput.b)) < 0.001)
-            break;
+        // Russian roulette after the first 3 bounces
+        if (bounce >= 3) {
+            float rr_prob = max(path_throughput.r, max(path_throughput.g, path_throughput.b));
+            rr_prob = clamp(rr_prob, 0.05, 1.0); // floor at 0.05 so paths can't run forever
+            if (rand_f_rg(seed) > rr_prob)
+                break;
+            path_throughput /= rr_prob;
+        }
 
         ray_origin    = payload.next_origin;
         ray_direction = payload.next_direction;
     }
 
-    // Apply exposure, ACES tone mapping, and gamma correction to the new sample.
-    vec3 display = aces_tonemap(accumulated_color * EXPOSURE);
+    // Reinhard tone mapping + gamma correction (matches forward and deferred renderers).
+    vec3 display = accumulated_color / (accumulated_color + vec3(1.0));
     display      = pow(display, vec3(1.0 / 2.2));
 
     // On frame 0, write directly — skip mix to avoid stale accum data bleeding in.

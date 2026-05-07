@@ -20,7 +20,7 @@ Entities:
       Camera:
         Position:
           - [0, 0, 0]
-        AspectRatio: 2.5627377
+        AspectRatio: 1.8818653
         FOV: 45
         Rotation: [0, 0]
   - Entity: 12190077700217370270
@@ -41,12 +41,18 @@ Entities:
     TagComponent:
       Tag: Skybox
     TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0.7853982, 0, 0.7853982]
+      Translation: [-7.227649, 10.606328, 0.7082162]
+      Rotation: [0, 0, 0.2617994]
       Scale: [1, 1, 1]
+    PointLightComponent:
+      Color: [1, 0.88235295, 0.88235295]
+      Intensity: 100
+      Range: 1000
+      Enabled: false
+      Shadows: true
     DirectionalLightComponent:
       Color: [1, 1, 1]
-      Intensity: 300
+      Intensity: 10
       Enabled: true
       Shadows: true
   - Entity: 10383072814909080190
@@ -116,9 +122,9 @@ Entities:
       Parent: 9504742152750263155
 Editor:
   Camera:
-    Position: [-7.6707263, 2.2777112, 0.5256873]
-    Yaw: 1.5023718
-    Pitch: 0.2880043
+    Position: [-6.5643764, 2.6176493, -0.55018264]
+    Yaw: 7.8383603
+    Pitch: 0.3048039
     FOV: 45
     Near: 0.1
     Far: 1000
