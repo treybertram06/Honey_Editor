@@ -1,0 +1,117 @@
+#version 460
+
+layout(local_size_x = 8, local_size_y = 8) in;
+
+// À-Trous wavelet filter for SVGF denoising.
+// Dispatched 4 times with step_size = 1, 2, 4, 8.
+// pass_idx determines which images are source/destination:
+//   0: accum → ping
+//   1: ping  → filtered
+//   2: filtered → ping
+//   3: ping  → filtered   (final result ends in filtered)
+
+layout(set = 0, binding = 0, rgba32f) uniform image2D img_accum;
+layout(set = 0, binding = 1, rgba32f) uniform image2D img_ping;
+layout(set = 0, binding = 2, rgba32f) uniform image2D img_filtered;
+layout(set = 0, binding = 3, rgba32f) uniform image2D img_gbuffer; // normal.xyz, linear_depth.w
+
+layout(push_constant) uniform PC {
+    int   step_size;
+    int   pass_idx;
+    int   width;
+    int   height;
+    float blend_factor; // 1.0 = full filter, 0.0 = passthrough (written only on last pass)
+} pc;
+
+// B-spline kernel weights for offsets [-1, 0, 1]
+const float h[3] = float[](0.25, 0.5, 0.25);
+
+float luminance(vec3 c) {
+    return dot(c, vec3(0.2126, 0.7152, 0.0722));
+}
+
+vec4 read_src(ivec2 p) {
+    if (pc.pass_idx == 0) return imageLoad(img_accum, p);
+    if (pc.pass_idx == 1 || pc.pass_idx == 3) return imageLoad(img_ping, p);
+    return imageLoad(img_filtered, p);
+}
+
+void write_dst(ivec2 p, vec4 c) {
+    if (pc.pass_idx == 0 || pc.pass_idx == 2) imageStore(img_ping, p, c);
+    else imageStore(img_filtered, p, c);
+}
+
+void main() {
+    ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
+    if (coord.x >= pc.width || coord.y >= pc.height) return;
+
+    vec4  center_color  = read_src(coord);
+    vec4  center_gb     = imageLoad(img_gbuffer, coord);
+    vec3  center_normal = center_gb.xyz;
+    float center_depth  = center_gb.w;
+    float center_lum    = luminance(center_color.rgb);
+
+    // Edge-stopping parameters for HDR linear radiance inputs:
+    //   sigma_l: luminance sensitivity — lower than LDR tuning because HDR luminance
+    //            differences can be large even within uniform regions due to Monte Carlo
+    //            noise; too high a value treats noise as edges and refuses to blur.
+    //   sigma_n: normal exponent       — higher = sharper geometric edges
+    //   sigma_z: depth sensitivity     — larger divisor = softer depth edges
+    const float sigma_l = 1.0;
+    const float sigma_n = 64.0;
+    const float sigma_z = 1.0;
+
+    vec4  sum_color  = vec4(0.0);
+    float sum_weight = 0.0;
+
+    for (int dy = -1; dy <= 1; dy++) {
+        for (int dx = -1; dx <= 1; dx++) {
+            ivec2 q = clamp(coord + ivec2(dx, dy) * pc.step_size,
+                            ivec2(0), ivec2(pc.width - 1, pc.height - 1));
+
+            float kernel_w = h[dx + 1] * h[dy + 1];
+
+            vec4  sample_color  = read_src(q);
+            vec4  sample_gb     = imageLoad(img_gbuffer, q);
+            vec3  sample_normal = sample_gb.xyz;
+            float sample_depth  = sample_gb.w;
+
+            // Normal edge weight: drops fast when normals diverge
+            float w_n = pow(max(dot(center_normal, sample_normal), 0.0), sigma_n);
+
+            // Depth edge weight: relative comparison; sky pixels (depth < 0) skip this check
+            float dz  = abs(center_depth - sample_depth);
+            float w_z = (center_depth < 0.0 || sample_depth < 0.0)
+                        ? 1.0
+                        : exp(-dz / (max(center_depth, 1e-3) * 0.1 + 1e-4));
+
+            // Luminance edge weight: limits blur across bright/dark boundaries
+            float dl  = abs(center_lum - luminance(sample_color.rgb));
+            float w_l = exp(-dl * sigma_l);
+
+            float w = kernel_w * w_n * w_z * w_l;
+            sum_color  += sample_color * w;
+            sum_weight += w;
+        }
+    }
+
+    vec4 filtered = sum_weight > 1e-6 ? sum_color / sum_weight : center_color;
+
+    // On the last pass, blend between filtered and original based on convergence.
+    // blend_factor = 1 when noisy (few frames), approaches 0 as accumulation converges.
+    vec4 result = (pc.pass_idx == 1)
+        ? mix(center_color, filtered, pc.blend_factor)
+        : filtered;
+
+    // Apply Reinhard tone mapping + gamma on the final display pass (pass_idx == 3).
+    // Passes 0-2 operate on linear HDR data for correct denoising; only the output
+    // that goes to the framebuffer needs to be in display-referred [0,1] sRGB space.
+    if (pc.pass_idx == 3) {
+        vec3 c = result.rgb;
+        c = c / (c + vec3(1.0));
+        c = pow(c, vec3(1.0 / 2.2));
+        result = vec4(c, result.a);
+    }
+
+    write_dst(coord, result);
+}

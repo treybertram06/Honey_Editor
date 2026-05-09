@@ -4,16 +4,21 @@
 #extension GL_EXT_scalar_block_layout   : require
 #extension GL_ARB_gpu_shader_int64      : require
 
+// Constants
+#define PI 3.1415926535987
+
 // ─── Payload ──────────────────────────────────────────────────────────────────
 struct HitPayload {
     vec3  radiance;
-    float _pad0;
+    float brdf_pdf;
     vec3  throughput;
     float _pad1;
     vec3  next_origin;
     float _pad2;
     vec3  next_direction;
     uint  seed;
+    vec3  hit_normal;   // world-space shading normal (written for SVGF G-buffer)
+    float hit_depth;    // ray travel distance (gl_HitTEXT)
 };
 
 layout(location = 0) rayPayloadInEXT HitPayload payload;
@@ -104,11 +109,48 @@ vec3 sample_ggx_H(float roughness, vec3 n, inout uint seed) {
     return normalize(T*H_local.x + B*H_local.y + n*H_local.z);
 }
 
+// Sample with probability 0.3 toward the full dome, 0.7 toward a cone around the sun.
+// Returns the mixture PDF via out param — caller must divide by it, not hardcode PI.
+vec3 env_nee_direction(vec3 N, vec3 sun_dir, inout uint seed, out float pdf) {
+    const float CONE_ANGLE   = 0.3;
+    const float COS_CONE     = cos(CONE_ANGLE);
+    const float CONE_PDF_VAL = 1.0 / (2.0 * PI * (1.0 - COS_CONE)); // = ~3.56
+
+    if (rand_f(seed) < 0.3) {
+        vec3  dir     = cosine_hemisphere(N, seed);
+        float cos_pdf = max(dot(N, dir), 0.0) / PI;
+        float in_cone = dot(dir, sun_dir) > COS_CONE ? CONE_PDF_VAL : 0.0;
+        pdf = 0.3 * cos_pdf + 0.7 * in_cone;
+        pdf = max(pdf, 1e-7);
+        return dir;
+    } else {
+        vec2  r         = rand2(seed);
+        float cos_theta = mix(COS_CONE, 1.0, r.x);
+        float sin_theta = sqrt(max(0.0, 1.0 - cos_theta*cos_theta));
+        float phi       = 6.28318 * r.y;
+        vec3 T, B;
+        build_onb(sun_dir, T, B);
+        vec3 cone_dir = T*(cos(phi)*sin_theta) + B*(sin(phi)*sin_theta) + sun_dir*cos_theta;
+        if (dot(cone_dir, N) > 0.0) {
+            cone_dir       = normalize(cone_dir);
+            float cos_pdf  = max(dot(N, cone_dir), 0.0) / PI;
+            pdf = 0.3 * cos_pdf + 0.7 * CONE_PDF_VAL;
+            pdf = max(pdf, 1e-7);
+            return cone_dir;
+        }
+        // Cone sample went below surface — fall back to cosine hemisphere
+        vec3  dir     = cosine_hemisphere(N, seed);
+        float cos_pdf = max(dot(N, dir), 0.0) / PI;
+        pdf = max(cos_pdf, 1e-7);
+        return dir;
+    }
+}
+
 // ─── GGX BRDF helpers ─────────────────────────────────────────────────────────
 float D_GGX(float NdotH, float a) {
     float a2 = a * a;
     float d  = NdotH*NdotH*(a2 - 1.0) + 1.0;
-    return a2 / (3.14159265 * d * d);
+    return a2 / (PI * d * d);
 }
 
 float G1_Smith(float NdotX, float a) {
@@ -252,7 +294,7 @@ void main() {
                 vec3 f_s = (D * G2 * F) / max(4.0 * NdotV * NdotL, 1e-7);
 
                 // Diffuse contribution (energy conserving: scaled by 1-F, killed for metals)
-                vec3 f_d = (1.0 - F) * (1.0 - metalness) * albedo / 3.14159265;
+                vec3 f_d = (1.0 - F) * (1.0 - metalness) * albedo / PI;
 
                 Lo += (f_d + f_s) * u_lights.u_directional.color
                     * u_lights.u_directional.intensity * NdotL;
@@ -290,7 +332,7 @@ void main() {
             float D  = D_GGX(NdotH, a);
             float G2 = G2_Smith(NdotV, NdotL, a);
             vec3 f_s = (D * G2 * F) / max(4.0 * NdotV * NdotL, 1e-7);
-            vec3 f_d = (1.0 - F) * (1.0 - metalness) * albedo / 3.14159265;
+            vec3 f_d = (1.0 - F) * (1.0 - metalness) * albedo / PI;
 
             Lo += (f_d + f_s) * pl.color * pl.intensity * NdotL * atten;
         }
@@ -304,7 +346,10 @@ void main() {
     // MIS weighting will eliminate this double count; for now the bias is small
     // since most such paths are handled by one or the other, not both.
     {
-        vec3 env_dir   = cosine_hemisphere(N, seed);
+        vec3 sun_dir   = normalize(-u_lights.u_directional.direction);
+
+        float env_pdf;
+        vec3 env_dir   = env_nee_direction(N, sun_dir, seed, env_pdf);
         float NdotL_e  = max(dot(N, env_dir), 0.0);
         shadow_payload = true;
         traceRayEXT(tlas,
@@ -321,10 +366,10 @@ void main() {
             float D_e  = D_GGX(NdotH_e, a);
             float G2_e = G2_Smith(NdotV, NdotL_e, a);
             vec3 f_s_e = (D_e * G2_e * F_e) / max(4.0 * NdotV * NdotL_e, 1e-7);
-            vec3 f_d_e = (1.0 - F_e) * (1.0 - metalness) * albedo / 3.14159265;
+            vec3 f_d_e = (1.0 - F_e) * (1.0 - metalness) * albedo / PI;
 
-            // cosine PDF = NdotL/π → weight = (f_d+f_s)·NdotL / (NdotL/π) = (f_d+f_s)·π
-            Lo += (f_d_e + f_s_e) * sky_dome(env_dir) * 3.14159265;
+            // MIS weight 0.5 (equal PDFs, diffuse approx) * Monte Carlo weight NdotL/pdf
+            Lo += (f_d_e + f_s_e) * sky_dome(env_dir) * (NdotL_e / env_pdf) * 0.5;
         }
     }
 
@@ -344,11 +389,12 @@ void main() {
         vec3  L    = reflect(-V, H);
 
         if (dot(L, N) <= 0.0) {
-            // Sampled direction went below surface — terminate this path
             payload.radiance       = Lo;
             payload.throughput     = vec3(0.0);
             payload.next_direction = vec3(0.0);
             payload.seed           = seed;
+            payload.hit_normal     = N;
+            payload.hit_depth      = gl_HitTEXT;
             return;
         }
 
@@ -378,4 +424,6 @@ void main() {
     payload.next_origin    = hit_pos + N * 0.001;
     payload.next_direction = bounce_dir;
     payload.seed           = seed;
+    payload.hit_normal     = N;
+    payload.hit_depth      = gl_HitTEXT;
 }

@@ -3,13 +3,15 @@
 
 struct HitPayload {
     vec3  radiance;
-    float _pad0;
+    float brdf_pdf;
     vec3  throughput;
     float _pad1;
     vec3  next_origin;
     float _pad2;
     vec3  next_direction;
     uint  seed;
+    vec3  hit_normal;
+    float hit_depth;
 };
 layout(location = 0) rayPayloadInEXT HitPayload payload;
 
@@ -54,8 +56,21 @@ vec3 sky_color(vec3 ray_dir) {
     return sky;
 }
 
+vec3 sky_dome(vec3 ray_dir) {
+    float sky_scale = u_lights.u_directional.intensity * 0.1;
+    vec3  sky_tint  = mix(vec3(1.0), u_lights.u_directional.color, 0.5);
+    float up        = max(ray_dir.y, 0.0);
+    vec3  horizon   = vec3(0.80, 0.85, 0.90) * sky_tint * sky_scale;
+    vec3  zenith    = vec3(0.20, 0.45, 0.85) * sky_tint * sky_scale;
+    if (ray_dir.y < 0.0)
+        return mix(vec3(0.12, 0.10, 0.09) * sky_scale, horizon, exp(ray_dir.y * 8.0));
+    return mix(horizon, zenith, pow(up, 0.6));
+}
+
 void main() {
     vec3 ray_dir = normalize(gl_WorldRayDirectionEXT);
-    payload.radiance       = sky_color(ray_dir);
+    payload.radiance       = sky_dome(ray_dir) * 0.5;
     payload.next_direction = vec3(0.0); // signals path termination to raygen
+    payload.hit_normal     = vec3(0.0); // no surface — sky sentinel
+    payload.hit_depth      = -1.0;
 }

@@ -3,6 +3,7 @@
 
 layout(set = 0, binding = 0) uniform accelerationStructureEXT tlas;
 layout(set = 0, binding = 1, rgba32f) uniform image2D accum_image;
+layout(set = 0, binding = 6, rgba32f) uniform image2D gbuffer_image; // normal.xyz, depth.w
 
 layout(push_constant) uniform PC {
     mat4 inv_view;
@@ -15,13 +16,15 @@ layout(push_constant) uniform PC {
 // Shared payload struct — must match closest hit and miss shaders exactly.
 struct HitPayload {
     vec3  radiance;       // direct lighting contribution at the hit point
-    float _pad0;
+    float brdf_pdf;       // PDF of the chosen bounce direction (for MIS in miss shader)
     vec3  throughput;     // surface albedo (caller multiplies into path weight)
     float _pad1;
     vec3  next_origin;    // bounce ray origin
     float _pad2;
     vec3  next_direction; // bounce ray direction; vec3(0) signals path end
     uint  seed;           // PCG RNG state, mutated by closest hit when sampling bounce dir
+    vec3  hit_normal;     // world-space shading normal at first hit (for SVGF G-buffer)
+    float hit_depth;      // ray travel distance at first hit (gl_HitTEXT)
 };
 
 layout(location = 0) rayPayloadEXT HitPayload payload;
@@ -63,8 +66,10 @@ void main() {
     vec3 ray_origin    = origin.xyz;
     vec3 ray_direction = direction.xyz;
 
-    vec3 accumulated_color = vec3(0.0);
-    vec3 path_throughput   = vec3(1.0);
+    vec3  accumulated_color = vec3(0.0);
+    vec3  path_throughput   = vec3(1.0);
+    vec3  primary_normal    = vec3(0.0);
+    float primary_depth     = -1.0;
 
     for (int bounce = 0; bounce < MAX_BOUNCES; bounce++) {
         payload.seed           = seed;
@@ -77,6 +82,11 @@ void main() {
 
         accumulated_color += path_throughput * payload.radiance;
         seed = payload.seed;
+
+        if (bounce == 0) {
+            primary_normal = payload.hit_normal;
+            primary_depth  = payload.hit_depth;
+        }
 
         // Miss shader sets next_direction = vec3(0) — stop tracing
         if (dot(payload.next_direction, payload.next_direction) < 1e-6)
@@ -97,16 +107,17 @@ void main() {
         ray_direction = payload.next_direction;
     }
 
-    // Reinhard tone mapping + gamma correction (matches forward and deferred renderers).
-    vec3 display = accumulated_color / (accumulated_color + vec3(1.0));
-    display      = pow(display, vec3(1.0 / 2.2));
+    imageStore(gbuffer_image, ivec2(gl_LaunchIDEXT.xy), vec4(primary_normal, primary_depth));
 
-    // On frame 0, write directly — skip mix to avoid stale accum data bleeding in.
+    // Accumulate raw linear HDR radiance — tone mapping and gamma are applied by the
+    // SVGF shader on its final pass, after filtering. Applying them here (before averaging)
+    // would bias every frame bright: both Reinhard and gamma are concave, so by Jensen's
+    // inequality the mean of tone-mapped noisy samples > tone-map of the mean.
     if (pc.frame_count == 0u) {
-        imageStore(accum_image, ivec2(gl_LaunchIDEXT.xy), vec4(display, 1.0));
+        imageStore(accum_image, ivec2(gl_LaunchIDEXT.xy), vec4(accumulated_color, 1.0));
     } else {
         vec3  prev = imageLoad(accum_image, ivec2(gl_LaunchIDEXT.xy)).rgb;
         float t    = 1.0 / float(pc.frame_count + 1);
-        imageStore(accum_image, ivec2(gl_LaunchIDEXT.xy), vec4(mix(prev, display, t), 1.0));
+        imageStore(accum_image, ivec2(gl_LaunchIDEXT.xy), vec4(mix(prev, accumulated_color, t), 1.0));
     }
 }

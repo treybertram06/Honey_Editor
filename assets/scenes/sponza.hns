@@ -20,7 +20,7 @@ Entities:
       Camera:
         Position:
           - [0, 0, 0]
-        AspectRatio: 1.8818653
+        AspectRatio: 1.7213271
         FOV: 45
         Rotation: [0, 0]
   - Entity: 12190077700217370270
@@ -52,38 +52,38 @@ Entities:
       Shadows: true
     DirectionalLightComponent:
       Color: [1, 1, 1]
-      Intensity: 10
+      Intensity: 5
       Enabled: true
       Shadows: true
   - Entity: 10383072814909080190
     TagComponent:
       Tag: LightRight
     TransformComponent:
-      Translation: [-6.831767, 16.79717, 0.4892795]
+      Translation: [3.9021, 1.0600871, 1.1294556]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     RelationshipComponent:
       Parent: 9504742152750263155
     PointLightComponent:
-      Color: [1, 1, 1]
-      Intensity: 2000
+      Color: [1, 0.09266406, 0]
+      Intensity: 10
       Range: 999999
-      Enabled: false
+      Enabled: true
       Shadows: true
   - Entity: 13101235828097821383
     TagComponent:
       Tag: LightLeft
     TransformComponent:
-      Translation: [3.909878, 1, -1.7893072]
-      Rotation: [0, -0, 0]
+      Translation: [3.8866186, 1.0442764, -1.7592381]
+      Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     RelationshipComponent:
       Parent: 9504742152750263155
     PointLightComponent:
       Color: [0, 0.11764706, 1]
-      Intensity: 25
+      Intensity: 10
       Range: 30
-      Enabled: false
+      Enabled: true
       Shadows: true
   - Entity: 3523264260324934755
     TagComponent:
@@ -122,9 +122,9 @@ Entities:
       Parent: 9504742152750263155
 Editor:
   Camera:
-    Position: [-6.5643764, 2.6176493, -0.55018264]
-    Yaw: 7.8383603
-    Pitch: 0.3048039
+    Position: [-1.3106246, 2.211229, -0.05061388]
+    Yaw: 14.1023445
+    Pitch: 0.29520455
     FOV: 45
     Near: 0.1
     Far: 1000
