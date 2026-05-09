@@ -106,7 +106,8 @@ void main() {
     // Apply Reinhard tone mapping + gamma on the final display pass (pass_idx == 3).
     // Passes 0-2 operate on linear HDR data for correct denoising; only the output
     // that goes to the framebuffer needs to be in display-referred [0,1] sRGB space.
-    if (pc.pass_idx == 3) {
+    // pass_idx 1 is the last pass dispatched by the C++ side — apply Reinhard + gamma here.
+    if (pc.pass_idx == 1) {
         vec3 c = result.rgb;
         c = c / (c + vec3(1.0));
         c = pow(c, vec3(1.0 / 2.2));

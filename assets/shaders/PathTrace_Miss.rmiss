@@ -33,8 +33,8 @@ vec3 sky_color(vec3 ray_dir) {
 
     // Sky dome: interpolate between a horizon color and a zenith color.
     // Luminance scales with the directional light (sun) since sky brightness is scattered sunlight.
-    // The 0.1 factor is atmospheric turbidity — lower = hazier, higher = cleaner air.
-    float sky_scale = u_lights.u_directional.intensity * 0.1;
+    // The 0.3 factor is atmospheric turbidity — lower = hazier, higher = cleaner air.
+    float sky_scale = u_lights.u_directional.intensity * 0.3;
     vec3  sky_tint  = mix(vec3(1.0), u_lights.u_directional.color, 0.5);
     float up        = max(ray_dir.y, 0.0);
     vec3 horizon    = vec3(0.80, 0.85, 0.90) * sky_tint * sky_scale;
@@ -57,7 +57,7 @@ vec3 sky_color(vec3 ray_dir) {
 }
 
 vec3 sky_dome(vec3 ray_dir) {
-    float sky_scale = u_lights.u_directional.intensity * 0.1;
+    float sky_scale = u_lights.u_directional.intensity * 0.3;
     vec3  sky_tint  = mix(vec3(1.0), u_lights.u_directional.color, 0.5);
     float up        = max(ray_dir.y, 0.0);
     vec3  horizon   = vec3(0.80, 0.85, 0.90) * sky_tint * sky_scale;
@@ -69,7 +69,7 @@ vec3 sky_dome(vec3 ray_dir) {
 
 void main() {
     vec3 ray_dir = normalize(gl_WorldRayDirectionEXT);
-    payload.radiance       = sky_dome(ray_dir) * 0.5;
+    payload.radiance       = sky_dome(ray_dir);
     payload.next_direction = vec3(0.0); // signals path termination to raygen
     payload.hit_normal     = vec3(0.0); // no surface — sky sentinel
     payload.hit_depth      = -1.0;

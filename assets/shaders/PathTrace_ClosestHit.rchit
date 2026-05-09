@@ -173,7 +173,7 @@ vec3 F_Schlick(float VdotH, vec3 F0) {
 // Intentionally omits the sun disc to avoid double-counting with directional NEE.
 // Phase 4 will weight this against the bounce PDF using MIS.
 vec3 sky_dome(vec3 ray_dir) {
-    float sky_scale = u_lights.u_directional.intensity * 0.1;
+    float sky_scale = u_lights.u_directional.intensity * 0.3;
     vec3  sky_tint  = mix(vec3(1.0), u_lights.u_directional.color, 0.5);
     float up        = max(ray_dir.y, 0.0);
     vec3  horizon   = vec3(0.80, 0.85, 0.90) * sky_tint * sky_scale;
