@@ -23,6 +23,8 @@ void main() {
 #define MAX_POINT_LIGHTS 32
 #define TILE_SIZE 16
 
+#undef CSM_CASCADE_DEBUG
+
 layout(location = 0) in vec2 v_uv;
 
 layout(location = 0) out vec4 o_color;
@@ -34,6 +36,7 @@ layout(set = 0, binding = 0) uniform CameraUBO {
     vec3 u_Position;
     float _pad0;
     mat4 u_InvViewProjection;
+    mat4 u_View;
 } u_Camera;
 
 struct DirectionalLight {
@@ -75,10 +78,12 @@ layout(set = 0, binding = 6, std430) readonly buffer ShadowMatricesBuffer {
 } u_ShadowMatrices;
 
 layout(set = 0, binding = 7, std430) readonly buffer DirShadowBuffer {
-    mat4  light_view_proj;
+    mat4  cascade_vp[4];
+    float cascade_splits[4];
+    uint  cascade_count;
     uint  enabled;
     float shadow_distance;
-    uint  _pad[2];
+    uint  _pad;
 } u_DirShadow;
 
 
@@ -89,7 +94,7 @@ layout(set = 1, binding = 2) uniform sampler2D u_gPBRParams;
 layout(set = 1, binding = 3) uniform sampler2D u_gDepth;
 // binding 4: shadow cube array (comparison sampler — texture() returns [0,1] shadow factor)
 layout(set = 1, binding = 4) uniform samplerCubeArrayShadow u_ShadowCubeArray;
-layout(set = 1, binding = 5) uniform sampler2DShadow u_ShadowDirMap;
+layout(set = 1, binding = 5) uniform sampler2DArrayShadow u_ShadowDirMap;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -177,17 +182,35 @@ float sample_shadow(int shadow_slot, vec3 world_pos) {
 }
 
 float sample_dir_shadow(vec3 world_pos) {
-    vec4 ls   = u_DirShadow.light_view_proj * vec4(world_pos, 1.0);
+    if (u_DirShadow.enabled == 0u) return 1.0;
+
+    // Compute view-space Z to select cascade.
+    // u_Camera.inv_view_proj is already available; derive view-Z from world pos.
+    // We need the camera view matrix for this — add mat4 view to CameraUBO, OR
+    // derive view-Z from the dot product with the camera forward vector.
+    // Simplest: add view to CameraUBO (see Step 8 below).
+    float view_z = abs((u_Camera.u_View * vec4(world_pos, 1.0)).z);
+
+    // Select the first cascade whose far plane exceeds view_z.
+    uint cascade = u_DirShadow.cascade_count - 1u;
+    for (uint i = 0u; i < u_DirShadow.cascade_count; ++i) {
+        if (view_z < u_DirShadow.cascade_splits[i]) {
+            cascade = i;
+            break;
+        }
+    }
+
+    vec4 ls   = u_DirShadow.cascade_vp[cascade] * vec4(world_pos, 1.0);
     vec3 proj = ls.xyz / ls.w;
     vec2 uv   = proj.xy * 0.5 + 0.5;
-    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return 1.0;
-    float ref = clamp(proj.z - 0.0005, 0.0, 1.0); // bias
-    // simple 3×3 PCF
-    float s = 0.0;
-    vec2  texel = 1.0 / vec2(4096.0);
+    if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) return 1.0;
+
+    float ref = clamp(proj.z - 0.0005, 0.0, 1.0);
+    float s   = 0.0;
+    vec2  texel = 1.0 / vec2(float(4096));
     for (int x = -1; x <= 1; ++x)
     for (int y = -1; y <= 1; ++y)
-    s += texture(u_ShadowDirMap, vec3(uv + vec2(x,y)*texel, ref));
+    s += texture(u_ShadowDirMap, vec4(uv + vec2(x, y) * texel, float(cascade), ref));
     return s / 9.0;
 }
 
@@ -303,6 +326,24 @@ void main() {
     // Reinhard tonemap + gamma correction
     color = color / (color + vec3(1.0));
     color = pow(color, vec3(1.0 / 2.2));
+
+    // CSM DEBUG: tint by cascade index. Remove once cascade selection is verified.
+    #ifdef CSM_CASCADE_DEBUG
+    if (u_DirShadow.enabled != 0u && depth < 1.0) {
+        float view_z_dbg = abs((u_Camera.u_View * vec4(world_pos, 1.0)).z);
+        uint cascade_dbg = u_DirShadow.cascade_count - 1u;
+        for (uint i = 0u; i < u_DirShadow.cascade_count; ++i) {
+            if (view_z_dbg < u_DirShadow.cascade_splits[i]) { cascade_dbg = i; break; }
+        }
+        const vec3 cascade_colors[4] = vec3[4](
+            vec3(1.0, 0.3, 0.3),  // cascade 0: red
+            vec3(0.3, 1.0, 0.3),  // cascade 1: green
+            vec3(0.3, 0.5, 1.0),  // cascade 2: blue
+            vec3(1.0, 1.0, 0.3)   // cascade 3: yellow
+        );
+        color = mix(color, cascade_colors[cascade_dbg], 0.4);
+    }
+    #endif
 
     o_color     = vec4(color, 1.0);
     o_entity_id = -1;

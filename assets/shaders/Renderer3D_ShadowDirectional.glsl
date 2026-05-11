@@ -63,10 +63,12 @@ struct DrawData {
 layout(set = 1, binding = 5) readonly buffer DrawDataBuffer { DrawData draws[]; };
 
 layout(set = 0, binding = 7, std430) readonly buffer DirShadowBuf {
-    mat4     light_view_proj;
+    mat4     cascade_vp[4];       // one per cascade
+    float    cascade_splits[4];
+    uint     cascade_count;
     uint     enabled;
     float    shadow_distance;
-    uint     _pad[2];
+    uint     _pad;
 } u_DirShadow;
 
 layout(push_constant) uniform ShadowDrawPC {
@@ -94,7 +96,7 @@ void main() {
 
     SetMeshOutputsEXT(vtx_count, tri_count);
 
-    mat4 mvp = u_DirShadow.light_view_proj * d.model;
+    mat4 mvp = u_DirShadow.cascade_vp[u_PC.face_index] * d.model;
 
     uint tid = gl_LocalInvocationID.x;
 

@@ -29,7 +29,7 @@ FrameGraph:
       Format: D32_SFLOAT
       Width: 4096
       Height: 4096
-      Layers: 1
+      Layers: 4 # Must match k_csm_cascade_count in tiled_lighting_constants.h
       DepthCompare: true
 
   Passes:
