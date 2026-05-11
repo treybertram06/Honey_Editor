@@ -10,7 +10,7 @@ Renderer:
   ShowPhysicsDebugDraw: false
   GeometryPath: Meshlet
   ParallelMeshSubmission: false
-  RendererType: PathTracing
+  RendererType: Deferred
   AnisotropicFilteringLevel: 16
   TextureFilter: Anisotropic
   CullMode: None
@@ -21,6 +21,6 @@ Window:
   Title: Honey Engine
   Width: 1802
   Height: 768
-  PosX: 1066
-  PosY: 181
+  PosX: 3532
+  PosY: 200
   Fullscreen: true

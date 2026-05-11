@@ -24,6 +24,14 @@ FrameGraph:
       CubeCompatible: true
       DepthCompare: true
 
+    shadowDirMap:
+      Type: Texture
+      Format: D32_SFLOAT
+      Width: 4096
+      Height: 4096
+      Layers: 1
+      DepthCompare: true
+
   Passes:
     - Name: ClothSeed
       Executor: cloth.seed
@@ -56,6 +64,13 @@ FrameGraph:
         - Name: shadowCubemap
           Usage: storage_write
 
+    - Name: ShadowDirDraw
+      Executor: shadow.draw_directional
+      Queue: compute
+      WriteBindings:
+        - Name: shadowDirMap
+          Usage: storage_write
+
     - Name: DeferredLighting
       Executor: deferred.lighting
       Queue: graphics
@@ -63,6 +78,8 @@ FrameGraph:
         - Name: gBuffer
           Usage: sampled
         - Name: shadowCubemap
+          Usage: sampled
+        - Name: shadowDirMap
           Usage: sampled
       Writes: [editorViewport]
       Clear:

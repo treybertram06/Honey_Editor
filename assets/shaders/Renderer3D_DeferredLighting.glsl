@@ -74,6 +74,14 @@ layout(set = 0, binding = 6, std430) readonly buffer ShadowMatricesBuffer {
     ShadowLightMatrices lights[];
 } u_ShadowMatrices;
 
+layout(set = 0, binding = 7, std430) readonly buffer DirShadowBuffer {
+    mat4  light_view_proj;
+    uint  enabled;
+    float shadow_distance;
+    uint  _pad[2];
+} u_DirShadow;
+
+
 // ---- set=1 G-buffer textures ----
 layout(set = 1, binding = 0) uniform sampler2D u_gAlbedo;
 layout(set = 1, binding = 1) uniform sampler2D u_gNormal;
@@ -81,6 +89,7 @@ layout(set = 1, binding = 2) uniform sampler2D u_gPBRParams;
 layout(set = 1, binding = 3) uniform sampler2D u_gDepth;
 // binding 4: shadow cube array (comparison sampler — texture() returns [0,1] shadow factor)
 layout(set = 1, binding = 4) uniform samplerCubeArrayShadow u_ShadowCubeArray;
+layout(set = 1, binding = 5) uniform sampler2DShadow u_ShadowDirMap;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -167,6 +176,21 @@ float sample_shadow(int shadow_slot, vec3 world_pos) {
     return s / 8.0;
 }
 
+float sample_dir_shadow(vec3 world_pos) {
+    vec4 ls   = u_DirShadow.light_view_proj * vec4(world_pos, 1.0);
+    vec3 proj = ls.xyz / ls.w;
+    vec2 uv   = proj.xy * 0.5 + 0.5;
+    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return 1.0;
+    float ref = clamp(proj.z - 0.0005, 0.0, 1.0); // bias
+    // simple 3×3 PCF
+    float s = 0.0;
+    vec2  texel = 1.0 / vec2(4096.0);
+    for (int x = -1; x <= 1; ++x)
+    for (int y = -1; y <= 1; ++y)
+    s += texture(u_ShadowDirMap, vec3(uv + vec2(x,y)*texel, ref));
+    return s / 9.0;
+}
+
 vec3 pbr_point_light(vec3 world_pos, vec3 N, vec3 V, vec3 F0, vec3 albedo, float metallic, float roughness, uint light_idx) {
     PointLight pl = u_Lights.u_PointLights[light_idx];
     vec3  to_light = pl.position - world_pos;
@@ -248,8 +272,10 @@ void main() {
         vec3 kD       = (1.0 - F) * (1.0 - metallic);
         vec3 specular = (D * G * F) / max(4.0 * NdotV * NdotL, 0.001);
 
-        Lo += (kD * albedo / 3.14159265 + specular) *
-              u_Lights.u_DirectionalLight.color * u_Lights.u_DirectionalLight.intensity * NdotL;
+        vec3  dir_contrib = (kD * albedo / 3.14159265 + specular) *
+                            u_Lights.u_DirectionalLight.color * u_Lights.u_DirectionalLight.intensity * NdotL;
+        float shadow = (u_DirShadow.enabled != 0u) ? sample_dir_shadow(world_pos) : 1.0;
+        Lo += dir_contrib * shadow;
     }
 
     // Tiled point lights with optional shadow
