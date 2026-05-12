@@ -61,6 +61,9 @@ namespace Honey {
         glm::vec2 m_viewport_size = {1680.0f, 720.0f};
         bool m_viewport_focused = false, m_viewport_hovered = false;
 
+        bool      m_viewport_resize_pending = false;
+        glm::vec2 m_pending_viewport_size   = {0.0f, 0.0f};
+
         std::filesystem::path m_scene_filepath;
         Ref<Scene> m_active_scene;
         Ref<Scene> m_editor_scene;

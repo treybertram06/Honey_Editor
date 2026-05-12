@@ -175,6 +175,18 @@ namespace Honey {
             }
         }
 
+        // Apply any viewport resize that was detected in the previous frame's on_imgui_render.
+        // Done here, before any frame graph recording, so that old framebuffer Vulkan objects
+        // are destroyed before the CB records any render passes against them.
+        if (m_viewport_resize_pending) {
+            m_viewport_resize_pending = false;
+            m_viewport_size = m_pending_viewport_size;
+            m_scene_viewport_renderer.resize((uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y);
+            m_editor_camera.set_viewport_size(m_viewport_size.x, m_viewport_size.y);
+            if (m_active_scene)
+                m_active_scene->on_viewport_resize((uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y);
+        }
+
         m_frame_time = ts.get_millis();
         m_framerate_counter.update(ts);
         m_framerate = m_framerate_counter.get_smoothed_fps();
@@ -565,10 +577,8 @@ namespace Honey {
 
         ImVec2 viewport_panel_size = ImGui::GetContentRegionAvail();
         if (m_viewport_size != *((glm::vec2*)&viewport_panel_size)) {
-            m_viewport_size = {viewport_panel_size.x, viewport_panel_size.y};
-            m_scene_viewport_renderer.resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
-            m_editor_camera.set_viewport_size(m_viewport_size.x, m_viewport_size.y);
-            m_active_scene->on_viewport_resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
+            m_pending_viewport_size   = {viewport_panel_size.x, viewport_panel_size.y};
+            m_viewport_resize_pending = true;
         }
 
         ImTextureID imgui_tex_id = m_scene_viewport_renderer.get_imgui_texture_id();
