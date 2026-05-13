@@ -21,6 +21,6 @@ Window:
   Title: Honey Engine
   Width: 1802
   Height: 768
-  PosX: 3532
-  PosY: 200
-  Fullscreen: true
+  PosX: 1558
+  PosY: 505
+  Fullscreen: false

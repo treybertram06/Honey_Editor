@@ -32,7 +32,7 @@ layout(push_constant) uniform ShadowDrawPC {
 } u_PC;
 
 void main() {
-    uint draw_id  = u_PC.draw_data_base;
+    uint draw_id  = u_PC.draw_data_base + gl_DrawID;
     DrawData d    = draws[draw_id];
     uint local_id = gl_GlobalInvocationID.x;
 
