@@ -12,6 +12,6 @@ Entity:
   PointLightComponent:
     Color: [1, 1, 1]
     Intensity: 10
-    Range: 3
+    Range: 50
     Enabled: true
     Shadows: true
