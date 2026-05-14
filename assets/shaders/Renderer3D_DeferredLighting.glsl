@@ -24,6 +24,7 @@ void main() {
 #define TILE_SIZE 16
 
 #undef CSM_CASCADE_DEBUG
+//#define CSM_CASCADE_DEBUG
 
 layout(location = 0) in vec2 v_uv;
 
@@ -184,12 +185,13 @@ float sample_shadow(int shadow_slot, vec3 world_pos) {
 float sample_dir_shadow(vec3 world_pos) {
     if (u_DirShadow.enabled == 0u) return 1.0;
 
-    // Compute view-space Z to select cascade.
-    // u_Camera.inv_view_proj is already available; derive view-Z from world pos.
-    // We need the camera view matrix for this — add mat4 view to CameraUBO, OR
-    // derive view-Z from the dot product with the camera forward vector.
-    // Simplest: add view to CameraUBO (see Step 8 below).
     float view_z = abs((u_Camera.u_View * vec4(world_pos, 1.0)).z);
+
+    // Fade to no-shadow over the last 15% of shadow_distance so there is no
+    // hard edge where cascades run out.
+    float fade_start = u_DirShadow.shadow_distance * 0.85;
+    float dist_fade  = 1.0 - smoothstep(fade_start, u_DirShadow.shadow_distance, view_z);
+    if (dist_fade <= 0.0) return 1.0;
 
     // Select the first cascade whose far plane exceeds view_z.
     uint cascade = u_DirShadow.cascade_count - 1u;
@@ -211,7 +213,10 @@ float sample_dir_shadow(vec3 world_pos) {
     for (int x = -1; x <= 1; ++x)
     for (int y = -1; y <= 1; ++y)
     s += texture(u_ShadowDirMap, vec4(uv + vec2(x, y) * texel, float(cascade), ref));
-    return s / 9.0;
+    float shadow = s / 9.0;
+
+    // Apply distance fade: blend from shadow toward fully-lit at shadow_distance
+    return mix(shadow, 1.0, 1.0 - dist_fade);
 }
 
 vec3 pbr_point_light(vec3 world_pos, vec3 N, vec3 V, vec3 F0, vec3 albedo, float metallic, float roughness, uint light_idx) {
