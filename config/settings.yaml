@@ -10,7 +10,7 @@ Renderer:
   ShowPhysicsDebugDraw: false
   GeometryPath: Meshlet
   ParallelMeshSubmission: false
-  RendererType: Deferred
+  RendererType: PathTracing
   AnisotropicFilteringLevel: 16
   TextureFilter: Anisotropic
   CullMode: None
