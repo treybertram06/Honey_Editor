@@ -19,6 +19,8 @@ layout(set = 0, binding = 0) uniform CameraUBO {
     mat4 u_ViewProjection;
     vec3 u_Position;
     float _pad0;
+    mat4 u_InvViewProjection;
+    mat4 u_View;
 } u_Camera;
 
 layout(location = 0) out vec2 v_uv0;
@@ -58,6 +60,14 @@ layout(location = 5) flat in int v_entityID;
 layout(location = 0) out vec4 o_color;
 layout(location = 1) out int v_entityID_out;
 
+layout(set = 0, binding = 0) uniform CameraUBO {
+    mat4 u_ViewProjection;
+    vec3 u_CameraPos;
+    float _pad0;
+    mat4 u_InvViewProjection;
+    mat4 u_View;
+} u_Camera;
+
 layout(set = 0, binding = 3) uniform sampler u_Sampler;
 layout(set = 0, binding = 4) uniform texture2D u_Textures[];
 
@@ -77,11 +87,6 @@ layout(set = 0, binding = 1) uniform LightsUBO {
     DirectionalLight u_DirectionalLight;
     PointLight       u_PointLights[32];
 } u_Lights;
-
-layout(set = 0, binding = 0) uniform CameraUBO {
-    mat4 u_ViewProjection;
-    vec3 u_CameraPos;
-} u_Camera;
 
 struct GPUMaterial {
     vec4  base_color;
@@ -125,9 +130,34 @@ struct GPUMaterial {
     float _pad1;
     float _pad2;
 };
+
 layout(set = 0, binding = 2) readonly buffer MaterialBuffer {
     GPUMaterial materials[];
 } u_Materials;
+
+struct ShadowLightMatrices {
+    mat4  face_view_proj[6];
+    vec3  position;
+    float range;
+};
+layout(set = 0, binding = 6, std430) readonly buffer ShadowMatricesBuffer {
+    uint                shadow_light_count;
+    uint                shadow_light_point_indices[8];
+    uint                _pad2[3];
+    ShadowLightMatrices lights[];
+} u_ShadowMatrices;
+
+layout(set = 0, binding = 7, std430) readonly buffer DirShadowBuffer {
+    mat4  cascade_vp[4];
+    float cascade_splits[4];
+    uint  cascade_count;
+    uint  enabled;
+    float shadow_distance;
+    uint  _pad;
+} u_DirShadow;
+
+layout(set = 0, binding = 8) uniform samplerCubeArrayShadow u_ShadowCubeArray;
+layout(set = 0, binding = 9) uniform sampler2DArrayShadow   u_ShadowDirMap;
 
 layout(push_constant) uniform MaterialPC {
     int u_MaterialIndex;
@@ -191,6 +221,67 @@ vec2 apply_uv_transform(vec2 uv, vec4 scale_offset, float rotation) {
 
 vec4 sample_texture(int tex_idx, vec2 uv) {
     return texture(sampler2D(u_Textures[nonuniformEXT(max(tex_idx, 0))], u_Sampler), uv);
+}
+
+// Converts world-space fragment-to-light distance to shadow map NDC depth.
+float shadow_ndc_depth(float dist, float range) {
+    const float near = 0.05;
+    return (range * (dist - near)) / (dist * (range - near));
+}
+
+// 8-tap PCF lookup into the point light shadow cubemap array.
+float sample_point_shadow(int shadow_slot, vec3 world_pos) {
+    vec3  dir  = world_pos - u_ShadowMatrices.lights[shadow_slot].position;
+    float dist = max(abs(dir.x), max(abs(dir.y), abs(dir.z)));
+    float ref  = clamp(shadow_ndc_depth(dist, u_ShadowMatrices.lights[shadow_slot].range) - 0.0001, 0.0, 1.0);
+
+    vec3 p1 = normalize(cross(dir, vec3(0.0, 1.0, 0.01)));
+    vec3 p2 = normalize(cross(dir, p1));
+    const float k_pcf_scale = 0.003;
+    float r = dist * k_pcf_scale;
+
+    const vec2 taps[8] = vec2[8](
+        vec2( 1.000,  0.000), vec2( 0.707,  0.707),
+        vec2( 0.000,  1.000), vec2(-0.707,  0.707),
+        vec2(-1.000,  0.000), vec2(-0.707, -0.707),
+        vec2( 0.000, -1.000), vec2( 0.707, -0.707)
+    );
+    float s = 0.0;
+    for (int i = 0; i < 8; ++i) {
+        vec3 offset = taps[i].x * p1 + taps[i].y * p2;
+        s += texture(u_ShadowCubeArray, vec4(dir + offset * r, float(shadow_slot)), ref);
+    }
+    return s / 8.0;
+}
+
+// 3x3 PCF lookup into the directional shadow cascade array.
+float sample_dir_shadow(vec3 world_pos) {
+    if (u_DirShadow.enabled == 0u) return 1.0;
+
+    float view_z = abs((u_Camera.u_View * vec4(world_pos, 1.0)).z);
+
+    float fade_start = u_DirShadow.shadow_distance * 0.85;
+    float dist_fade  = 1.0 - smoothstep(fade_start, u_DirShadow.shadow_distance, view_z);
+    if (dist_fade <= 0.0) return 1.0;
+
+    uint cascade = u_DirShadow.cascade_count - 1u;
+    for (uint i = 0u; i < u_DirShadow.cascade_count; ++i) {
+        if (view_z < u_DirShadow.cascade_splits[i]) { cascade = i; break; }
+    }
+
+    vec4 ls   = u_DirShadow.cascade_vp[cascade] * vec4(world_pos, 1.0);
+    vec3 proj = ls.xyz / ls.w;
+    vec2 uv   = proj.xy * 0.5 + 0.5;
+    if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) return 1.0;
+
+    float ref   = clamp(proj.z - 0.0005, 0.0, 1.0);
+    float s     = 0.0;
+    vec2  texel = 1.0 / vec2(float(4096));
+    for (int x = -1; x <= 1; ++x)
+    for (int y = -1; y <= 1; ++y)
+        s += texture(u_ShadowDirMap, vec4(uv + vec2(x, y) * texel, float(cascade), ref));
+
+    return mix(s / 9.0, 1.0, 1.0 - dist_fade);
 }
 
 void main() {
@@ -265,7 +356,8 @@ void main() {
         if (u_Lights.u_DirectionalLight.intensity > 0.0) {
             vec3 L = normalize(-u_Lights.u_DirectionalLight.direction);
             vec3 radiance = u_Lights.u_DirectionalLight.color * u_Lights.u_DirectionalLight.intensity;
-            Lo += brdf(N, V, L, albedo, metallic, roughness, F0, radiance);
+            float shadow = sample_dir_shadow(v_positionWS);
+            Lo += brdf(N, V, L, albedo, metallic, roughness, F0, radiance) * shadow;
         }
 
         int count = u_Lights.u_DirectionalLight.point_light_count;
@@ -279,7 +371,17 @@ void main() {
             float attenuation = 1.0 / (dist * dist);
             float window = pow(max(1.0 - pow(dist / pl.range, 4.0), 0.0), 2.0);
             vec3 radiance = pl.color * pl.intensity * attenuation * window;
-            Lo += brdf(N, V, L, albedo, metallic, roughness, F0, radiance);
+            vec3 contrib = brdf(N, V, L, albedo, metallic, roughness, F0, radiance);
+
+            // Apply shadow if this point light has a shadow slot.
+            for (uint si = 0u; si < u_ShadowMatrices.shadow_light_count; ++si) {
+                if (u_ShadowMatrices.shadow_light_point_indices[si] == uint(i)) {
+                    contrib *= sample_point_shadow(int(si), v_positionWS);
+                    break;
+                }
+            }
+
+            Lo += contrib;
         }
 
         vec3 ambient = vec3(0.03) * albedo * ao;
