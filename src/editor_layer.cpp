@@ -397,10 +397,22 @@ namespace Honey {
             {
                 auto& app = Application::get();
                 auto& window = app.get_window();
-                gpu_ms = window.get_context()->get_last_gpu_frame_time_ms();
+                auto* ctx = window.get_context();
+                gpu_ms = ctx->get_last_gpu_frame_time_ms();
+                ImGui::Text("GPU Frame Time: %.3f ms", gpu_ms);
+                ImGui::Text("GPU time spent ratio: %.3f %%", (gpu_ms / m_frame_time) * 100.0f);
+
+                const uint32_t zone_count = ctx->get_gpu_zone_count();
+                if (zone_count > 0) {
+                    ImGui::Indent();
+                    for (uint32_t i = 0; i < zone_count; ++i) {
+                        const char*  name = ctx->get_gpu_zone_name(i);
+                        const double ms   = ctx->get_gpu_zone_time_ms(i);
+                        ImGui::Text("%-20s %.3f ms", name, ms);
+                    }
+                    ImGui::Unindent();
+                }
             }
-            ImGui::Text("GPU Frame Time: %.3f ms", gpu_ms);
-            ImGui::Text("GPU time spent ratio: %.3f %%", (gpu_ms / m_frame_time) * 100.0f );
             //ImGui::Text("Smoothed FPS: %d", m_framerate_counter.get_smoothed_fps());
 
             ImGui::Separator();
