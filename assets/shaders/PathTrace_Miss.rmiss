@@ -2,16 +2,13 @@
 #extension GL_EXT_ray_tracing : require
 
 struct HitPayload {
-    vec3  radiance;
-    float brdf_pdf;
-    vec3  throughput;
-    float _pad1;
-    vec3  next_origin;
-    float _pad2;
-    vec3  next_direction;
-    uint  seed;
-    vec3  hit_normal;
-    float hit_depth;
+    vec3  radiance;         // 12
+    vec3  throughput;       // 12
+    vec3  next_direction;   // 12
+    uint  seed;             // 4
+    vec3  hit_normal;       // 12 (written only at bounce 0)
+    float hit_depth;        // 4
+    uint  flags;            // 4  (bits 0-7 = bounce index)
 };
 layout(location = 0) rayPayloadInEXT HitPayload payload;
 

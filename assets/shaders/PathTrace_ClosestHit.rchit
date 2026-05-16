@@ -9,16 +9,13 @@
 
 // ─── Payload ──────────────────────────────────────────────────────────────────
 struct HitPayload {
-    vec3  radiance;
-    float brdf_pdf;
-    vec3  throughput;
-    float _pad1;
-    vec3  next_origin;
-    float _pad2;
-    vec3  next_direction;
-    uint  seed;
-    vec3  hit_normal;   // world-space shading normal (written for SVGF G-buffer)
-    float hit_depth;    // ray travel distance (gl_HitTEXT)
+    vec3  radiance;         // 12
+    vec3  throughput;       // 12
+    vec3  next_direction;   // 12
+    uint  seed;             // 4
+    vec3  hit_normal;       // 12 (written only at bounce 0)
+    float hit_depth;        // 4
+    uint  flags;            // 4  (bits 0-7 = bounce index)
 };
 
 layout(location = 0) rayPayloadInEXT HitPayload payload;
@@ -228,15 +225,18 @@ void main() {
     // ── Material lookup ───────────────────────────────────────────────────────
     MaterialInfo mat = u_materials.entries[gl_InstanceCustomIndexEXT];
 
+    // Secondary rays use a high mip bias to reduce texture cache pressure from incoherent hits.
+    float lod_bias = (payload.flags & 0xFFu) == 0u ? 0.0 : 4.0;
+
     vec4 albedo4 = mat.base_color_factor;
     if (mat.base_color_tex >= 0)
-        albedo4 *= texture(u_textures[mat.base_color_tex], uv);
+        albedo4 *= textureLod(u_textures[mat.base_color_tex], uv, lod_bias);
     vec3 albedo = albedo4.rgb;
 
     float metalness = mat.metalness;
     float roughness = mat.roughness;
     if (mat.metal_rough_tex >= 0) {
-        vec4 mr = texture(u_textures[mat.metal_rough_tex], uv);
+        vec4 mr = textureLod(u_textures[mat.metal_rough_tex], uv, lod_bias);
         // glTF packs: R=occlusion, G=roughness, B=metalness
         roughness *= mr.g;
         metalness *= mr.b;
@@ -246,7 +246,7 @@ void main() {
     // ── Normal map ────────────────────────────────────────────────────────────
     vec3 N = Ng;
     if (mat.normal_tex >= 0) {
-        vec3 n_ts = texture(u_textures[mat.normal_tex], uv).rgb * 2.0 - 1.0;
+        vec3 n_ts = textureLod(u_textures[mat.normal_tex], uv, lod_bias).rgb * 2.0 - 1.0;
         n_ts.xy  *= mat.normal_scale;
         N         = normalize(TBN * n_ts);
         // Flip N if it points away from the camera (back-face hit)
@@ -263,7 +263,7 @@ void main() {
     // ── Emissive term ─────────────────────────────────────────────────────────
     vec3 emissive = mat.emissive_factor.rgb;
     if (mat.emissive_tex >= 0)
-        emissive *= texture(u_textures[mat.emissive_tex], uv).rgb;
+        emissive *= textureLod(u_textures[mat.emissive_tex], uv, lod_bias).rgb;
 
     // ── Direct lighting ───────────────────────────────────────────────────────
     vec3 hit_pos = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
@@ -421,7 +421,6 @@ void main() {
 
     payload.radiance       = Lo;
     payload.throughput     = bounce_throughput;
-    payload.next_origin    = hit_pos + N * 0.001;
     payload.next_direction = bounce_dir;
     payload.seed           = seed;
     payload.hit_normal     = N;

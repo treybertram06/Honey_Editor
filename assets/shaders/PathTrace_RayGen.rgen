@@ -11,20 +11,17 @@ layout(push_constant) uniform PC {
     uint frame_count;
 } pc;
 
-#define MAX_BOUNCES 64
+#define MAX_BOUNCES 16
 
 // Shared payload struct — must match closest hit and miss shaders exactly.
 struct HitPayload {
-    vec3  radiance;       // direct lighting contribution at the hit point
-    float brdf_pdf;       // PDF of the chosen bounce direction (for MIS in miss shader)
-    vec3  throughput;     // surface albedo (caller multiplies into path weight)
-    float _pad1;
-    vec3  next_origin;    // bounce ray origin
-    float _pad2;
-    vec3  next_direction; // bounce ray direction; vec3(0) signals path end
-    uint  seed;           // PCG RNG state, mutated by closest hit when sampling bounce dir
-    vec3  hit_normal;     // world-space shading normal at first hit (for SVGF G-buffer)
-    float hit_depth;      // ray travel distance at first hit (gl_HitTEXT)
+    vec3  radiance;         // 12
+    vec3  throughput;       // 12
+    vec3  next_direction;   // 12
+    uint  seed;             // 4
+    vec3  hit_normal;       // 12 (written only at bounce 0)
+    float hit_depth;        // 4
+    uint  flags;            // 4  (bits 0-7 = bounce index)
 };
 
 layout(location = 0) rayPayloadEXT HitPayload payload;
@@ -73,6 +70,7 @@ void main() {
 
     for (int bounce = 0; bounce < MAX_BOUNCES; bounce++) {
         payload.seed           = seed;
+        payload.flags          = uint(bounce) & 0xFFu;
         payload.next_direction = vec3(0.0); // miss shader leaves this at 0 to signal termination
 
         traceRayEXT(tlas, gl_RayFlagsOpaqueEXT, 0xFF,
@@ -94,8 +92,8 @@ void main() {
 
         path_throughput *= payload.throughput;
 
-        // Russian roulette after the first 3 bounces
-        if (bounce >= 3) {
+        // Russian roulette after the first 2 bounces
+        if (bounce >= 2) {
             float rr_prob = max(path_throughput.r, max(path_throughput.g, path_throughput.b));
             rr_prob = clamp(rr_prob, 0.05, 1.0); // floor at 0.05 so paths can't run forever
             if (rand_f_rg(seed) > rr_prob)
@@ -103,7 +101,7 @@ void main() {
             path_throughput /= rr_prob;
         }
 
-        ray_origin    = payload.next_origin;
+        ray_origin    = ray_origin + ray_direction * payload.hit_depth + payload.hit_normal * 0.001;
         ray_direction = payload.next_direction;
     }
 
