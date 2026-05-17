@@ -82,7 +82,7 @@ struct TaskPayload { uint meshlet_id; uint draw_id; };
 taskPayloadSharedEXT TaskPayload payload;
 
 #define MESHLET_STRIDE 4u
-#define VERTEX_STRIDE  14u
+#define VERTEX_STRIDE  6u
 
 void main() {
     DrawData d  = draws[payload.draw_id];

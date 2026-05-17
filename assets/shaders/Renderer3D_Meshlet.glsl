@@ -6,12 +6,11 @@
 // Per-draw data (model matrix, meshlet offsets, material, entity) lives in DrawDataBuffer
 // at set=1 binding=5, indexed by gl_DrawID — no push constants used.
 //
-// Vertex buffer layout (Vertex, 56 bytes / 14 floats):
-//   float[0..2]   = position
-//   float[3..5]   = normal
-//   float[6..9]   = tangent (xyz,w)
-//   float[10..11] = uv0
-//   float[12..13] = uv1
+// Vertex buffer layout (VertexPBR, 24 bytes / 6 uint32s):
+//   float[0..2]   = position (f32×3)
+//   uint [3]      = normal   (oct-encoded, packSnorm2x16)
+//   uint [4]      = tangent  (oct xyz bits 0-30, sign bit 31)
+//   uint [5]      = uv0      (packHalf2x16)
 
 #type task
 #version 460
@@ -65,6 +64,8 @@ layout(set = 1, binding = 1) readonly buffer MB  { uint  meshlets[];          };
 layout(set = 1, binding = 2) readonly buffer MVI { uint  meshlet_vertices[];  };
 layout(set = 1, binding = 3) readonly buffer MTI { uint  meshlet_triangles[]; };
 
+#include "vertex_decode.glsl"
+
 struct DrawData {
     mat4  model;
     uint  meshlets_offset;
@@ -110,20 +111,19 @@ void main() {
 
     for (uint i = gl_LocalInvocationID.x; i < vtx_count; i += 32u) {
         uint vi     = meshlet_vertices[vtx_off + i];
-        uint base_f = vi * 14u;
+        uint base_f = vi * 6u;
 
         vec3 pos = vec3(vertices[base_f + 0u], vertices[base_f + 1u], vertices[base_f + 2u]);
-        vec3 nor = vec3(vertices[base_f + 3u], vertices[base_f + 4u], vertices[base_f + 5u]);
-        vec4 tan = vec4(vertices[base_f + 6u], vertices[base_f + 7u], vertices[base_f + 8u], vertices[base_f + 9u]);
-        vec2 uv0 = vec2(vertices[base_f + 10u], vertices[base_f + 11u]);
-        vec2 uv1 = vec2(vertices[base_f + 12u], vertices[base_f + 13u]);
+        vec3 nor = vb_unpack_normal(vertices[base_f + 3u]);
+        vec4 tan = vb_unpack_tangent(vertices[base_f + 4u]);
+        vec2 uv0 = vb_unpack_uv(vertices[base_f + 5u]);
 
         gl_MeshVerticesEXT[i].gl_Position = mvp * vec4(pos, 1.0);
         v_positionWS[i]    = (d.model * vec4(pos, 1.0)).xyz;
         v_normalWS[i]      = normalize(normalMat * nor);
         v_tangentWS[i]     = vec4(normalize(normalMat * tan.xyz), tan.w);
         v_uv0[i]           = uv0;
-        v_uv1[i]           = uv1;
+        v_uv1[i]           = vec2(0.0);
         v_entityID[i]      = d.entity_id;
         v_materialIndex[i] = d.material_index;
     }

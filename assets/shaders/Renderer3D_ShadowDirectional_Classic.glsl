@@ -3,20 +3,15 @@
 // One render pass per cascade; face_index carries the cascade index.
 // Fragment stage is empty — depth is written automatically by the rasterizer.
 //
-// Vertex binding 0 (per-vertex):  mesh vertex buffer, stride = 14 floats (56 bytes)
+// Vertex binding 0 (per-vertex):  mesh vertex buffer, stride = 6 uint32s (24 bytes)
 // Vertex binding 1 (per-instance): instance buffer (InstanceData), stride = 68 bytes
-// All per-vertex attributes must be declared to produce the correct binding stride;
-// only a_position and the instance model matrix are actually used.
+// Only a_position is used; stride is set by the engine BufferLayout (24 bytes).
 
 #type vertex
 #version 450
 
-// Per-vertex (binding 0, stride 56 bytes)
+// Per-vertex (binding 0, stride 24 bytes) — only position needed
 layout(location = 0) in vec3 a_position;
-layout(location = 1) in vec3 a_normal;
-layout(location = 2) in vec4 a_tangent;
-layout(location = 3) in vec2 a_uv0;
-layout(location = 4) in vec2 a_uv1;
 
 // Per-instance (binding 1, stride 68 bytes) — prefix a_i marks instanced rate
 layout(location = 5) in vec4 a_iModel0;

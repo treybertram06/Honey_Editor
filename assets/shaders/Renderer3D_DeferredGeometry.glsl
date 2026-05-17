@@ -2,10 +2,9 @@
 #version 450
 
 layout(location = 0) in vec3 a_position;
-layout(location = 1) in vec3 a_normal;
-layout(location = 2) in vec4 a_tangent;
-layout(location = 3) in vec2 a_uv0;
-layout(location = 4) in vec2 a_uv1;
+layout(location = 1) in uint a_normal_packed;
+layout(location = 2) in uint a_tangent_packed;
+layout(location = 3) in uint a_uv0_packed;
 
 // Instance model matrix as 4 vec4s
 layout(location = 5) in vec4 a_iModel0;
@@ -28,14 +27,20 @@ layout(location = 3) out vec3 v_positionWS;
 layout(location = 4) out vec4 v_tangentWS;
 layout(location = 5) flat out int v_entityID_out;
 
+#include "vertex_decode.glsl"
+
 void main() {
     mat4 model = mat4(a_iModel0, a_iModel1, a_iModel2, a_iModel3);
     vec4 worldPos = model * vec4(a_position, 1.0);
 
     mat3 normalMat = transpose(inverse(mat3(model)));
 
+    vec3 a_normal  = unpack_normal(a_normal_packed);
+    vec4 a_tangent = unpack_tangent(a_tangent_packed);
+    vec2 a_uv0     = unpackHalf2x16(a_uv0_packed);
+
     v_uv0         = a_uv0;
-    v_uv1         = a_uv1;
+    v_uv1         = vec2(0.0);
     v_positionWS  = worldPos.xyz;
     v_normalWS    = normalize(normalMat * a_normal);
     v_tangentWS   = vec4(normalize(normalMat * a_tangent.xyz), a_tangent.w);

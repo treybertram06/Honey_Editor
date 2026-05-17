@@ -25,8 +25,10 @@ hitAttributeEXT vec2 barycentrics;
 // ─── Bindings ─────────────────────────────────────────────────────────────────
 layout(set = 0, binding = 0) uniform accelerationStructureEXT tlas;
 
-#define VERTEX_STRIDE 14
+#define VERTEX_STRIDE 6
 layout(buffer_reference, scalar) readonly buffer VertexBuffer { float v[]; };
+
+#include "vertex_decode.glsl"
 layout(buffer_reference, scalar) readonly buffer IndexBuffer  { uint  i[]; };
 
 struct GeometryInfo {
@@ -196,30 +198,27 @@ void main() {
     float w2 = barycentrics.y;
 
     // ── Interpolate vertex attributes ─────────────────────────────────────────
-    // Normals (offset 3)
-    vec3 n0 = vec3(vb.v[i0*VERTEX_STRIDE+3], vb.v[i0*VERTEX_STRIDE+4], vb.v[i0*VERTEX_STRIDE+5]);
-    vec3 n1 = vec3(vb.v[i1*VERTEX_STRIDE+3], vb.v[i1*VERTEX_STRIDE+4], vb.v[i1*VERTEX_STRIDE+5]);
-    vec3 n2 = vec3(vb.v[i2*VERTEX_STRIDE+3], vb.v[i2*VERTEX_STRIDE+4], vb.v[i2*VERTEX_STRIDE+5]);
+    // Normals (offset 3, oct-encoded uint32 reinterpreted as float)
+    vec3 n0 = vb_unpack_normal(vb.v[i0*VERTEX_STRIDE+3]);
+    vec3 n1 = vb_unpack_normal(vb.v[i1*VERTEX_STRIDE+3]);
+    vec3 n2 = vb_unpack_normal(vb.v[i2*VERTEX_STRIDE+3]);
     vec3 obj_normal = normalize(n0*w0 + n1*w1 + n2*w2);
     vec3 Ng = normalize(mat3(gl_ObjectToWorldEXT) * obj_normal); // geometric/shading normal
 
-    // Tangents (offset 6, vec4 — .w = bitangent sign)
-    vec4 t0 = vec4(vb.v[i0*VERTEX_STRIDE+6], vb.v[i0*VERTEX_STRIDE+7],
-                   vb.v[i0*VERTEX_STRIDE+8], vb.v[i0*VERTEX_STRIDE+9]);
-    vec4 t1 = vec4(vb.v[i1*VERTEX_STRIDE+6], vb.v[i1*VERTEX_STRIDE+7],
-                   vb.v[i1*VERTEX_STRIDE+8], vb.v[i1*VERTEX_STRIDE+9]);
-    vec4 t2 = vec4(vb.v[i2*VERTEX_STRIDE+6], vb.v[i2*VERTEX_STRIDE+7],
-                   vb.v[i2*VERTEX_STRIDE+8], vb.v[i2*VERTEX_STRIDE+9]);
+    // Tangents (offset 4, packed: oct xyz in bits 0-30, sign in bit 31)
+    vec4 t0 = vb_unpack_tangent(vb.v[i0*VERTEX_STRIDE+4]);
+    vec4 t1 = vb_unpack_tangent(vb.v[i1*VERTEX_STRIDE+4]);
+    vec4 t2 = vb_unpack_tangent(vb.v[i2*VERTEX_STRIDE+4]);
     vec4 obj_tangent4 = t0*w0 + t1*w1 + t2*w2;
     float bitan_sign  = obj_tangent4.w >= 0.0 ? 1.0 : -1.0;
     vec3 T_world = normalize(mat3(gl_ObjectToWorldEXT) * obj_tangent4.xyz);
     vec3 B_world = cross(Ng, T_world) * bitan_sign;
     mat3 TBN     = mat3(T_world, B_world, Ng); // tangent→world
 
-    // UVs (offset 10)
-    vec2 uv0 = vec2(vb.v[i0*VERTEX_STRIDE+10], vb.v[i0*VERTEX_STRIDE+11]);
-    vec2 uv1 = vec2(vb.v[i1*VERTEX_STRIDE+10], vb.v[i1*VERTEX_STRIDE+11]);
-    vec2 uv2 = vec2(vb.v[i2*VERTEX_STRIDE+10], vb.v[i2*VERTEX_STRIDE+11]);
+    // UVs (offset 5, packHalf2x16)
+    vec2 uv0 = vb_unpack_uv(vb.v[i0*VERTEX_STRIDE+5]);
+    vec2 uv1 = vb_unpack_uv(vb.v[i1*VERTEX_STRIDE+5]);
+    vec2 uv2 = vb_unpack_uv(vb.v[i2*VERTEX_STRIDE+5]);
     vec2 uv  = uv0*w0 + uv1*w1 + uv2*w2;
 
     // ── Material lookup ───────────────────────────────────────────────────────
