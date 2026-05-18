@@ -351,24 +351,27 @@ void main() {
         vec3 env_dir   = env_nee_direction(N, sun_dir, seed, env_pdf);
         float NdotL_e  = max(dot(N, env_dir), 0.0);
         shadow_payload = true;
-        traceRayEXT(tlas,
+
+        if (NdotL_e > 0.0) { // Early out on back facing samples
+            traceRayEXT(tlas,
             gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsSkipClosestHitShaderEXT,
             0xFF, 0, 0, 1,
             hit_pos + N * 0.001, 0.001, env_dir, 10000.0, 1);
 
-        if (!shadow_payload && NdotL_e > 0.0) {
-            vec3  H_e    = normalize(V + env_dir);
-            float NdotH_e = max(dot(N, H_e), 0.0);
-            float VdotH_e = max(dot(V, H_e), 0.0);
+            if (!shadow_payload) {
+                vec3  H_e    = normalize(V + env_dir);
+                float NdotH_e = max(dot(N, H_e), 0.0);
+                float VdotH_e = max(dot(V, H_e), 0.0);
 
-            vec3  F_e  = F_Schlick(VdotH_e, F0);
-            float D_e  = D_GGX(NdotH_e, a);
-            float G2_e = G2_Smith(NdotV, NdotL_e, a);
-            vec3 f_s_e = (D_e * G2_e * F_e) / max(4.0 * NdotV * NdotL_e, 1e-7);
-            vec3 f_d_e = (1.0 - F_e) * (1.0 - metalness) * albedo / PI;
+                vec3  F_e  = F_Schlick(VdotH_e, F0);
+                float D_e  = D_GGX(NdotH_e, a);
+                float G2_e = G2_Smith(NdotV, NdotL_e, a);
+                vec3 f_s_e = (D_e * G2_e * F_e) / max(4.0 * NdotV * NdotL_e, 1e-7);
+                vec3 f_d_e = (1.0 - F_e) * (1.0 - metalness) * albedo / PI;
 
-            // MIS weight 0.5 (equal PDFs, diffuse approx) * Monte Carlo weight NdotL/pdf
-            Lo += (f_d_e + f_s_e) * sky_dome(env_dir) * (NdotL_e / env_pdf) * 0.5;
+                // MIS weight 0.5 (equal PDFs, diffuse approx) * Monte Carlo weight NdotL/pdf
+                Lo += (f_d_e + f_s_e) * sky_dome(env_dir) * (NdotL_e / env_pdf) * 0.5;
+            }
         }
     }
 
