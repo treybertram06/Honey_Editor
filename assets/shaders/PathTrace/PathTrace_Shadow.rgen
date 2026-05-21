@@ -16,7 +16,7 @@ void main() {
     if (slot >= shadow_count) return;
 
     ShadowRayRequest req = shadow_rays[slot];
-    shadow_hit = false; // payload bool
+    shadow_hit = true; // assume occluded; miss shader clears to false if ray escapes
     traceRayEXT(tlas,
         gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsSkipClosestHitShaderEXT,
         0xFF, 0, 0, 0, // shadow miss shader index = 0
