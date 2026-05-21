@@ -24,7 +24,16 @@ layout(buffer_reference, scalar) readonly buffer VertexBuffer { float v[]; };
 #include "vertex_decode.glsl"
 layout(buffer_reference, scalar) readonly buffer IndexBuffer  { uint  i[]; };
 
+// ─── Push constants ───────────────────────────────────────────────────────────
+layout(push_constant) uniform PC {
+    uint total_path_count;
+    uint frame_count;
+    uint width;
+};
+
 // ─── Set 0: shared resources ──────────────────────────────────────────────────
+layout(set = 0, binding = 1, rgba32f) writeonly uniform image2D gbuffer_image;
+
 struct GeometryInfo {
     uint64_t vertex_buf_addr;
     uint64_t index_buf_addr;
@@ -241,6 +250,10 @@ void main() {
 
     // ── Miss: path escaped to sky ─────────────────────────────────────────────
     if (rec.hit_kind == 0u) {
+        if (bounce[path_idx] == 0u) {
+            ivec2 coord = ivec2(int(path_idx % width), int(path_idx / width));
+            imageStore(gbuffer_image, coord, vec4(0.0, 0.0, 0.0, -1.0));
+        }
         radiance[path_idx] += throughput[path_idx] * vec4(sky_dome(ray_dir[path_idx].xyz), 0.0);
         flags[path_idx]    |= FLAG_TERMINATED;
         shadow_start[path_idx] = 0u;
@@ -303,6 +316,12 @@ void main() {
         n_ts.xy  *= mat.normal_scale;
         N         = normalize(TBN * n_ts);
         if (dot(N, V) < 0.0) N = -N;
+    }
+
+    // ── G-buffer write for primary ray ───────────────────────────────────────
+    if (bounce[path_idx] == 0u) {
+        ivec2 coord = ivec2(int(path_idx % width), int(path_idx / width));
+        imageStore(gbuffer_image, coord, vec4(N, rec.hit_t));
     }
 
     // ── Derived BRDF quantities ───────────────────────────────────────────────

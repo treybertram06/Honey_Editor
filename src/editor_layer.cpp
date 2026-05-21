@@ -238,137 +238,215 @@ namespace Honey {
 
         style.WindowMinSize.x = min_window_size;
 
-
-        if (ImGui::BeginMainMenuBar()) {
-            if (ImGui::BeginMenu("File")) {
-                if (ImGui::MenuItem("New", "Ctrl+N")) {
-                    if (has_scene_changed()) {
-                        m_notification_center.open_confirm("new_scene",
-                            "Create new scene?",
-                            "This will discard all changes to the current scene and create a new one.",
-                            true,
-                            [this]() {
-                                new_scene();
-                                m_notification_center.push_toast(UI::ToastType::Success, "New Scene", "Created new scene and saved previous.");
-                            },
-                            nullptr,
-                            "Discard and Continue",
-                            "Cancel"
-                        );
-                    } else {
-                        new_scene();
-                        m_notification_center.push_toast(UI::ToastType::Success, "New Scene", "Created new scene.");
-                    }
-                }
-                if (ImGui::MenuItem("Open...", "Ctrl+O")) {
-                    open_scene();
-                }
-                if (ImGui::MenuItem("Save", "Ctrl+S")) {
-                    save_current_scene();
-                }
-                if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S")) {
-                    save_scene_as();
-                }
-                ImGui::Separator();
-                if (ImGui::MenuItem("Exit")) {
-                    m_quit_requested = true;
-                }
-                ImGui::EndMenu();
-            }
-            if (ImGui::BeginMenu("Edit")) {
-                if (ImGui::MenuItem("Undo", "Ctrl+Z")) {
-                    // Action for Undo
-                }
-                if (ImGui::MenuItem("Redo", "Ctrl+Y")) {
-                    // Action for Redo
-                }
-                ImGui::Separator();
-                if (ImGui::MenuItem("Cut", "Ctrl+X")) {
-                    // Action for Cut
-                }
-                if (ImGui::MenuItem("Copy", "Ctrl+C")) {
-                    // Action for Copy
-                }
-                if (ImGui::MenuItem("Paste", "Ctrl+V")) {
-                    // Action for Paste
-                }
-                ImGui::EndMenu();
-            }
-            if (ImGui::BeginMenu("View")) {
-                if (ImGui::MenuItem("Toggle Debug Panel")) {
-                    // Toggle visibility of Debug Panel
-                }
-                if (ImGui::MenuItem("Reset View")) {
-                    // Reset camera or scene view
-                }
-                if (ImGui::BeginMenu("Set Theme")) {
-                    auto* imgui_layer = Application::get().get_imgui_layer();
-                    UITheme current_theme = imgui_layer->get_current_theme();
-
-                    for (int i = 0; i < 7; ++i) {
-                        UITheme theme = static_cast<UITheme>(i);
-                        bool is_selected = (current_theme == theme);
-
-                        if (ImGui::MenuItem(imgui_layer->get_theme_name(theme), nullptr, is_selected)) {
-                            imgui_layer->set_theme(theme);
-                        }
-                    }
-                    ImGui::EndMenu();
-                }
-
-
-                ImGui::EndMenu();
-            }
-            if (ImGui::BeginMenu("Preferences")) {
-                if (ImGui::MenuItem("Save settings to file")) {
-                    Settings::save_to_file( asset_root / ".." / "config" / "settings.yaml" );
-                }
-                ImGui::EndMenu();
-            }
-            if (ImGui::BeginMenu("Scripts")) {
-                if (ImGui::MenuItem("Build Scripts")) {
-                    ScriptLoader::get().unload_library();
-
-                    int result = std::system("cmake --build . --target HoneyScripts");
-                    if (result == 0) {
-                        HN_CORE_INFO("Scripts built successfully, reloading...");
-                        m_notification_center.push_toast(UI::ToastType::Success, "Scripts Built", "HoneyScripts built and reloaded successfully.");
-                        //print current working directory
-                        std::filesystem::path current_path = std::filesystem::current_path();
-                        HN_CORE_INFO("Current working directory: {0}", current_path.string());
-                        ScriptLoader::get().reload_library("assets/scripts/libHoneyScripts.so");
-                    } else {
-                        HN_CORE_ERROR("Script build failed with code: {0}", result);
-                        m_notification_center.push_toast(UI::ToastType::Error, "Build Failed", "HoneyScripts build failed. See console for details.");
-                    }
-                }
-                if (ImGui::MenuItem("Reload Scripts")) {
-                    ScriptLoader::get().reload_library("assets/scripts/libHoneyScripts.so");
-                    m_notification_center.push_toast(UI::ToastType::Info, "Scripts Reloaded", "HoneyScripts reloaded.");
-                }
-                if (ImGui::MenuItem("Invalidate Lua Script Property Cache")) {
-                    ScriptPropertiesLoader::invalidate_all();
-                }
-
-                ImGui::EndMenu();
-            }
-            if (ImGui::BeginMenu("Debug Shortcuts")) {
-                if (ImGui::MenuItem("Dump Compiled Frame Graph")) {
-                    if (m_scene_viewport_renderer.get_output_framebuffer()) {
-                        m_scene_viewport_renderer.log_debug_dump("Editor Frame Graph");
-                    } else {
-                        HN_CORE_WARN("No compiled editor frame graph to dump.");
-                    }
-                }
-                ImGui::EndMenu();
-            }
-            ImGui::EndMainMenuBar();
+        if (m_viewport_maximized) {
+            draw_menu_bar();
+            draw_viewport_panel();
+            draw_ui_toolbar();
+        } else {
+            draw_menu_bar(); // TODO: Spend some time cleaning up how this is handled
+            m_scene_hierarchy_panel.on_imgui_render();
+            m_content_browser_panel.on_imgui_render();
+            draw_renderer_debug_panel();
+            draw_physics_debug_panel();
+            draw_viewport_panel();
+            draw_ui_toolbar();
         }
 
-        m_scene_hierarchy_panel.on_imgui_render();
-        m_content_browser_panel.on_imgui_render();
+        m_notification_center.render(ImGui::GetIO().DeltaTime);
+    }
 
-        ImGui::Begin("Renderer Debug Panel");
+    void EditorLayer::draw_ui_toolbar() {
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 2));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2(0, 0));
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+        auto& colors = ImGui::GetStyle().Colors;
+        auto& button_hovered = colors[ImGuiCol_ButtonHovered];
+        auto& button_active = colors[ImGuiCol_ButtonActive];
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(button_hovered.x, button_hovered.y, button_hovered.z, 0.5f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(button_active.x, button_active.y, button_active.z, 0.5f));
+
+        ImGui::Begin("##toolbar", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+
+        float size = ImGui::GetWindowHeight() - 4.0f;
+        const Ref<Texture2D> play_stop_icon = m_scene_state == SceneState::edit ? m_icon_play : m_icon_stop;
+        const Ref<Texture2D> pause_icon = paused ? m_icon_play : m_icon_pause;
+        bool in_play = (m_scene_state == SceneState::play || m_scene_state == SceneState::simulate);
+
+        // Center all 3 buttons as a group
+        ImGui::SetCursorPosX((ImGui::GetWindowContentRegionMax().x * 0.5f) - (size * 1.5f));
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
+
+        // Play / Stop
+        if (UI::ImageButton("play_stop_button", play_stop_icon->get_imgui_texture_id(), ImVec2(size, size))) {
+            if (m_scene_state == SceneState::edit)
+                on_scene_play();
+            else
+                on_scene_stop();
+        }
+        ImGui::SetItemTooltip(m_scene_state == SceneState::edit ? "Play" : "Stop");
+
+        // Pause / Resume
+        ImGui::SameLine();
+        ImGui::BeginDisabled(!in_play);
+        if (UI::ImageButton("pause_button", pause_icon->get_imgui_texture_id(), ImVec2(size, size)))
+            paused = !paused;
+        ImGui::EndDisabled();
+        ImGui::SetItemTooltip(paused ? "Resume" : "Pause");
+
+        // Simulate
+        ImGui::SameLine();
+        if (UI::ImageButton("simulate_button", m_icon_simulate->get_imgui_texture_id(), ImVec2(size, size))) {
+            if (m_scene_state == SceneState::edit)
+                on_scene_simulate();
+            else if (m_scene_state == SceneState::simulate)
+                on_scene_stop();
+        }
+        ImGui::SetItemTooltip(m_scene_state == SceneState::simulate ? "Stop Simulation" : "Simulate");
+
+        ImGui::PopStyleVar(3);
+        ImGui::PopStyleColor(3);
+        ImGui::End();
+    }
+
+    void EditorLayer::draw_viewport_panel() {
+                ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+        ImGui::Begin("Viewport");
+        auto viewport_offset = ImGui::GetCursorPos();
+
+        m_viewport_focused = ImGui::IsWindowFocused();
+        m_viewport_hovered = ImGui::IsWindowHovered();
+        Application::get().get_imgui_layer()->block_events(!m_viewport_focused && !m_viewport_hovered);
+
+        ImVec2 viewport_panel_size = ImGui::GetContentRegionAvail();
+        if (m_viewport_size != *((glm::vec2*)&viewport_panel_size)) {
+            m_pending_viewport_size   = {viewport_panel_size.x, viewport_panel_size.y};
+            m_viewport_resize_pending = true;
+        }
+
+        ImTextureID imgui_tex_id = m_scene_viewport_renderer.get_imgui_texture_id();
+
+        UI::Image(imgui_tex_id,
+                         ImVec2(m_viewport_size.x, m_viewport_size.y),
+                         ImVec2(0.0f, 0.0f),   // uv0
+                         ImVec2(1.0f, 1.0f));  // uv1
+
+        if (ImGui::BeginDragDropTarget()) { /// Talk about this maybe as an example of an issue when working with pointers?
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+                if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
+                    const char* path_str = (const char*)payload->Data;
+                    std::filesystem::path path = path_str;
+
+                    if (path.extension() == ".hns")
+                        open_scene(g_assets_dir / path);
+                    else if (path.extension() == ".hnp")
+                        m_active_scene->add_prefab_to_scene((g_assets_dir / path).string());
+                    else if (path.extension() == ".glb" || path.extension() == ".gltf") {
+                        auto handle = load_gltf_scene_tree_async(g_assets_dir / path);
+                        m_pending_gltf_loads.push_back({handle, g_assets_dir / path});
+                    }
+                }
+            }
+            ImGui::EndDragDropTarget();
+        }
+
+        m_viewport_img_min = ImGui::GetItemRectMin();
+        m_viewport_img_max = ImGui::GetItemRectMax();
+
+        Entity selected_entity = m_scene_hierarchy_panel.get_selected_entity();
+        //Entity camera_entity = m_active_scene->get_primary_camera();
+        static bool s_was_gizmo_using = false;
+
+        //if (selected_entity && camera_entity && m_gizmo_type != -1) {
+        if (selected_entity && m_gizmo_type != -1) {
+            const ImVec2 bottom_left = ImGui::GetItemRectMin();
+            const ImVec2 top_right = ImGui::GetItemRectMax();
+            const float width  = top_right.x - bottom_left.x;
+            const float height = top_right.y - bottom_left.y;
+
+            if (width <= 1.0f || height <= 1.0f) return;
+
+            ImGuizmo::SetDrawlist();
+            ImGuizmo::SetRect(bottom_left.x, bottom_left.y, width, height);
+
+            //auto camera = camera_entity.get_component<CameraComponent>().get_camera();
+            //auto& camera_transform = camera_entity.get_component<TransformComponent>();
+
+            //const glm::mat4 view = glm::inverse(camera_transform.get_transform());
+            //const glm::mat4 projection = camera->get_projection_matrix();
+            const glm::mat4 view = m_editor_camera.get_view_matrix();
+            const glm::mat4 projection = m_editor_camera.get_projection_matrix();
+
+            //const bool isOrtho = (dynamic_cast<OrthographicCamera*>(camera) != nullptr);
+            const bool isOrtho = false;
+
+            ImGuizmo::SetOrthographic(isOrtho);
+
+            auto& transform_component = selected_entity.get_component<TransformComponent>();
+            glm::mat4 transform = selected_entity.get_world_transform();
+
+            bool snap = Input::is_key_pressed(KeyCode::LeftControl);
+            float snap_value = 0.5f; // 0.5 metres for translation and scale
+            if (m_gizmo_type == ImGuizmo::OPERATION::ROTATE) // 45 degrees for rotation
+                snap_value = 45.0f;
+
+            float snap_values[3] = { snap_value, snap_value, snap_value };
+
+            ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(projection),
+                                 (ImGuizmo::OPERATION)m_gizmo_type, ImGuizmo::WORLD,
+                                 glm::value_ptr(transform), nullptr, snap ? snap_values : nullptr);
+
+            const bool gizmo_using = ImGuizmo::IsUsing();
+            if (gizmo_using) {
+                // Convert the manipulated world matrix back to local space before writing to TransformComponent
+                glm::mat4 local_mat = transform;
+                if (selected_entity.has_parent())
+                    local_mat = glm::inverse(selected_entity.get_parent().get_world_transform()) * transform;
+
+                glm::vec3 translation, rotation, scale;
+                Math::decompose_transform(local_mat, translation, rotation, scale);
+
+                glm::vec3 delta_rotation = rotation - transform_component.rotation;
+                transform_component.translation = translation;
+                transform_component.rotation += delta_rotation;
+                transform_component.scale = scale;
+
+                transform_component.dirty = true;
+                transform_component.collider_dirty = true;
+            }
+
+            if (s_was_gizmo_using && !gizmo_using) {
+                if (m_scene_state == SceneState::edit && m_editor_scene)
+                    m_editor_scene->mark_dirty();
+            }
+
+            s_was_gizmo_using = gizmo_using;
+        } else {
+            s_was_gizmo_using = false;
+        }
+
+        ImGui::End();
+        ImGui::PopStyleVar();
+    }
+
+    void EditorLayer::draw_physics_debug_panel() {
+        ImGui::Begin("Physics Debug Panel");
+
+        // Physics Settings Section
+        if (ImGui::CollapsingHeader("Physics Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+            auto& physics = Settings::get().physics;
+
+            ImGui::Checkbox("Enable Physics", &physics.enabled);
+
+            ImGui::DragInt("Substeps", &physics.substeps, 1, 1, 20);
+
+        }
+
+        ImGui::End();
+    }
+
+    void EditorLayer::draw_renderer_debug_panel() {
+                ImGui::Begin("Renderer Debug Panel");
 
         render_camera_info();
 
@@ -564,199 +642,135 @@ namespace Honey {
         }
 
         ImGui::End();
-
-        ImGui::Begin("Physics Debug Panel");
-
-        // Physics Settings Section
-        if (ImGui::CollapsingHeader("Physics Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
-            auto& physics = Settings::get().physics;
-
-            ImGui::Checkbox("Enable Physics", &physics.enabled);
-
-            ImGui::DragInt("Substeps", &physics.substeps, 1, 1, 20);
-
-        }
-
-        ImGui::End();
-
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-        ImGui::Begin("Viewport");
-        auto viewport_offset = ImGui::GetCursorPos();
-
-        m_viewport_focused = ImGui::IsWindowFocused();
-        m_viewport_hovered = ImGui::IsWindowHovered();
-        Application::get().get_imgui_layer()->block_events(!m_viewport_focused && !m_viewport_hovered);
-
-        ImVec2 viewport_panel_size = ImGui::GetContentRegionAvail();
-        if (m_viewport_size != *((glm::vec2*)&viewport_panel_size)) {
-            m_pending_viewport_size   = {viewport_panel_size.x, viewport_panel_size.y};
-            m_viewport_resize_pending = true;
-        }
-
-        ImTextureID imgui_tex_id = m_scene_viewport_renderer.get_imgui_texture_id();
-
-        UI::Image(imgui_tex_id,
-                         ImVec2(m_viewport_size.x, m_viewport_size.y),
-                         ImVec2(0.0f, 0.0f),   // uv0
-                         ImVec2(1.0f, 1.0f));  // uv1
-
-        if (ImGui::BeginDragDropTarget()) { /// Talk about this maybe as an example of an issue when working with pointers?
-            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
-                if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
-                    const char* path_str = (const char*)payload->Data;
-                    std::filesystem::path path = path_str;
-
-                    if (path.extension() == ".hns")
-                        open_scene(g_assets_dir / path);
-                    else if (path.extension() == ".hnp")
-                        m_active_scene->add_prefab_to_scene((g_assets_dir / path).string());
-                    else if (path.extension() == ".glb" || path.extension() == ".gltf") {
-                        auto handle = load_gltf_scene_tree_async(g_assets_dir / path);
-                        m_pending_gltf_loads.push_back({handle, g_assets_dir / path});
-                    }
-                }
-            }
-            ImGui::EndDragDropTarget();
-        }
-
-        m_viewport_img_min = ImGui::GetItemRectMin();
-        m_viewport_img_max = ImGui::GetItemRectMax();
-
-        Entity selected_entity = m_scene_hierarchy_panel.get_selected_entity();
-        //Entity camera_entity = m_active_scene->get_primary_camera();
-        static bool s_was_gizmo_using = false;
-
-        //if (selected_entity && camera_entity && m_gizmo_type != -1) {
-        if (selected_entity && m_gizmo_type != -1) {
-            const ImVec2 bottom_left = ImGui::GetItemRectMin();
-            const ImVec2 top_right = ImGui::GetItemRectMax();
-            const float width  = top_right.x - bottom_left.x;
-            const float height = top_right.y - bottom_left.y;
-
-            if (width <= 1.0f || height <= 1.0f) return;
-
-            ImGuizmo::SetDrawlist();
-            ImGuizmo::SetRect(bottom_left.x, bottom_left.y, width, height);
-
-            //auto camera = camera_entity.get_component<CameraComponent>().get_camera();
-            //auto& camera_transform = camera_entity.get_component<TransformComponent>();
-
-            //const glm::mat4 view = glm::inverse(camera_transform.get_transform());
-            //const glm::mat4 projection = camera->get_projection_matrix();
-            const glm::mat4 view = m_editor_camera.get_view_matrix();
-            const glm::mat4 projection = m_editor_camera.get_projection_matrix();
-
-            //const bool isOrtho = (dynamic_cast<OrthographicCamera*>(camera) != nullptr);
-            const bool isOrtho = false;
-
-            ImGuizmo::SetOrthographic(isOrtho);
-
-            auto& transform_component = selected_entity.get_component<TransformComponent>();
-            glm::mat4 transform = selected_entity.get_world_transform();
-
-            bool snap = Input::is_key_pressed(KeyCode::LeftControl);
-            float snap_value = 0.5f; // 0.5 metres for translation and scale
-            if (m_gizmo_type == ImGuizmo::OPERATION::ROTATE) // 45 degrees for rotation
-                snap_value = 45.0f;
-
-            float snap_values[3] = { snap_value, snap_value, snap_value };
-
-            ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(projection),
-                                 (ImGuizmo::OPERATION)m_gizmo_type, ImGuizmo::WORLD,
-                                 glm::value_ptr(transform), nullptr, snap ? snap_values : nullptr);
-
-            const bool gizmo_using = ImGuizmo::IsUsing();
-            if (gizmo_using) {
-                // Convert the manipulated world matrix back to local space before writing to TransformComponent
-                glm::mat4 local_mat = transform;
-                if (selected_entity.has_parent())
-                    local_mat = glm::inverse(selected_entity.get_parent().get_world_transform()) * transform;
-
-                glm::vec3 translation, rotation, scale;
-                Math::decompose_transform(local_mat, translation, rotation, scale);
-
-                glm::vec3 delta_rotation = rotation - transform_component.rotation;
-                transform_component.translation = translation;
-                transform_component.rotation += delta_rotation;
-                transform_component.scale = scale;
-
-                transform_component.dirty = true;
-                transform_component.collider_dirty = true;
-            }
-
-            if (s_was_gizmo_using && !gizmo_using) {
-                if (m_scene_state == SceneState::edit && m_editor_scene)
-                    m_editor_scene->mark_dirty();
-            }
-
-            s_was_gizmo_using = gizmo_using;
-        } else {
-            s_was_gizmo_using = false;
-        }
-
-        ImGui::End();
-        ImGui::PopStyleVar();
-
-        //if (m_viewport_hovered)
-        //    ImGui::GetIO().WantCaptureMouse = false;
-
-        ui_toolbar();
-
-        m_notification_center.render(ImGui::GetIO().DeltaTime);
     }
 
-    void EditorLayer::ui_toolbar() {
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 2));
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2(0, 0));
+    void EditorLayer::draw_menu_bar() {
+        if (ImGui::BeginMainMenuBar()) {
+            if (ImGui::BeginMenu("File")) {
+                if (ImGui::MenuItem("New", "Ctrl+N")) {
+                    if (has_scene_changed()) {
+                        m_notification_center.open_confirm("new_scene",
+                            "Create new scene?",
+                            "This will discard all changes to the current scene and create a new one.",
+                            true,
+                            [this]() {
+                                new_scene();
+                                m_notification_center.push_toast(UI::ToastType::Success, "New Scene", "Created new scene and saved previous.");
+                            },
+                            nullptr,
+                            "Discard and Continue",
+                            "Cancel"
+                        );
+                    } else {
+                        new_scene();
+                        m_notification_center.push_toast(UI::ToastType::Success, "New Scene", "Created new scene.");
+                    }
+                }
+                if (ImGui::MenuItem("Open...", "Ctrl+O")) {
+                    open_scene();
+                }
+                if (ImGui::MenuItem("Save", "Ctrl+S")) {
+                    save_current_scene();
+                }
+                if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S")) {
+                    save_scene_as();
+                }
+                ImGui::Separator();
+                if (ImGui::MenuItem("Exit")) {
+                    m_quit_requested = true;
+                }
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("Edit")) {
+                if (ImGui::MenuItem("Undo", "Ctrl+Z")) {
+                    // Action for Undo
+                }
+                if (ImGui::MenuItem("Redo", "Ctrl+Y")) {
+                    // Action for Redo
+                }
+                ImGui::Separator();
+                if (ImGui::MenuItem("Cut", "Ctrl+X")) {
+                    // Action for Cut
+                }
+                if (ImGui::MenuItem("Copy", "Ctrl+C")) {
+                    // Action for Copy
+                }
+                if (ImGui::MenuItem("Paste", "Ctrl+V")) {
+                    // Action for Paste
+                }
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("View")) {
+                const char* min_max_viewport_label = m_viewport_maximized ? "Restore Viewport" : "Maximize Viewport";
+                if (ImGui::MenuItem(min_max_viewport_label, "Shift+Space")) {
+                    m_viewport_maximized = !m_viewport_maximized;
+                }
+                if (ImGui::MenuItem("Reset View")) {
+                    // Reset camera or scene view
+                }
+                if (ImGui::BeginMenu("Set Theme")) {
+                    auto* imgui_layer = Application::get().get_imgui_layer();
+                    UITheme current_theme = imgui_layer->get_current_theme();
 
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-        auto& colors = ImGui::GetStyle().Colors;
-        auto& button_hovered = colors[ImGuiCol_ButtonHovered];
-        auto& button_active = colors[ImGuiCol_ButtonActive];
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(button_hovered.x, button_hovered.y, button_hovered.z, 0.5f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(button_active.x, button_active.y, button_active.z, 0.5f));
+                    for (int i = 0; i < 7; ++i) {
+                        UITheme theme = static_cast<UITheme>(i);
+                        bool is_selected = (current_theme == theme);
 
-        ImGui::Begin("##toolbar", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+                        if (ImGui::MenuItem(imgui_layer->get_theme_name(theme), nullptr, is_selected)) {
+                            imgui_layer->set_theme(theme);
+                        }
+                    }
+                    ImGui::EndMenu();
+                }
 
-        float size = ImGui::GetWindowHeight() - 4.0f;
-        const Ref<Texture2D> play_stop_icon = m_scene_state == SceneState::edit ? m_icon_play : m_icon_stop;
-        const Ref<Texture2D> pause_icon = paused ? m_icon_play : m_icon_pause;
-        bool in_play = (m_scene_state == SceneState::play || m_scene_state == SceneState::simulate);
 
-        // Center all 3 buttons as a group
-        ImGui::SetCursorPosX((ImGui::GetWindowContentRegionMax().x * 0.5f) - (size * 1.5f));
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("Preferences")) {
+                if (ImGui::MenuItem("Save settings to file")) {
+                    Settings::save_to_file( asset_root / ".." / "config" / "settings.yaml" );
+                }
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("Scripts")) {
+                if (ImGui::MenuItem("Build Scripts")) {
+                    ScriptLoader::get().unload_library();
 
-        // Play / Stop
-        if (UI::ImageButton("play_stop_button", play_stop_icon->get_imgui_texture_id(), ImVec2(size, size))) {
-            if (m_scene_state == SceneState::edit)
-                on_scene_play();
-            else
-                on_scene_stop();
+                    int result = std::system("cmake --build . --target HoneyScripts");
+                    if (result == 0) {
+                        HN_CORE_INFO("Scripts built successfully, reloading...");
+                        m_notification_center.push_toast(UI::ToastType::Success, "Scripts Built", "HoneyScripts built and reloaded successfully.");
+                        //print current working directory
+                        std::filesystem::path current_path = std::filesystem::current_path();
+                        HN_CORE_INFO("Current working directory: {0}", current_path.string());
+                        ScriptLoader::get().reload_library("assets/scripts/libHoneyScripts.so");
+                    } else {
+                        HN_CORE_ERROR("Script build failed with code: {0}", result);
+                        m_notification_center.push_toast(UI::ToastType::Error, "Build Failed", "HoneyScripts build failed. See console for details.");
+                    }
+                }
+                if (ImGui::MenuItem("Reload Scripts")) {
+                    ScriptLoader::get().reload_library("assets/scripts/libHoneyScripts.so");
+                    m_notification_center.push_toast(UI::ToastType::Info, "Scripts Reloaded", "HoneyScripts reloaded.");
+                }
+                if (ImGui::MenuItem("Invalidate Lua Script Property Cache")) {
+                    ScriptPropertiesLoader::invalidate_all();
+                }
+
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("Debug Shortcuts")) {
+                if (ImGui::MenuItem("Dump Compiled Frame Graph")) {
+                    if (m_scene_viewport_renderer.get_output_framebuffer()) {
+                        m_scene_viewport_renderer.log_debug_dump("Editor Frame Graph");
+                    } else {
+                        HN_CORE_WARN("No compiled editor frame graph to dump.");
+                    }
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::EndMainMenuBar();
         }
-        ImGui::SetItemTooltip(m_scene_state == SceneState::edit ? "Play" : "Stop");
-
-        // Pause / Resume
-        ImGui::SameLine();
-        ImGui::BeginDisabled(!in_play);
-        if (UI::ImageButton("pause_button", pause_icon->get_imgui_texture_id(), ImVec2(size, size)))
-            paused = !paused;
-        ImGui::EndDisabled();
-        ImGui::SetItemTooltip(paused ? "Resume" : "Pause");
-
-        // Simulate
-        ImGui::SameLine();
-        if (UI::ImageButton("simulate_button", m_icon_simulate->get_imgui_texture_id(), ImVec2(size, size))) {
-            if (m_scene_state == SceneState::edit)
-                on_scene_simulate();
-            else if (m_scene_state == SceneState::simulate)
-                on_scene_stop();
-        }
-        ImGui::SetItemTooltip(m_scene_state == SceneState::simulate ? "Stop Simulation" : "Simulate");
-
-        ImGui::PopStyleVar(3);
-        ImGui::PopStyleColor(3);
-        ImGui::End();
     }
 
     void EditorLayer::on_event(Event &event) {
@@ -797,6 +811,13 @@ namespace Honey {
         case KeyCode::Escape:
             if (m_scene_state == SceneState::play) {
                 Application::get().get_window().set_cursor_captured(false);
+                handled = true;
+            }
+            break;
+
+        case KeyCode::Space:
+            if (shift) {
+                m_viewport_maximized = !m_viewport_maximized;
                 handled = true;
             }
             break;

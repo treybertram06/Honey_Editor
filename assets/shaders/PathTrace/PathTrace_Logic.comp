@@ -43,14 +43,17 @@ uint rng_next(inout uint s) {
 float rand_f(inout uint s) { return float(rng_next(s)) / 4294967295.0; }
 
 // ─── Write accumulated path radiance to the accumulation buffer ───────────────
+// EMA with a floor: converges fast early, stays responsive at high frame counts.
+// Alpha floors at 0.05 so camera movement never causes a stall — stale samples
+// wash out within ~20 frames rather than requiring a hard reset.
 void write_to_accum(uint path_idx, vec4 rad) {
     ivec2 coord = ivec2(int(path_idx % width), int(path_idx / width));
     if (frame_count == 0u) {
         imageStore(accum_image, coord, vec4(rad.rgb, 1.0));
     } else {
-        float n    = float(frame_count + 1u);
-        vec3  prev = imageLoad(accum_image, coord).rgb;
-        imageStore(accum_image, coord, vec4(prev * (float(frame_count) / n) + rad.rgb / n, 1.0));
+        float alpha = max(1.0 / float(frame_count + 1u), 0.05);
+        vec3  prev  = imageLoad(accum_image, coord).rgb;
+        imageStore(accum_image, coord, vec4(mix(prev, rad.rgb, alpha), 1.0));
     }
 }
 

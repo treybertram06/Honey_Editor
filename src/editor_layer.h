@@ -51,7 +51,11 @@ namespace Honey {
         SceneViewportRenderContext build_scene_viewport_render_context(Timestep ts);
 
         // ui panels
-        void ui_toolbar();
+        void draw_ui_toolbar();
+        void draw_viewport_panel();
+        void draw_physics_debug_panel();
+        void draw_renderer_debug_panel();
+        void draw_menu_bar();
 
         Ref<Texture2D::AsyncHandle> m_test_async_tex;
 
@@ -60,6 +64,7 @@ namespace Honey {
         bool m_log_frame_graph_pass_timings = false;
         glm::vec2 m_viewport_size = {1680.0f, 720.0f};
         bool m_viewport_focused = false, m_viewport_hovered = false;
+        bool m_viewport_maximized = false;
 
         bool      m_viewport_resize_pending = false;
         glm::vec2 m_pending_viewport_size   = {0.0f, 0.0f};
