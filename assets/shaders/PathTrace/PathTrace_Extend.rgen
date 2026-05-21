@@ -1,0 +1,32 @@
+#version 460
+#extension GL_EXT_ray_tracing : require
+
+#include "PathTrace/PathTrace_HitRecord.glsl"
+
+layout(location = 0) rayPayloadEXT HitRecord hit_record;
+
+// Set 0: shared resources
+layout(set = 0, binding = 0) uniform accelerationStructureEXT tlas;
+
+// Set 1: path state SOA  (vec4 — std430 pads vec3[] to 16 bytes anyway)
+layout(set = 1, binding = 0, std430) readonly buffer PathRayOriginBuf { vec4 ray_origin[]; };
+layout(set = 1, binding = 1, std430) readonly buffer PathRayDirBuf    { vec4 ray_dir[];    };
+
+// Set 2: queues
+layout(set = 2, binding = 0, std430) readonly  buffer ExtendQueueCount { uint extend_count;    };
+layout(set = 2, binding = 1, std430) readonly  buffer ExtendQueue      { uint extend_paths[];  };
+layout(set = 2, binding = 2, std430) writeonly buffer HitRecordBuf     { HitRecord records[];  };
+
+void main() {
+    uint queue_slot = gl_LaunchIDEXT.x;
+    if (queue_slot >= extend_count) return;
+
+    uint path_idx = extend_paths[queue_slot];
+
+    hit_record.hit_kind = 0u; // miss by default; ClosestHit overwrites to 1
+    traceRayEXT(tlas, gl_RayFlagsOpaqueEXT, 0xFF, 0, 0, 0,
+                ray_origin[path_idx].xyz, 0.001,
+                ray_dir[path_idx].xyz,   10000.0, 0);
+
+    records[queue_slot] = hit_record;
+}

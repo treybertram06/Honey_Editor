@@ -1,0 +1,105 @@
+#version 460
+#extension GL_KHR_shader_subgroup_arithmetic : require
+#extension GL_KHR_shader_subgroup_ballot     : require
+
+layout(local_size_x = 64) in;
+
+// ─── Path flags ───────────────────────────────────────────────────────────────
+#define FLAG_TERMINATED  (1u << 0)
+#define FLAG_NEEDS_REGEN (1u << 1)
+
+// ─── Push constants ───────────────────────────────────────────────────────────
+layout(push_constant) uniform PC {
+    uint total_path_count;
+    uint frame_count;        // for accumulation blending
+    uint width;
+};
+
+// ─── Set 1: path state SOA ────────────────────────────────────────────────────
+layout(set = 1, binding = 2, std430) buffer PathThroughputBuf  { vec4 throughput[];   };
+layout(set = 1, binding = 3, std430) buffer PathRadianceBuf    { vec4 radiance[];     };
+layout(set = 1, binding = 4, std430) buffer PathSeedBuf        { uint seed[];         };
+layout(set = 1, binding = 5, std430) buffer PathBounceBuf      { uint bounce[];       };
+layout(set = 1, binding = 6, std430) buffer PathFlagsBuf       { uint flags[];        };
+layout(set = 1, binding = 7, std430) readonly buffer PathShadowStartBuf { uint shadow_start[]; };
+layout(set = 1, binding = 8, std430) readonly buffer PathShadowEndBuf   { uint shadow_end[];   };
+
+// ─── Set 2: queue buffers ────────────────────────────────────────────────────
+layout(set = 2, binding = 2, std430) readonly  buffer OcclusionBuffer     { uint occluded[];          };
+layout(set = 2, binding = 3, std430)           buffer ExtendQueueCountBuf { uint extend_count;        };
+layout(set = 2, binding = 4, std430) writeonly buffer ExtendQueueBuf      { uint extend_paths[];      };
+layout(set = 2, binding = 5, std430) readonly  buffer PendingRadianceBuf  { vec4 pending_radiance[];  };
+
+// ─── Set 3: accumulation ──────────────────────────────────────────────────────
+// Running average (rgb) with alpha forced to 1 so the blit is always opaque.
+layout(rgba32f, set = 3, binding = 0) uniform image2D accum_image;
+
+// ─── RNG ──────────────────────────────────────────────────────────────────────
+uint rng_next(inout uint s) {
+    s = s * 747796405u + 2891336453u;
+    uint w = ((s >> ((s >> 28u) + 4u)) ^ s) * 277803737u;
+    return (w >> 22u) ^ w;
+}
+float rand_f(inout uint s) { return float(rng_next(s)) / 4294967295.0; }
+
+// ─── Write accumulated path radiance to the accumulation buffer ───────────────
+void write_to_accum(uint path_idx, vec4 rad) {
+    ivec2 coord = ivec2(int(path_idx % width), int(path_idx / width));
+    if (frame_count == 0u) {
+        imageStore(accum_image, coord, vec4(rad.rgb, 1.0));
+    } else {
+        float n    = float(frame_count + 1u);
+        vec3  prev = imageLoad(accum_image, coord).rgb;
+        imageStore(accum_image, coord, vec4(prev * (float(frame_count) / n) + rad.rgb / n, 1.0));
+    }
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+void main() {
+    uint path_idx = gl_GlobalInvocationID.x;
+    if (path_idx >= total_path_count) return;
+
+    // ── Resolve pending shadow contributions ──────────────────────────────────
+    // pending_radiance is already pre-multiplied by throughput-at-emit-time in Material.comp
+    // so add directly — do NOT multiply by current throughput (it has been updated since).
+    uint s_start = shadow_start[path_idx];
+    uint s_end   = shadow_end[path_idx];
+    for (uint i = s_start; i < s_end; i++) {
+        if (occluded[i] == 0u)
+            radiance[path_idx].rgb += pending_radiance[i].rgb;
+    }
+
+    // ── Handle paths terminated by Material.comp (miss or degenerate specular) ─
+    if ((flags[path_idx] & FLAG_TERMINATED) != 0u) {
+        write_to_accum(path_idx, radiance[path_idx]);
+        flags[path_idx] |= FLAG_NEEDS_REGEN;
+        return;
+    }
+
+    // ── Russian roulette (skip first two bounces to avoid bias on short paths) ─
+    if (bounce[path_idx] >= 2u) {
+        vec3  tp      = throughput[path_idx].rgb;
+        float rr_prob = clamp(max(tp.r, max(tp.g, tp.b)), 0.05, 1.0);
+        uint  s       = seed[path_idx];
+        if (rand_f(s) > rr_prob) {
+            // RR kills the path — flush accumulated radiance before discarding.
+            write_to_accum(path_idx, radiance[path_idx]);
+            flags[path_idx] |= FLAG_TERMINATED | FLAG_NEEDS_REGEN;
+            seed[path_idx]   = s;
+            return;
+        }
+        throughput[path_idx] = vec4(tp / rr_prob, 1.0);
+        seed[path_idx] = s;
+    }
+
+    // ── Push surviving path to the extend queue (subgroup-coalesced) ─────────
+    // One atomicAdd per warp instead of per thread (~40% improvement, plan Phase 9).
+    uvec4 ballot     = subgroupBallot(true);
+    uint  lane_count = subgroupBallotBitCount(ballot);
+    uint  lane_rank  = subgroupBallotExclusiveBitCount(ballot);
+    uint  base_slot;
+    if (subgroupElect())
+        base_slot = atomicAdd(extend_count, lane_count);
+    base_slot = subgroupBroadcastFirst(base_slot);
+    extend_paths[base_slot + lane_rank] = path_idx;
+}

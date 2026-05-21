@@ -272,7 +272,6 @@ void main() {
     // Directional light
     if (u_lights.u_directional.intensity > 0.0) {
         vec3 L     = normalize(-u_lights.u_directional.direction);
-        vec3 H     = normalize(V + L);
         float NdotL = max(dot(N, L), 0.0);
 
         if (NdotL > 0.0) {
@@ -283,6 +282,7 @@ void main() {
                 hit_pos + N * 0.001, 0.001, L, 10000.0, 1);
 
             if (!shadow_payload) {
+                vec3  H     = normalize(V + L);
                 float NdotH = max(dot(N, H), 0.0);
                 float VdotH = max(dot(V, H), 0.0);
 
@@ -309,7 +309,6 @@ void main() {
         if (dist > pl.range) continue;
 
         vec3  L     = to_light / dist;
-        vec3  H     = normalize(V + L);
         float NdotL = max(dot(N, L), 0.0);
         if (NdotL == 0.0) continue;
 
@@ -324,6 +323,7 @@ void main() {
             hit_pos + N * 0.001, 0.001, L, dist - 0.001, 1);
 
         if (!shadow_payload) {
+            vec3  H     = normalize(V + L);
             float NdotH = max(dot(N, H), 0.0);
             float VdotH = max(dot(V, H), 0.0);
 

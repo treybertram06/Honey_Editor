@@ -1,0 +1,96 @@
+#version 460
+#extension GL_KHR_shader_subgroup_arithmetic : require
+#extension GL_KHR_shader_subgroup_ballot     : require
+
+layout(local_size_x = 64) in;
+
+// ─── Path flags ───────────────────────────────────────────────────────────────
+#define FLAG_TERMINATED  (1u << 0)
+#define FLAG_NEEDS_REGEN (1u << 1)
+
+// ─── Push constants ───────────────────────────────────────────────────────────
+// Offsets 0-7 match Logic.comp so C++ can push one struct to all compute pipelines.
+layout(push_constant) uniform PC {
+    uint total_path_count; // offset  0
+    uint frame_count;      // offset  4
+    uint width;            // offset  8
+    uint height;           // offset 12
+    mat4 inv_view;         // offset 16  (mat4 column vectors are vec4 → 16-byte aligned ✓)
+    mat4 inv_proj;         // offset 80
+};
+
+// ─── Set 1: path state SOA (all fields — this kernel resets everything) ───────
+layout(set = 1, binding = 0, std430) buffer PathRayOriginBuf   { vec4 ray_origin[];   };
+layout(set = 1, binding = 1, std430) buffer PathRayDirBuf      { vec4 ray_dir[];      };
+layout(set = 1, binding = 2, std430) buffer PathThroughputBuf  { vec4 throughput[];   };
+layout(set = 1, binding = 3, std430) buffer PathRadianceBuf    { vec4 radiance[];     };
+layout(set = 1, binding = 4, std430) buffer PathSeedBuf        { uint seed[];         };
+layout(set = 1, binding = 5, std430) buffer PathBounceBuf      { uint bounce[];       };
+layout(set = 1, binding = 6, std430) buffer PathFlagsBuf       { uint flags[];        };
+layout(set = 1, binding = 7, std430) buffer PathShadowStartBuf { uint shadow_start[]; };
+layout(set = 1, binding = 8, std430) buffer PathShadowEndBuf   { uint shadow_end[];   };
+
+// ─── Set 2: extend queue (bindings match Logic.comp's set 2 layout) ──────────
+layout(set = 2, binding = 3, std430) buffer ExtendQueueCountBuf { uint extend_count;   };
+layout(set = 2, binding = 4, std430) buffer ExtendQueueBuf      { uint extend_paths[]; };
+
+// ─── RNG ──────────────────────────────────────────────────────────────────────
+uint wang_hash(uint s) {
+    s = (s ^ 61u) ^ (s >> 16u);
+    s *= 9u;
+    s ^= s >> 4u;
+    s *= 0x27d4eb2du;
+    s ^= s >> 15u;
+    return s;
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+void main() {
+    uint path_idx = gl_GlobalInvocationID.x;
+    if (path_idx >= total_path_count) return;
+    if ((flags[path_idx] & FLAG_NEEDS_REGEN) == 0u) return;
+
+    // ── Pixel coordinates (row-major, pixel_index == path_idx always) ─────────
+    uint px = path_idx % width;
+    uint py = path_idx / width;
+
+    // ── Seed — unique per pixel per frame, decorrelated across dimensions ──────
+    seed[path_idx] = wang_hash(px ^ wang_hash(py ^ wang_hash(frame_count + 1u)));
+
+    // ── Camera ray ────────────────────────────────────────────────────────────
+    // Sub-pixel jitter gives anti-aliasing across frames without extra passes.
+    uint  s   = seed[path_idx];
+    // Simple LCG jitter (cheap, good enough for AA)
+    float jx  = float((s * 1664525u + 1013904223u) & 0xFFFFu) / 65536.0 - 0.5;
+    float jy  = float((s * 22695477u + 1u)          & 0xFFFFu) / 65536.0 - 0.5;
+
+    vec2 uv = (vec2(float(px), float(py)) + vec2(0.5) + vec2(jx, jy))
+            / vec2(float(width), float(height)) * 2.0 - 1.0;
+    uv.y = -uv.y; // Vulkan NDC has +Y down
+
+    vec4 target    = inv_proj * vec4(uv, 1.0, 1.0);
+    vec4 origin    = inv_view * vec4(0.0, 0.0, 0.0, 1.0);
+    vec4 direction = inv_view * vec4(normalize(target.xyz / target.w), 0.0);
+
+    // ── Reset path state ──────────────────────────────────────────────────────
+    ray_origin[path_idx]  = vec4(origin.xyz, 0.0);
+    ray_dir[path_idx]     = vec4(normalize(direction.xyz), 0.0);
+    throughput[path_idx]  = vec4(1.0, 1.0, 1.0, 1.0);
+    radiance[path_idx]    = vec4(0.0);
+    bounce[path_idx]      = 0u;
+    flags[path_idx]       = 0u;
+    shadow_start[path_idx] = 0u;
+    shadow_end[path_idx]   = 0u;
+
+    // ── Push new camera ray to the extend queue (subgroup-coalesced) ──────────
+    // Not all threads in the warp reach here (only NEEDS_REGEN paths), so use
+    // ballot to count active lanes before the single atomic.
+    uvec4 ballot     = subgroupBallot(true); // only active threads vote
+    uint  lane_count = subgroupBallotBitCount(ballot);
+    uint  lane_rank  = subgroupBallotExclusiveBitCount(ballot);
+    uint  base_slot;
+    if (subgroupElect())
+        base_slot = atomicAdd(extend_count, lane_count);
+    base_slot = subgroupBroadcastFirst(base_slot);
+    extend_paths[base_slot + lane_rank] = path_idx;
+}

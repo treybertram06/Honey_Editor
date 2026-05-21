@@ -1,0 +1,25 @@
+#version 460
+#extension GL_EXT_ray_tracing : require
+
+#include "PathTrace/PathTrace_ShadowRayRequest.glsl"
+
+layout(location = 0) rayPayloadEXT bool shadow_hit;
+
+layout(set = 0, binding = 0) uniform accelerationStructureEXT tlas;
+
+layout(set = 2, binding = 0, std430) readonly  buffer ShadowQueueCount { uint shadow_count; };
+layout(set = 2, binding = 1, std430) readonly  buffer ShadowQueue      { ShadowRayRequest shadow_rays[]; };
+layout(set = 2, binding = 2, std430) writeonly buffer OcclusionBuffer  { uint occluded[]; };
+
+void main() {
+    uint slot = gl_LaunchIDEXT.x;
+    if (slot >= shadow_count) return;
+
+    ShadowRayRequest req = shadow_rays[slot];
+    shadow_hit = false; // payload bool
+    traceRayEXT(tlas,
+        gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsSkipClosestHitShaderEXT,
+        0xFF, 0, 0, 0, // shadow miss shader index = 0
+        req.origin, 0.001, req.direction, req.t_max, 0);
+    occluded[slot] = shadow_hit ? 1u : 0u;
+}
