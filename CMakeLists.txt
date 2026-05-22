@@ -14,6 +14,12 @@ add_executable(Honey_Editor
         src/panels/content_browser_panel.cpp
         src/scripting/script_loader.h
         src/scripting/script_loader.cpp
+        src/panels/physics_debug_panel.h
+        src/panels/physics_debug_panel.cpp
+        src/panels/renderer_debug_panel.h
+        src/panels/renderer_debug_panel.cpp
+        src/panels/viewport_panel.h
+        src/panels/viewport_panel.cpp
 )
 
 # Needed for script DLLs

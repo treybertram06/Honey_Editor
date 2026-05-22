@@ -10,6 +10,9 @@
 #include <ImGuizmo.h>
 
 #include "Honey/ui/notifications.h"
+#include "panels/physics_debug_panel.h"
+#include "panels/renderer_debug_panel.h"
+#include "panels/viewport_panel.h"
 
 
 namespace Honey {
@@ -52,9 +55,6 @@ namespace Honey {
 
         // ui panels
         void draw_ui_toolbar();
-        void draw_viewport_panel();
-        void draw_physics_debug_panel();
-        void draw_renderer_debug_panel();
         void draw_menu_bar();
 
         Ref<Texture2D::AsyncHandle> m_test_async_tex;
@@ -101,8 +101,11 @@ namespace Honey {
         //Panels
         SceneHierarchyPanel m_scene_hierarchy_panel;
         ContentBrowserPanel m_content_browser_panel;
-
-        void render_camera_info();
+        PhysicsDebugPanel   m_physics_debug_panel;
+        friend class RendererDebugPanel;
+        RendererDebugPanel  m_renderer_debug_panel;
+        friend class ViewportPanel;
+        ViewportPanel       m_viewport_panel;
 
         enum class SceneState {
 
@@ -115,13 +118,6 @@ namespace Honey {
 
         SceneState m_scene_state = SceneState::edit;
         bool paused = false;
-
-        enum class ViewportDisplayMode {
-            Color = 0,
-            DebugPick = 1
-        };
-
-        ViewportDisplayMode m_viewport_display_mode = ViewportDisplayMode::Color;
 
         struct PendingGltfLoad {
             Ref<GltfSceneTreeAsyncHandle> handle;
