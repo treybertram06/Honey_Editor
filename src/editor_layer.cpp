@@ -20,6 +20,8 @@
 #include <cmath>
 #include <glm/gtc/constants.hpp>
 
+#include "Honey/scripting/csharp/dotnet_host.h"
+
 static const std::filesystem::path asset_root = ASSET_ROOT;
 
 namespace Honey {
@@ -29,7 +31,6 @@ namespace Honey {
         : Layer("EditorLayer") {}
 
     void EditorLayer::on_attach() {
-
         m_icon_play         = Texture2D::create_async("../resources/icons/toolbar/play_button.png");
         m_icon_stop         = Texture2D::create_async("../resources/icons/toolbar/stop_button.png");
         m_icon_pause        = Texture2D::create_async("../resources/icons/toolbar/pause_button.png");
@@ -41,6 +42,12 @@ namespace Honey {
         m_editor_camera = EditorCamera(16.0f/9.0f, 45.0f, 0.1f, 1000.0f);
         m_scene_viewport_renderer.initialize();
         m_scene_viewport_renderer.resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
+
+        auto dotnet_host = new DotNetHost();
+        dotnet_host->init(
+              "../assets/test.runtimeconfig.json",
+              "/home/treybertram/Desktop/Honey_Editor/Honey/engine/vendor/dotnet/runtime"
+          );
     }
 
     bool EditorLayer::update_scene_for_current_state(Timestep ts) {
