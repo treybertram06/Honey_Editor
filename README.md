@@ -62,8 +62,9 @@ It combines a **custom rendering engine**, **ECS architecture**, and a **fully i
 ## Features
 
 ### High-Performance Rendering
-- **Multi-Backend Architecture**: Seamless* support for **OpenGL 4.5** and **Vulkan** (WIP) backends.
+- **Multi-Backend Architecture**: Seamless* support for **Vulkan** and **OpenGL 4.5** (WIP) backends.
 - **Batch Renderer 2D**: Highly optimized batch rendering for quads, circles, and lines with support for textures and sub-textures.
+- **High Performance 3D**: Features both Deferred and Path Traced rendering, with the path tracer using a wavefront architecture.
 - **Advanced Camera Systems**: Orthographic and Perspective cameras with a dedicated Editor Camera featuring smooth interpolation and orbit/pan controls.
 - **Shader Management**: Sophisticated shader cache and hot-reloading capabilities.
 - **Framebuffer System**: Flexible multi-attachment framebuffers for post-processing and mouse picking.
