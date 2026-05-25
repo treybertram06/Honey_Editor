@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>UserScripts</AssemblyName>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Optimize>false</Optimize>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="HoneyEngine">
+      <HintPath>../../Honey/managed/HoneyEngine/bin/Release/net10.0/HoneyEngine.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+</Project>

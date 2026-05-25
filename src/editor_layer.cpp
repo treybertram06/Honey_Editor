@@ -16,11 +16,11 @@
 #include "Honey/renderer/texture_cache.h"
 #include "Honey/scripting/script_properties_loader.h"
 #include "scripting/script_loader.h"
+#include "Honey/scripting/csharp/csharp_script_engine.h"
 
 #include <cmath>
 #include <glm/gtc/constants.hpp>
 
-#include "Honey/scripting/csharp/dotnet_host.h"
 
 static const std::filesystem::path asset_root = ASSET_ROOT;
 
@@ -43,11 +43,6 @@ namespace Honey {
         m_scene_viewport_renderer.initialize();
         m_scene_viewport_renderer.resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
 
-        auto dotnet_host = new DotNetHost();
-        dotnet_host->init(
-              "../assets/test.runtimeconfig.json",
-              "/home/treybertram/Desktop/Honey_Editor/Honey/engine/vendor/dotnet/runtime"
-          );
     }
 
     bool EditorLayer::update_scene_for_current_state(Timestep ts) {
@@ -402,6 +397,16 @@ namespace Honey {
                     ScriptPropertiesLoader::invalidate_all();
                 }
 
+                ImGui::Separator();
+
+                if (ImGui::MenuItem("Build & Reload C# Scripts", "Ctrl+Shift+B")) {
+                    bool ok = CSharpScriptEngine::build_and_reload();
+                    if (ok)
+                        m_notification_center.push_toast(UI::ToastType::Success, "C# Scripts Built", "Scripts compiled and reloaded.");
+                    else
+                        m_notification_center.push_toast(UI::ToastType::Error, "C# Build Failed", "dotnet build failed. See console for details.");
+                }
+
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Debug Shortcuts")) {
@@ -463,6 +468,17 @@ namespace Honey {
         case KeyCode::Space:
             if (shift) {
                 m_viewport_maximized = !m_viewport_maximized;
+                handled = true;
+            }
+            break;
+
+        case KeyCode::B:
+            if (control && shift) {
+                bool ok = CSharpScriptEngine::build_and_reload();
+                if (ok)
+                    m_notification_center.push_toast(UI::ToastType::Success, "C# Scripts Built", "Scripts compiled and reloaded.");
+                else
+                    m_notification_center.push_toast(UI::ToastType::Error, "C# Build Failed", "dotnet build failed. See console for details.");
                 handled = true;
             }
             break;
