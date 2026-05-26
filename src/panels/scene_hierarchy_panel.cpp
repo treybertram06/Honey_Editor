@@ -11,9 +11,6 @@
 #include "Honey/renderer/texture.h"
 #include "Honey/scene/scene_serializer.h"
 #include "Honey/scene/script_registry.h"
-#include "Honey/scripting/script_engine.h"
-#include "Honey/scripting/script_properties_loader.h"
-#include "Honey/scripting/script_properties_writer.h"
 //#include "Honey/scripting/mono_script_engine.h"
 
 
@@ -427,7 +424,7 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                 }
             }
             if (!m_selected_entity.has_component<ScriptComponent>()) {
-                if (ImGui::MenuItem("Lua Script Component")) {
+                if (ImGui::MenuItem("Script Component")) {
                     entity.add_component<ScriptComponent>();
                     scene_changed = true;
                     ImGui::CloseCurrentPopup();
@@ -835,19 +832,20 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
             return changed;
         });
 
-        draw_component<ScriptComponent>("Lua Script", entity, [&](auto& component) -> bool {
+        draw_component<ScriptComponent>("Script", entity, [&](auto& component) -> bool {
             bool changed = false;
 
             std::string display_name = component.script_name.empty() ? "None" : component.script_name;
             ImGui::Text("Script: %s", display_name.c_str());
 
-            ImGui::Button("Drop Lua Script Here", ImVec2(200, 20));
+            ImGui::Button("Drop Script Here", ImVec2(200, 20));
             if (ImGui::BeginDragDropTarget()) {
                 if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
                     const char* path_str = (const char*)payload->Data;
                     std::filesystem::path path = path_str;
+                    const auto& ext = path.extension();
 
-                    if (path.extension() == ".lua") {
+                    if (ext == ".cs") {
                         const std::string new_name = path.stem().string();
                         if (component.script_name != new_name) {
                             component.script_name = new_name;
@@ -858,31 +856,27 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                 ImGui::EndDragDropTarget();
             }
 
-            if (ImGui::BeginCombo("Available Lua Scripts", display_name.c_str())) {
-                const std::filesystem::path script_dir = g_assets_dir / "scripts";
-
-                if (std::filesystem::exists(script_dir)) {
-                    for (auto& entry : std::filesystem::directory_iterator(script_dir)) {
-                        if (entry.path().extension() == ".lua") {
+            if (ImGui::BeginCombo("Available Scripts", display_name.c_str())) {
+                const std::filesystem::path cs_dir = g_assets_dir / "scripts";
+                if (std::filesystem::exists(cs_dir)) {
+                    for (auto& entry : std::filesystem::directory_iterator(cs_dir)) {
+                        if (entry.path().extension() == ".cs") {
                             std::string name = entry.path().stem().string();
                             bool is_selected = (component.script_name == name);
-
                             if (ImGui::Selectable(name.c_str(), is_selected)) {
                                 if (component.script_name != name) {
                                     component.script_name = name;
                                     changed = true;
                                 }
                             }
-
-                            if (is_selected)
-                                ImGui::SetItemDefaultFocus();
+                            if (is_selected) ImGui::SetItemDefaultFocus();
                         }
                     }
                 }
-
                 ImGui::EndCombo();
             }
 
+            /*
             if (entity.get_scene()) {
                 auto defaults = ScriptPropertiesLoader::load_from_file(component.script_name);
 
@@ -960,6 +954,7 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                     }
                 }
             }
+            */
 
             return changed;
         });

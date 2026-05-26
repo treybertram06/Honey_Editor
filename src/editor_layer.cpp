@@ -14,11 +14,12 @@
 
 #include "Honey/math/math.h"
 #include "Honey/renderer/texture_cache.h"
-#include "Honey/scripting/script_properties_loader.h"
 #include "scripting/script_loader.h"
+#include "../Honey/engine/src/Honey/scripting/csharp_script_engine.h"
 
 #include <cmath>
 #include <glm/gtc/constants.hpp>
+
 
 static const std::filesystem::path asset_root = ASSET_ROOT;
 
@@ -29,7 +30,6 @@ namespace Honey {
         : Layer("EditorLayer") {}
 
     void EditorLayer::on_attach() {
-
         m_icon_play         = Texture2D::create_async("../resources/icons/toolbar/play_button.png");
         m_icon_stop         = Texture2D::create_async("../resources/icons/toolbar/stop_button.png");
         m_icon_pause        = Texture2D::create_async("../resources/icons/toolbar/pause_button.png");
@@ -41,6 +41,7 @@ namespace Honey {
         m_editor_camera = EditorCamera(16.0f/9.0f, 45.0f, 0.1f, 1000.0f);
         m_scene_viewport_renderer.initialize();
         m_scene_viewport_renderer.resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
+
     }
 
     bool EditorLayer::update_scene_for_current_state(Timestep ts) {
@@ -371,7 +372,7 @@ namespace Honey {
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Scripts")) {
-                if (ImGui::MenuItem("Build Scripts")) {
+                if (ImGui::MenuItem("Build Native Scripts")) {
                     ScriptLoader::get().unload_library();
 
                     int result = std::system("cmake --build . --target HoneyScripts");
@@ -387,12 +388,19 @@ namespace Honey {
                         m_notification_center.push_toast(UI::ToastType::Error, "Build Failed", "HoneyScripts build failed. See console for details.");
                     }
                 }
-                if (ImGui::MenuItem("Reload Scripts")) {
+                if (ImGui::MenuItem("Reload Native Scripts")) {
                     ScriptLoader::get().reload_library("assets/scripts/libHoneyScripts.so");
                     m_notification_center.push_toast(UI::ToastType::Info, "Scripts Reloaded", "HoneyScripts reloaded.");
                 }
-                if (ImGui::MenuItem("Invalidate Lua Script Property Cache")) {
-                    ScriptPropertiesLoader::invalidate_all();
+
+                ImGui::Separator();
+
+                if (ImGui::MenuItem("Build & Reload C# Scripts", "Ctrl+Shift+B")) {
+                    bool ok = CSharpScriptEngine::build_and_reload();
+                    if (ok)
+                        m_notification_center.push_toast(UI::ToastType::Success, "C# Scripts Built", "Scripts compiled and reloaded.");
+                    else
+                        m_notification_center.push_toast(UI::ToastType::Error, "C# Build Failed", "dotnet build failed. See console for details.");
                 }
 
                 ImGui::EndMenu();
@@ -456,6 +464,17 @@ namespace Honey {
         case KeyCode::Space:
             if (shift) {
                 m_viewport_maximized = !m_viewport_maximized;
+                handled = true;
+            }
+            break;
+
+        case KeyCode::B:
+            if (control && shift) {
+                bool ok = CSharpScriptEngine::build_and_reload();
+                if (ok)
+                    m_notification_center.push_toast(UI::ToastType::Success, "C# Scripts Built", "Scripts compiled and reloaded.");
+                else
+                    m_notification_center.push_toast(UI::ToastType::Error, "C# Build Failed", "dotnet build failed. See console for details.");
                 handled = true;
             }
             break;

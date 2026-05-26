@@ -19,8 +19,8 @@ Entities:
       Primary: true
       Camera:
         Position:
-          - [0, 0, 0]
-        AspectRatio: 1.7213271
+          - [1e-45, 3e-45, -2.1133613e+23]
+        AspectRatio: 1.7579864
         FOV: 45
         Rotation: [0, 0]
   - Entity: 12190077700217370270
@@ -36,7 +36,7 @@ Entities:
       GltfSourcePath: ""
       GltfNodeName: ""
     ScriptComponent:
-      ScriptName: bob_and_spin
+      ScriptName: BobAndSpin
   - Entity: 8835844549463229469
     TagComponent:
       Tag: Skybox
@@ -122,9 +122,9 @@ Entities:
       Parent: 9504742152750263155
 Editor:
   Camera:
-    Position: [-1.3106246, 2.211229, -0.05061388]
-    Yaw: 14.1023445
-    Pitch: 0.29520455
+    Position: [-6.1746287, 2.207818, 0.21501361]
+    Yaw: 14.102359
+    Pitch: 0.34320438
     FOV: 45
     Near: 0.1
     Far: 1000
