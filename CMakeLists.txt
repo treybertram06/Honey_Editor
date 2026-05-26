@@ -40,6 +40,7 @@ target_include_directories(Honey_Editor PRIVATE
 add_compile_definitions(
         GLM_FORCE_SILENT_WARNINGS
         ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets"
+        CONFIG_ROOT="${CMAKE_SOURCE_DIR}/config"
 )
 
 # ---- Engine ----

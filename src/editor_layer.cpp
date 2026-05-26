@@ -14,9 +14,8 @@
 
 #include "Honey/math/math.h"
 #include "Honey/renderer/texture_cache.h"
-#include "Honey/scripting/script_properties_loader.h"
 #include "scripting/script_loader.h"
-#include "Honey/scripting/csharp/csharp_script_engine.h"
+#include "../Honey/engine/src/Honey/scripting/csharp_script_engine.h"
 
 #include <cmath>
 #include <glm/gtc/constants.hpp>
@@ -373,7 +372,7 @@ namespace Honey {
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Scripts")) {
-                if (ImGui::MenuItem("Build Scripts")) {
+                if (ImGui::MenuItem("Build Native Scripts")) {
                     ScriptLoader::get().unload_library();
 
                     int result = std::system("cmake --build . --target HoneyScripts");
@@ -389,12 +388,9 @@ namespace Honey {
                         m_notification_center.push_toast(UI::ToastType::Error, "Build Failed", "HoneyScripts build failed. See console for details.");
                     }
                 }
-                if (ImGui::MenuItem("Reload Scripts")) {
+                if (ImGui::MenuItem("Reload Native Scripts")) {
                     ScriptLoader::get().reload_library("assets/scripts/libHoneyScripts.so");
                     m_notification_center.push_toast(UI::ToastType::Info, "Scripts Reloaded", "HoneyScripts reloaded.");
-                }
-                if (ImGui::MenuItem("Invalidate Lua Script Property Cache")) {
-                    ScriptPropertiesLoader::invalidate_all();
                 }
 
                 ImGui::Separator();

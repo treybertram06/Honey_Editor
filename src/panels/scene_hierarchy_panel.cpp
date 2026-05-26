@@ -11,9 +11,6 @@
 #include "Honey/renderer/texture.h"
 #include "Honey/scene/scene_serializer.h"
 #include "Honey/scene/script_registry.h"
-#include "Honey/scripting/script_engine.h"
-#include "Honey/scripting/script_properties_loader.h"
-#include "Honey/scripting/script_properties_writer.h"
 //#include "Honey/scripting/mono_script_engine.h"
 
 
@@ -860,10 +857,8 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
             }
 
             if (ImGui::BeginCombo("Available Scripts", display_name.c_str())) {
-                // C# scripts from assets/scripts-cs/
-                const std::filesystem::path cs_dir = g_assets_dir / "scripts-cs";
+                const std::filesystem::path cs_dir = g_assets_dir / "scripts";
                 if (std::filesystem::exists(cs_dir)) {
-                    ImGui::SeparatorText("[C#]");
                     for (auto& entry : std::filesystem::directory_iterator(cs_dir)) {
                         if (entry.path().extension() == ".cs") {
                             std::string name = entry.path().stem().string();
@@ -878,29 +873,10 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                         }
                     }
                 }
-
-                // Lua scripts from assets/scripts/
-                const std::filesystem::path lua_dir = g_assets_dir / "scripts";
-                if (std::filesystem::exists(lua_dir)) {
-                    ImGui::SeparatorText("[Lua]");
-                    for (auto& entry : std::filesystem::directory_iterator(lua_dir)) {
-                        if (entry.path().extension() == ".lua") {
-                            std::string name = entry.path().stem().string();
-                            bool is_selected = (component.script_name == name);
-                            if (ImGui::Selectable(name.c_str(), is_selected)) {
-                                if (component.script_name != name) {
-                                    component.script_name = name;
-                                    changed = true;
-                                }
-                            }
-                            if (is_selected) ImGui::SetItemDefaultFocus();
-                        }
-                    }
-                }
-
                 ImGui::EndCombo();
             }
 
+            /*
             if (entity.get_scene()) {
                 auto defaults = ScriptPropertiesLoader::load_from_file(component.script_name);
 
@@ -978,6 +954,7 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                     }
                 }
             }
+            */
 
             return changed;
         });
