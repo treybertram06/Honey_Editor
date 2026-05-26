@@ -8,11 +8,8 @@ public class FirstPersonController : EntityScript {
     public float MouseSensitivity =  0.15f;
     public float SprintSpeed      = 25.0f;
 
-    private float _yaw        = 0f;
-    private float _pitch      = 0f;
-    private float _lastMouseX = 0f;
-    private float _lastMouseY = 0f;
-    private bool  _firstFrame = true;
+    private float _yaw   = 0f;
+    private float _pitch = 0f;
 
     public override void OnCreate() {
         var rot = Entity.Transform.Rotation;
@@ -29,15 +26,8 @@ public class FirstPersonController : EntityScript {
         var transform = Entity.Transform;
 
         // --- Mouse look ---
-        float mouseX = Input.GetMouseX();
-        float mouseY = Input.GetMouseY();
-        float dx = _firstFrame ? 0f : mouseX - _lastMouseX;
-        float dy = _firstFrame ? 0f : mouseY - _lastMouseY;
-        _firstFrame = false;
-        _lastMouseX = mouseX;
-        _lastMouseY = mouseY;
-        _yaw   -= dx * MouseSensitivity * dt;
-        _pitch -= dy * MouseSensitivity * dt;
+        _yaw   -= Input.GetMouseDeltaX() * MouseSensitivity;
+        _pitch -= Input.GetMouseDeltaY() * MouseSensitivity;
         float pitchLimitRad = PitchLimit * (float)(Math.PI / 180.0);
         _pitch  = Math.Clamp(_pitch, -pitchLimitRad, pitchLimitRad);
         transform.Rotation = new Vector3(_pitch, _yaw, 0f);
