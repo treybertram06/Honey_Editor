@@ -845,7 +845,7 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                     std::filesystem::path path = path_str;
                     const auto& ext = path.extension();
 
-                    if (ext == ".lua" || ext == ".cs") {
+                    if (ext == ".cs") {
                         const std::string new_name = path.stem().string();
                         if (component.script_name != new_name) {
                             component.script_name = new_name;
