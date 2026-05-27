@@ -70,7 +70,7 @@ public class FirstPersonController : EntityScript {
             float bFwdY =  (float)Math.Sin(_pitch);
             float bFwdZ = -(float)Math.Cos(_yaw) * (float)Math.Cos(_pitch);
 
-            float bulletSpeed = 100f;
+            float bulletSpeed = 20f;
             bullet.Rigidbody.ApplyImpulse(new Vector3(bFwdX * bulletSpeed, bFwdY * bulletSpeed, bFwdZ * bulletSpeed));
         }
     }

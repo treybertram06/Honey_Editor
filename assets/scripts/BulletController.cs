@@ -10,7 +10,7 @@ public class BulletController : EntityScript {
     public override void OnUpdate(float dt) {
         _timer += dt;
 
-        if (_timer > 1.0f) {
+        if (_timer > 10.0f) {
             Entity.Destroy();
         }
     }
