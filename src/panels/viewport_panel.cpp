@@ -89,7 +89,7 @@ namespace Honey {
             ImGuizmo::SetOrthographic(isOrtho);
 
             auto& transform_component = selected_entity.get_component<TransformComponent>();
-            glm::mat4 transform = selected_entity.get_world_transform();
+            glm::mat4 transform = transform_component.world;
 
             bool snap = Input::is_key_pressed(KeyCode::LeftControl);
             float snap_value = 0.5f; // 0.5 metres for translation and scale

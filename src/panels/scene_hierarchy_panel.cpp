@@ -444,6 +444,34 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                     ImGui::CloseCurrentPopup();
                 }
             }
+            if (!m_selected_entity.has_component<RigidbodyComponent>()) {
+                if (ImGui::MenuItem("Rigidbody 3D")) {
+                    entity.add_component<RigidbodyComponent>();
+                    scene_changed = true;
+                    ImGui::CloseCurrentPopup();
+                }
+            }
+            if (!m_selected_entity.has_component<BoxCollider3DComponent>()) {
+                if (ImGui::MenuItem("Box Collider 3D")) {
+                    entity.add_component<BoxCollider3DComponent>();
+                    scene_changed = true;
+                    ImGui::CloseCurrentPopup();
+                }
+            }
+            if (!m_selected_entity.has_component<SphereCollider3DComponent>()) {
+                if (ImGui::MenuItem("Sphere Collider 3D")) {
+                    entity.add_component<SphereCollider3DComponent>();
+                    scene_changed = true;
+                    ImGui::CloseCurrentPopup();
+                }
+            }
+            if (!m_selected_entity.has_component<CapsuleCollider3DComponent>()) {
+                if (ImGui::MenuItem("Capsule Collider 3D")) {
+                    entity.add_component<CapsuleCollider3DComponent>();
+                    scene_changed = true;
+                    ImGui::CloseCurrentPopup();
+                }
+            }
             if (!m_selected_entity.has_component<AudioSourceComponent>()) {
                 if (ImGui::MenuItem("Audio Source Component")) {
                     entity.add_component<AudioSourceComponent>();
@@ -1006,6 +1034,61 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
             changed |= ImGui::DragFloat("Density", &component.density, 0.01f, 0.0f, 1.0f);
             changed |= ImGui::DragFloat("Friction", &component.friction, 0.01f, 0.0f, 1.0f);
             changed |= ImGui::DragFloat("Restitution", &component.restitution, 0.01f, 0.0f, 1.0f);
+
+            return changed;
+        });
+
+        scene_changed |= draw_component<RigidbodyComponent>("Rigidbody 3D", entity, [](auto& component) -> bool {
+            bool changed = false;
+
+            const char* type_strings[] = { "Static", "Dynamic", "Kinematic" };
+            int type_index = (int)component.body_type;
+            if (ImGui::Combo("Body Type", &type_index, type_strings, 3)) {
+                component.body_type = (RigidbodyComponent::BodyType)type_index;
+                changed = true;
+            }
+
+            changed |= ImGui::DragFloat("Mass",             &component.mass,             0.1f, 0.001f, 10000.0f);
+            changed |= ImGui::DragFloat("Friction",         &component.friction,         0.01f, 0.0f, 1.0f);
+            changed |= ImGui::DragFloat("Restitution",      &component.restitution,      0.01f, 0.0f, 1.0f);
+            changed |= ImGui::DragFloat("Linear Damping",   &component.linear_damping,   0.01f, 0.0f, 1.0f);
+            changed |= ImGui::DragFloat("Angular Damping",  &component.angular_damping,  0.01f, 0.0f, 1.0f);
+            changed |= ImGui::Checkbox("Gravity",           &component.gravity_factor);
+            changed |= ImGui::Checkbox("Is Sensor",         &component.is_sensor);
+
+            return changed;
+        });
+
+        scene_changed |= draw_component<BoxCollider3DComponent>("Box Collider 3D", entity, [](auto& component) -> bool {
+            bool changed = false;
+
+            changed |= ImGui::DragFloat3("Offset",    glm::value_ptr(component.offset),    0.01f);
+            changed |= ImGui::DragFloat3("Half Size", glm::value_ptr(component.half_size), 0.01f, 0.001f);
+            changed |= ImGui::DragFloat("Friction",   &component.friction,    0.01f, 0.0f, 1.0f);
+            changed |= ImGui::DragFloat("Restitution",&component.restitution, 0.01f, 0.0f, 1.0f);
+
+            return changed;
+        });
+
+        scene_changed |= draw_component<SphereCollider3DComponent>("Sphere Collider 3D", entity, [](auto& component) -> bool {
+            bool changed = false;
+
+            changed |= ImGui::DragFloat3("Offset", glm::value_ptr(component.offset), 0.01f);
+            changed |= ImGui::DragFloat("Radius",        &component.radius,      0.01f, 0.001f);
+            changed |= ImGui::DragFloat("Friction",      &component.friction,    0.01f, 0.0f, 1.0f);
+            changed |= ImGui::DragFloat("Restitution",   &component.restitution, 0.01f, 0.0f, 1.0f);
+
+            return changed;
+        });
+
+        scene_changed |= draw_component<CapsuleCollider3DComponent>("Capsule Collider 3D", entity, [](auto& component) -> bool {
+            bool changed = false;
+
+            changed |= ImGui::DragFloat3("Offset",       glm::value_ptr(component.offset), 0.01f);
+            changed |= ImGui::DragFloat("Radius",        &component.radius,      0.01f, 0.001f);
+            changed |= ImGui::DragFloat("Half Height",   &component.half_height, 0.01f, 0.001f);
+            changed |= ImGui::DragFloat("Friction",      &component.friction,    0.01f, 0.0f, 1.0f);
+            changed |= ImGui::DragFloat("Restitution",   &component.restitution, 0.01f, 0.0f, 1.0f);
 
             return changed;
         });

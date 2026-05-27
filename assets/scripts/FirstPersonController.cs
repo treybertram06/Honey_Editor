@@ -5,7 +5,7 @@ public class FirstPersonController : EntityScript {
 
     public float PitchLimit       = 89.0f;
     public float MoveSpeed        =  5.0f;
-    public float MouseSensitivity =  0.15f;
+    public float MouseSensitivity =  0.001f;
     public float SprintSpeed      = 25.0f;
 
     private float _yaw   = 0f;
@@ -62,7 +62,16 @@ public class FirstPersonController : EntityScript {
         );
 
         // Shooting
-        //if (Input.IsMouseButtonDown(MouseButton.Left))
-            //Scene.InstantiatePrefab(""); Need physics :(
+        if (Input.IsMouseButtonDown(MouseButton.Left)) {
+            var bullet = Scene.InstantiatePrefab("../assets/prefabs/Bulletish.hnp");
+            bullet.Rigidbody.SetPosition(new Vector3(transform.Translation.X, transform.Translation.Y - 0.1f, transform.Translation.Z));
+
+            float bFwdX = -(float)Math.Sin(_yaw) * (float)Math.Cos(_pitch);
+            float bFwdY =  (float)Math.Sin(_pitch);
+            float bFwdZ = -(float)Math.Cos(_yaw) * (float)Math.Cos(_pitch);
+
+            float bulletSpeed = 20f;
+            bullet.Rigidbody.ApplyImpulse(new Vector3(bFwdX * bulletSpeed, bFwdY * bulletSpeed, bFwdZ * bulletSpeed));
+        }
     }
 }
