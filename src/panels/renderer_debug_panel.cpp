@@ -215,6 +215,11 @@ namespace Honey {
                 }
             }
 
+            if (ImGui::CollapsingHeader("Shadows", ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::DragFloat("Directional shadow draw distance", &renderer.dir_shadow_distance, 5.0f, 0.0f, 1000.0f);
+
+            }
+
         }
 
         ImGui::End();
