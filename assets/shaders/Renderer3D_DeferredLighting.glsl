@@ -138,6 +138,11 @@ vec3 fresnel_schlick(float cos_theta, vec3 F0) {
     return F0 + (1.0 - F0) * pow(clamp(1.0 - cos_theta, 0.0, 1.0), 5.0);
 }
 
+vec3 fresnel_schlick_roughness(float cos_theta, vec3 F0, float roughness) {
+    return F0 + (max(vec3(1.0 - roughness), F0) - F0)
+    * pow(clamp(1.0 - cos_theta, 0.0, 1.0), 5.0);
+}
+
 // Convert world-space fragment-to-light distance to NDC depth in the shadow map.
 // perspectiveRH_ZO with near=0.05, far=range: z_ndc = range*(dist-near)/(dist*(range-near))
 float shadow_ndc_depth(float dist, float range) {
@@ -330,7 +335,9 @@ void main() {
     }
 
     // Ambient
-    vec3 ambient = vec3(0.03) * albedo * ao;
+    vec3 kS      = fresnel_schlick_roughness(max(dot(N, V), 0.0), F0, roughness);
+    vec3 kD      = (1.0 - kS) * (1.0 - metallic);
+    vec3 ambient = (kD * albedo + kS * 0.04) * vec3(0.03) * ao;
     vec3 color   = ambient + Lo + emissive;
 
     // ACES tonemap + gamma correction
