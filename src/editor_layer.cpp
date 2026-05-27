@@ -16,6 +16,7 @@
 #include "Honey/renderer/texture_cache.h"
 #include "scripting/script_loader.h"
 #include "../Honey/engine/src/Honey/scripting/csharp_script_engine.h"
+#include "Honey/physics/physics_engine_3d.h"
 
 #include <cmath>
 #include <glm/gtc/constants.hpp>
@@ -104,8 +105,7 @@ namespace Honey {
         context.view = m_editor_camera.get_view_matrix();
         context.projection = m_editor_camera.get_projection_matrix();
         context.camera_position = m_editor_camera.get_position();
-        if (m_scene_state == SceneState::simulate)
-            context.post_scene_overlay_render = [this]() { on_overlay_render(); };
+        context.post_scene_overlay_render = [this]() { on_overlay_render(); };
         return context;
     }
 
@@ -650,6 +650,60 @@ namespace Honey {
         }
 
         Renderer2D::end_scene();
+
+        // 3D physics debug shapes
+        if (Settings::get().physics.show_jolt_debug_draw) {
+            glm::mat4 view_proj = m_editor_camera.get_view_projection_matrix();
+            if (m_scene_state == SceneState::play || m_scene_state == SceneState::pause) {
+                Entity cam = m_active_scene->get_primary_camera();
+                if (cam.is_valid()) {
+                    auto& cc = cam.get_component<CameraComponent>();
+                    auto& tc = cam.get_component<TransformComponent>();
+                    view_proj = cc.camera->get_projection_matrix() * glm::inverse(tc.get_transform());
+                }
+            }
+            DebugRenderer3D::begin_scene(view_proj);
+
+            const bool physics_running = (m_scene_state == SceneState::play
+                                       || m_scene_state == SceneState::pause
+                                       || m_scene_state == SceneState::simulate);
+            if (physics_running) {
+                PhysicsEngine3D::get().draw_debug();
+            } else {
+                // Edit mode: draw collider shapes directly from component data
+                static const glm::vec4 k_collider_color = { 0.0f, 1.0f, 0.0f, 1.0f };
+
+                { // Box colliders
+                    auto view = m_active_scene->get_all_entities_with<TransformComponent, BoxCollider3DComponent>();
+                    for (auto e : view) {
+                        auto [tc, bc] = view.get<TransformComponent, BoxCollider3DComponent>(e);
+                        glm::quat rot = glm::quat(tc.rotation);
+                        glm::vec3 half = bc.half_size * tc.scale;
+                        DebugRenderer3D::draw_wire_box(tc.translation, half, rot, k_collider_color);
+                    }
+                }
+                { // Sphere colliders
+                    auto view = m_active_scene->get_all_entities_with<TransformComponent, SphereCollider3DComponent>();
+                    for (auto e : view) {
+                        auto [tc, sc] = view.get<TransformComponent, SphereCollider3DComponent>(e);
+                        float r = sc.radius * glm::max(tc.scale.x, glm::max(tc.scale.y, tc.scale.z));
+                        DebugRenderer3D::draw_wire_sphere(tc.translation, r, k_collider_color);
+                    }
+                }
+                { // Capsule colliders
+                    auto view = m_active_scene->get_all_entities_with<TransformComponent, CapsuleCollider3DComponent>();
+                    for (auto e : view) {
+                        auto [tc, cc] = view.get<TransformComponent, CapsuleCollider3DComponent>(e);
+                        glm::vec3 up   = glm::quat(tc.rotation) * glm::vec3(0.f, 1.f, 0.f);
+                        glm::vec3 base = tc.translation - up * cc.half_height;
+                        glm::vec3 tip  = tc.translation + up * cc.half_height;
+                        DebugRenderer3D::draw_wire_capsule(base, tip, cc.radius, k_collider_color);
+                    }
+                }
+            }
+
+            DebugRenderer3D::end_scene();
+        }
 
     }
 
