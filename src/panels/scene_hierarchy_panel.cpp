@@ -618,6 +618,16 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
             }
 
             changed |= ImGui::Checkbox("Primary", &component.primary);
+            if (ImGui::DragFloat("Exposure", &component.exposure, 0.01f, 0.0f, 10.0f)) {
+                if (camera) {
+                    if (auto persp_cam = dynamic_cast<PerspectiveCamera*>(camera.get())) {
+                        persp_cam->set_exposure(component.exposure);
+                    } else if (auto ortho_cam = dynamic_cast<OrthographicCamera*>(camera.get())) {
+                        ortho_cam->set_exposure(component.exposure);
+                    }
+                }
+                changed = true;
+            }
             return changed;
         });
 

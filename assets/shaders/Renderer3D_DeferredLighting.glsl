@@ -35,7 +35,7 @@ layout(location = 1) out int  o_entity_id;
 layout(set = 0, binding = 0) uniform CameraUBO {
     mat4 u_ViewProjection;
     vec3 u_Position;
-    float _pad0;
+    float u_Exposure;
     mat4 u_InvViewProjection;
     mat4 u_View;
 } u_Camera;
@@ -245,6 +245,11 @@ vec3 pbr_point_light(vec3 world_pos, vec3 N, vec3 V, vec3 F0, vec3 albedo, float
     return (kD * albedo / 3.14159265 + specular) * pl.color * pl.intensity * NdotL * attenuation;
 }
 
+vec3 aces_tonemap(vec3 x) {
+    const float a = 2.51, b = 0.03, c = 2.43, d = 0.59, e = 0.14;
+    return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
+}
+
 // ---------------------------------------------------------------------------
 
 void main() {
@@ -328,8 +333,9 @@ void main() {
     vec3 ambient = vec3(0.03) * albedo * ao;
     vec3 color   = ambient + Lo + emissive;
 
-    // Reinhard tonemap + gamma correction
-    color = color / (color + vec3(1.0));
+    // ACES tonemap + gamma correction
+    color *= u_Camera.u_Exposure;
+    color = aces_tonemap(color);
     color = pow(color, vec3(1.0 / 2.2));
 
     // CSM DEBUG: tint by cascade index. Remove once cascade selection is verified.

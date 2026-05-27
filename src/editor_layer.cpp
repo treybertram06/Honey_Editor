@@ -40,6 +40,7 @@ namespace Honey {
 
         new_scene();
         m_editor_camera = EditorCamera(16.0f/9.0f, 45.0f, 0.1f, 1000.0f);
+        m_editor_camera.set_exposure(Settings::get().renderer.editor_camera_exposure);
         m_scene_viewport_renderer.initialize();
         m_scene_viewport_renderer.resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
 
@@ -94,6 +95,7 @@ namespace Honey {
                     context.view = glm::inverse(transform);
                     context.projection = primary_camera->get_projection_matrix();
                     context.camera_position = tc.translation;
+                    context.camera_exposure = cc.exposure;
                     context.scene_is_runtime_camera = true;
                 }
             }
@@ -105,6 +107,7 @@ namespace Honey {
         context.view = m_editor_camera.get_view_matrix();
         context.projection = m_editor_camera.get_projection_matrix();
         context.camera_position = m_editor_camera.get_position();
+        context.camera_exposure = m_editor_camera.get_exposure();
         context.post_scene_overlay_render = [this]() { on_overlay_render(); };
         return context;
     }

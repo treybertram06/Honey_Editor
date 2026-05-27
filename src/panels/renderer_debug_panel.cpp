@@ -251,5 +251,12 @@ namespace Honey {
 
         ImGui::Text("Current Primary: %s", current_primary.c_str());
         ImGui::Text("Total Cameras: %zu", camera_entities.size());
+
+        ImGui::Separator();
+        ImGui::Text("Editor Camera");
+        float& exp = Settings::get().renderer.editor_camera_exposure;
+        if (ImGui::DragFloat("Exposure##EditorCam", &exp, 0.01f, 0.0f, 10.0f, "%.2f")) {
+            editor.m_editor_camera.set_exposure(exp);
+        }
     }
 }
