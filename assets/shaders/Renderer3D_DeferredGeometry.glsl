@@ -17,7 +17,11 @@ layout(location = 9) in int a_iEntityID;
 layout(set = 0, binding = 0) uniform CameraUBO {
     mat4 u_ViewProjection;
     vec3 u_Position;
-    float _pad0;
+    float u_Exposure;
+    mat4 u_InvViewProjection;
+    mat4 u_View;
+    mat4 u_Projection;
+    mat4 u_InvProjection;
 } u_Camera;
 
 layout(location = 0) out vec2 v_uv0;

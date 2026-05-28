@@ -76,9 +76,13 @@ struct DrawData {
 layout(set = 1, binding = 5) readonly buffer DrawDataBuffer { DrawData draws[]; };
 
 layout(set = 0, binding = 0) uniform CameraUBO {
-    mat4  u_ViewProjection;
-    vec3  u_Position;
-    float _pad0;
+    mat4 u_ViewProjection;
+    vec3 u_Position;
+    float u_Exposure;
+    mat4 u_InvViewProjection;
+    mat4 u_View;
+    mat4 u_Projection;
+    mat4 u_InvProjection;
 } u_Camera;
 
 struct TaskPayload { uint meshlet_id; uint draw_id; };

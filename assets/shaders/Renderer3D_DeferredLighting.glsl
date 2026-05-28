@@ -25,6 +25,8 @@ void main() {
 
 #undef CSM_CASCADE_DEBUG
 //#define CSM_CASCADE_DEBUG
+#undef SSAO_DEBUG
+//#define SSAO_DEBUG
 
 layout(location = 0) in vec2 v_uv;
 
@@ -38,6 +40,8 @@ layout(set = 0, binding = 0) uniform CameraUBO {
     float u_Exposure;
     mat4 u_InvViewProjection;
     mat4 u_View;
+    mat4 u_Projection;
+    mat4 u_InvProjection;
 } u_Camera;
 
 struct DirectionalLight {
@@ -96,19 +100,14 @@ layout(set = 1, binding = 3) uniform sampler2D u_gDepth;
 // binding 4: shadow cube array (comparison sampler — texture() returns [0,1] shadow factor)
 layout(set = 1, binding = 4) uniform samplerCubeArrayShadow u_ShadowCubeArray;
 layout(set = 1, binding = 5) uniform sampler2DArrayShadow u_ShadowDirMap;
+// binding 6: SSAO occlusion factor (1.0 = fully lit, 0.0 = fully occluded)
+layout(set = 1, binding = 6) uniform sampler2D u_SSAO;
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-vec3 oct_decode(vec2 p) {
-    vec3 n = vec3(p.x, p.y, 1.0 - abs(p.x) - abs(p.y));
-    if (n.z < 0.0) {
-        n.xy = (1.0 - abs(n.yx)) * vec2(n.x >= 0.0 ? 1.0 : -1.0,
-                                         n.y >= 0.0 ? 1.0 : -1.0);
-    }
-    return normalize(n);
-}
+#include "CommonHelpers.glsl"
 
 vec2 unpack_rg(float v) {
     float r = floor(v * 256.0) / 255.0;
@@ -281,7 +280,7 @@ void main() {
 
     float metallic  = pbr_samp.r;
     float roughness = max(pbr_samp.g, 0.04);
-    float ao        = pbr_samp.b;
+    float ao        = pbr_samp.b * texture(u_SSAO, v_uv).r;
 
     // Background: no geometry written (depth == 1.0), skip lighting
     if (depth >= 1.0) {
@@ -337,8 +336,8 @@ void main() {
     // Ambient
     vec3 kS      = fresnel_schlick_roughness(max(dot(N, V), 0.0), F0, roughness);
     vec3 kD      = (1.0 - kS) * (1.0 - metallic);
-    vec3 ambient = (kD * albedo + kS * 0.04) * vec3(0.03) * ao;
-    vec3 color   = ambient + Lo + emissive;
+    vec3 ambient = (kD * albedo + kS * 0.04) * vec3(0.08) * ao;
+    vec3 color   = ambient + Lo * mix(1.0, ao, 0.5) + emissive; // Adding ao contribution to lit parts of the scene is not physically accurate, but I think it looks better
 
     // ACES tonemap + gamma correction
     color *= u_Camera.u_Exposure;
@@ -364,5 +363,8 @@ void main() {
     #endif
 
     o_color     = vec4(color, 1.0);
+    #ifdef SSAO_DEBUG
+    o_color     = vec4(ao, ao, ao, 1.0);
+    #endif
     o_entity_id = -1;
 }

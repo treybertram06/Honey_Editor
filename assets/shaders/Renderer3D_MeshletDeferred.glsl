@@ -70,7 +70,7 @@ layout(set = 1, binding = 5) readonly buffer DrawDataBuffer { DrawData draws[]; 
 layout(set = 0, binding = 0) uniform CameraUBO {
     mat4  u_ViewProjection;
     vec3  u_Position;
-    float _pad0;
+    float u_Exposure;
 } u_Camera;
 
 struct TaskPayload { uint meshlet_id; uint draw_id; };
