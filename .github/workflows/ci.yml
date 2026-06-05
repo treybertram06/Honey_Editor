@@ -1,27 +1,23 @@
 name: CI
-
 on:
   push:
   pull_request:
-
 jobs:
   build:
     name: Build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
         config: [Debug]
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Install Linux dependencies
+      - name: Install Linux system dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt update
@@ -36,12 +32,27 @@ jobs:
             libxi-dev \
             libwayland-dev \
             wayland-protocols \
-            libvulkan-dev \
-            vulkan-tools \
             libgl1-mesa-dev \
             mesa-common-dev \
             libglx-dev \
             libgtk-3-dev
+
+      - name: Install Vulkan SDK (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          VERSION="1.4.341.0"
+          URL="https://sdk.lunarg.com/sdk/download/$VERSION/linux/vulkansdk-linux-x86_64-$VERSION.tar.xz"
+          INSTALL_DIR="$HOME/VulkanSDK/$VERSION"
+
+          echo "Downloading Vulkan SDK $VERSION..."
+          curl -fSL "$URL" -o /tmp/vulkansdk.tar.xz
+
+          mkdir -p "$INSTALL_DIR"
+          tar -xf /tmp/vulkansdk.tar.xz -C "$HOME/VulkanSDK"
+
+          echo "VULKAN_SDK=$INSTALL_DIR/x86_64" >> "$GITHUB_ENV"
+          echo "$INSTALL_DIR/x86_64/bin" >> "$GITHUB_PATH"
+          echo "LD_LIBRARY_PATH=$INSTALL_DIR/x86_64/lib:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
 
       - name: Install Vulkan SDK (Windows)
         if: runner.os == 'Windows'
@@ -50,18 +61,18 @@ jobs:
           $version = "1.4.341.0"
           $installer = "$env:RUNNER_TEMP\vulkansdk.exe"
           $url = "https://sdk.lunarg.com/sdk/download/$version/windows/vulkansdk-windows-X64-$version.exe"
-          
+
           Write-Host "Downloading Vulkan SDK from $url"
           Invoke-WebRequest -Uri $url -OutFile $installer
-          
+
           Write-Host "Installing Vulkan SDK..."
           Start-Process -FilePath $installer -ArgumentList "--accept-licenses --default-answer --confirm-command install" -Wait -NoNewWindow
-          
+
           $sdkPath = "C:\VulkanSDK\$version"
           if (-not (Test-Path $sdkPath)) {
             throw "Vulkan SDK was not installed at expected path: $sdkPath"
           }
-          
+
           "VULKAN_SDK=$sdkPath" | Out-File -FilePath $env:GITHUB_ENV -Append
           "$sdkPath\Bin" | Out-File -FilePath $env:GITHUB_PATH -Append
 
