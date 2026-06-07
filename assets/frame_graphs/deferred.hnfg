@@ -101,6 +101,8 @@ FrameGraph:
       ReadBindings:
         - Name: ssaoRaw
           Usage: sampled
+          Shader: u_SSAO
+          ViewKind: Color2D
       Writes: [ssaoTexture]
       Clear:
         color: [1.0, 1.0, 1.0, 1.0]

@@ -24,14 +24,19 @@ layout(location = 0) in vec2 v_uv;
 
 layout(location = 0) out vec4 o_color;
 
-layout(set=1, binding=0) uniform sampler2D u_SSAO;
+// Separate texture + sampler (rather than a combined sampler2D) so this shader works under
+// VK_EXT_descriptor_heap: reflection yields a SAMPLED_IMAGE (transient, PUSH_INDEX) and a
+// SAMPLER (baked Linear static sampler, CONSTANT_OFFSET). Standard set/binding decorations are
+// kept; in heap mode the driver remaps them to the heaps, in layout mode they bind normally.
+layout(set=1, binding=0) uniform texture2D u_SSAO;
+layout(set=1, binding=1) uniform sampler   u_SSAOSampler;
 
 void main() {
-    vec2 texel_size = 1.0 / vec2(textureSize(u_SSAO, 0));
+    vec2 texel_size = 1.0 / vec2(textureSize(sampler2D(u_SSAO, u_SSAOSampler), 0));
     float result = 0.0;
     for (int x = -2; x <= 2; ++x)
     for (int y = -2; y <= 2; ++y)
-    result += texture(u_SSAO, v_uv + vec2(x, y) * texel_size).r;
+    result += texture(sampler2D(u_SSAO, u_SSAOSampler), v_uv + vec2(x, y) * texel_size).r;
     o_color = vec4(vec3(result / 25.0), 1.0);
 }
 
