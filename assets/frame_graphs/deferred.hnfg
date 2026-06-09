@@ -17,6 +17,8 @@ FrameGraph:
     ssaoKernel:
       Type: Buffer
       Size: 528 # sizeof(SSAOKernelUBOData): 32*vec4(512) + vec2(8) + 2*float(8) = 528;
+    ssaoNoise:
+      Type: ImportedTexture
 
     shadowCubemap:
       Type: Texture
