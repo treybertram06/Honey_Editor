@@ -25,8 +25,8 @@ void main() {
 
 #undef CSM_CASCADE_DEBUG
 //#define CSM_CASCADE_DEBUG
-//#undef SSAO_DEBUG
-#define SSAO_DEBUG
+#undef SSAO_DEBUG
+//#define SSAO_DEBUG
 
 layout(location = 0) in vec2 v_uv;
 
