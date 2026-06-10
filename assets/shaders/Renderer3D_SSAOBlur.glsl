@@ -33,11 +33,13 @@ layout(set=1, binding=1) uniform sampler   u_SSAOSampler;
 
 void main() {
     vec2 texel_size = 1.0 / vec2(textureSize(sampler2D(u_SSAO, u_SSAOSampler), 0));
-    float result = 0.0;
+    // Blur all channels: .r is the real AO; .gba carry SSAO debug-mode data so it
+    // survives the blur and reaches the DeferredLighting SSAO_DEBUG visualization.
+    vec3 result = vec3(0.0);
     for (int x = -2; x <= 2; ++x)
     for (int y = -2; y <= 2; ++y)
-    result += texture(sampler2D(u_SSAO, u_SSAOSampler), v_uv + vec2(x, y) * texel_size).r;
-    o_color = vec4(vec3(result / 25.0), 1.0);
+    result += texture(sampler2D(u_SSAO, u_SSAOSampler), v_uv + vec2(x, y) * texel_size).rgb;
+    o_color = vec4(result / 25.0, 1.0);
 }
 
 

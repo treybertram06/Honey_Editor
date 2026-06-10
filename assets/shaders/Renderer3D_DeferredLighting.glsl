@@ -25,8 +25,8 @@ void main() {
 
 #undef CSM_CASCADE_DEBUG
 //#define CSM_CASCADE_DEBUG
-#undef SSAO_DEBUG
-//#define SSAO_DEBUG
+//#undef SSAO_DEBUG
+#define SSAO_DEBUG
 
 layout(location = 0) in vec2 v_uv;
 
@@ -364,7 +364,7 @@ void main() {
 
     o_color     = vec4(color, 1.0);
     #ifdef SSAO_DEBUG
-    o_color     = vec4(ao, ao, ao, 1.0);
+    o_color     = (0.9 * vec4(vec3(texture(u_SSAO, v_uv).r), 1.0)) + (0.1 * o_color);
     #endif
     o_entity_id = -1;
 }

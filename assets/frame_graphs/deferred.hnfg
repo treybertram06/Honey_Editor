@@ -94,11 +94,14 @@ FrameGraph:
       Executor: ssao.draw
       Queue: graphics
       ReadBindings:
-        - Name: gBuffer
-          Usage: sampled
+        - { Name: gBuffer,    Usage: sampled, Shader: u_gNormal,     Attachment: 1, ViewKind: Color2D }
+        - { Name: gBuffer,    Usage: sampled, Shader: u_gDepth,                     ViewKind: DepthSampler }
+        - { Name: ssaoNoise,  Usage: sampled, Shader: u_NoiseTexture,               ViewKind: Color2D }
+        - { Name: ssaoKernel, Usage: uniform, Shader: SSAOKernelUBO }
       Writes: [ssaoRaw]
       Clear:
         color: [1.0, 1.0, 1.0, 1.0]
+
 
     - Name: SSAOBlur
       Executor: ssao.blur
