@@ -364,7 +364,7 @@ void main() {
 
     o_color     = vec4(color, 1.0);
     #ifdef SSAO_DEBUG
-    o_color     = (0.9 * vec4(vec3(texture(u_SSAO, v_uv).r), 1.0)) + (0.1 * o_color);
+    o_color     = vec4(vec3(texture(u_SSAO, v_uv).r), 1.0);
     #endif
     o_entity_id = -1;
 }

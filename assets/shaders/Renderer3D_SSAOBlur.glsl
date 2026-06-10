@@ -31,7 +31,14 @@ layout(location = 0) out vec4 o_color;
 layout(set=1, binding=0) uniform texture2D u_SSAO;
 layout(set=1, binding=1) uniform sampler   u_SSAOSampler;
 
+// Debug: set to 1 to disable the blur entirely (pass ssaoRaw through untouched) so the
+// raw SSAO output can be inspected in the DeferredLighting SSAO_DEBUG view.
+#define SSAO_BLUR_PASSTHROUGH 0
+
 void main() {
+#if SSAO_BLUR_PASSTHROUGH
+    o_color = vec4(texture(sampler2D(u_SSAO, u_SSAOSampler), v_uv).rgb, 1.0);
+#else
     vec2 texel_size = 1.0 / vec2(textureSize(sampler2D(u_SSAO, u_SSAOSampler), 0));
     // Blur all channels: .r is the real AO; .gba carry SSAO debug-mode data so it
     // survives the blur and reaches the DeferredLighting SSAO_DEBUG visualization.
@@ -40,6 +47,7 @@ void main() {
     for (int y = -2; y <= 2; ++y)
     result += texture(sampler2D(u_SSAO, u_SSAOSampler), v_uv + vec2(x, y) * texel_size).rgb;
     o_color = vec4(result / 25.0, 1.0);
+#endif
 }
 
 
