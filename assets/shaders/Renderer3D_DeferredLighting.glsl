@@ -33,8 +33,10 @@ layout(location = 0) in vec2 v_uv;
 layout(location = 0) out vec4 o_color;
 layout(location = 1) out int  o_entity_id;
 
+#include "global_bindings.glsli"
+
 // ---- set=0 global descriptors ----
-layout(set = 0, binding = 0) uniform CameraUBO {
+layout(set = HN_GLOBAL_SET, binding = HN_GBIND_CAMERA) uniform CameraUBO {
     mat4 u_ViewProjection;
     vec3 u_Position;
     float u_Exposure;
@@ -56,12 +58,12 @@ struct PointLight {
     vec3  color;
     float range;
 };
-layout(set = 0, binding = 1) uniform LightsUBO {
+layout(set = HN_GLOBAL_SET, binding = HN_GBIND_LIGHTS) uniform LightsUBO {
     DirectionalLight u_DirectionalLight;
     PointLight       u_PointLights[MAX_POINT_LIGHTS];
 } u_Lights;
 
-layout(set = 0, binding = 5, std430) readonly buffer TiledLightingBuffer {
+layout(set = HN_GLOBAL_SET, binding = HN_GBIND_TILED_LIGHTING, std430) readonly buffer TiledLightingBuffer {
     uint tile_count_x;
     uint tile_count_y;
     uint light_count;
@@ -75,14 +77,14 @@ struct ShadowLightMatrices {
     vec3  position;
     float range;
 };
-layout(set = 0, binding = 6, std430) readonly buffer ShadowMatricesBuffer {
+layout(set = HN_GLOBAL_SET, binding = HN_GBIND_SHADOW_MATRICES, std430) readonly buffer ShadowMatricesBuffer {
     uint shadow_light_count;
     uint shadow_light_point_indices[8];
     uint _pad2[3];
     ShadowLightMatrices lights[];
 } u_ShadowMatrices;
 
-layout(set = 0, binding = 7, std430) readonly buffer DirShadowBuffer {
+layout(set = HN_GLOBAL_SET, binding = HN_GBIND_DIR_SHADOW, std430) readonly buffer DirShadowBuffer {
     mat4  cascade_vp[4];
     float cascade_splits[4];
     uint  cascade_count;
@@ -92,16 +94,19 @@ layout(set = 0, binding = 7, std430) readonly buffer DirShadowBuffer {
 } u_DirShadow;
 
 
-// ---- set=1 G-buffer textures ----
-layout(set = 1, binding = 0) uniform sampler2D u_gAlbedo;
-layout(set = 1, binding = 1) uniform sampler2D u_gNormal;
-layout(set = 1, binding = 2) uniform sampler2D u_gPBRParams;
-layout(set = 1, binding = 3) uniform sampler2D u_gDepth;
+// ---- set=1 G-buffer textures and samplers ----
+layout(set = 1, binding = 0) uniform texture2D        u_gAlbedo;
+layout(set = 1, binding = 1) uniform texture2D        u_gNormal;
+layout(set = 1, binding = 2) uniform texture2D        u_gPBRParams;
+layout(set = 1, binding = 3) uniform texture2D        u_gDepth;
 // binding 4: shadow cube array (comparison sampler — texture() returns [0,1] shadow factor)
-layout(set = 1, binding = 4) uniform samplerCubeArrayShadow u_ShadowCubeArray;
-layout(set = 1, binding = 5) uniform sampler2DArrayShadow u_ShadowDirMap;
+layout(set = 1, binding = 4) uniform textureCubeArray u_ShadowCubeArray;
+layout(set = 1, binding = 5) uniform texture2DArray   u_ShadowDirMap;
 // binding 6: SSAO occlusion factor (1.0 = fully lit, 0.0 = fully occluded)
-layout(set = 1, binding = 6) uniform sampler2D u_SSAO;
+layout(set = 1, binding = 6) uniform texture2D        u_SSAO;
+layout(set = 1, binding = 7) uniform sampler          u_LinearSampler;
+layout(set = 1, binding = 8) uniform sampler          u_NearestSampler;
+layout(set = 1, binding = 9) uniform samplerShadow    u_ShadowCmpSampler;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -181,7 +186,7 @@ float sample_shadow(int shadow_slot, vec3 world_pos) {
     float s = 0.0;
     for (int i = 0; i < 8; ++i) {
         vec3 offset = taps[i].x * p1 + taps[i].y * p2;
-        s += texture(u_ShadowCubeArray, vec4(dir + offset * r, float(shadow_slot)), ref);
+        s += texture(samplerCubeArrayShadow(u_ShadowCubeArray, u_ShadowCmpSampler), vec4(dir + offset * r, float(shadow_slot)), ref);
     }
     return s / 8.0;
 }
@@ -216,7 +221,7 @@ float sample_dir_shadow(vec3 world_pos) {
     vec2  texel = 1.0 / vec2(float(4096));
     for (int x = -1; x <= 1; ++x)
     for (int y = -1; y <= 1; ++y)
-    s += texture(u_ShadowDirMap, vec4(uv + vec2(x, y) * texel, float(cascade), ref));
+    s += texture(sampler2DArrayShadow(u_ShadowDirMap, u_ShadowCmpSampler), vec4(uv + vec2(x, y) * texel, float(cascade), ref));
     float shadow = s / 9.0;
 
     // Apply distance fade: blend from shadow toward fully-lit at shadow_distance
@@ -257,7 +262,7 @@ vec3 aces_tonemap(vec3 x) {
 // ---------------------------------------------------------------------------
 
 void main() {
-    float depth = texture(u_gDepth, v_uv).r;
+    float depth = texture(sampler2D(u_gDepth, u_NearestSampler), v_uv).r;
 
     // Reconstruct world position from depth
     vec4 ndc_pos   = vec4(v_uv * 2.0 - 1.0, depth, 1.0);
@@ -265,9 +270,9 @@ void main() {
     vec3 world_pos = world_h.xyz / world_h.w;
 
     // Sample G-buffer
-    vec4 albedo_samp = texture(u_gAlbedo,    v_uv);
-    vec4 normal_samp = texture(u_gNormal,    v_uv);
-    vec4 pbr_samp    = texture(u_gPBRParams, v_uv);
+    vec4 albedo_samp = texture(sampler2D(u_gAlbedo,    u_LinearSampler),  v_uv);
+    vec4 normal_samp = texture(sampler2D(u_gNormal,    u_NearestSampler), v_uv);
+    vec4 pbr_samp    = texture(sampler2D(u_gPBRParams, u_LinearSampler),  v_uv);
 
     // Unpack G-buffer
     vec3  albedo   = albedo_samp.rgb;
@@ -280,7 +285,7 @@ void main() {
 
     float metallic  = pbr_samp.r;
     float roughness = max(pbr_samp.g, 0.04);
-    float ao        = pbr_samp.b * texture(u_SSAO, v_uv).r;
+    float ao        = pbr_samp.b * texture(sampler2D(u_SSAO, u_LinearSampler), v_uv).r;
 
     // Background: no geometry written (depth == 1.0), skip lighting
     if (depth >= 1.0) {
@@ -364,7 +369,7 @@ void main() {
 
     o_color     = vec4(color, 1.0);
     #ifdef SSAO_DEBUG
-    o_color     = vec4(vec3(texture(u_SSAO, v_uv).r), 1.0);
+    o_color     = vec4(vec3(texture(sampler2D(u_SSAO, u_LinearSampler), v_uv).r), 1.0);
     #endif
     o_entity_id = -1;
 }
