@@ -119,14 +119,13 @@ FrameGraph:
       Executor: deferred.lighting
       Queue: graphics
       ReadBindings:
-        - Name: gBuffer
-          Usage: sampled
-        - Name: shadowCubemap
-          Usage: sampled
-        - Name: shadowDirMap
-          Usage: sampled
-        - Name: ssaoTexture
-          Usage: sampled
+        - { Name: gBuffer,       Usage: sampled, Shader: u_gAlbedo,         Attachment: 0, ViewKind: Color2D }
+        - { Name: gBuffer,       Usage: sampled, Shader: u_gNormal,         Attachment: 1, ViewKind: Color2D }
+        - { Name: gBuffer,       Usage: sampled, Shader: u_gPBRParams,      Attachment: 2, ViewKind: Color2D }
+        - { Name: gBuffer,       Usage: sampled, Shader: u_gDepth,                         ViewKind: DepthSampler }
+        - { Name: shadowCubemap, Usage: sampled, Shader: u_ShadowCubeArray,                ViewKind: CubeArray }
+        - { Name: shadowDirMap,  Usage: sampled, Shader: u_ShadowDirMap,                   ViewKind: DepthSampler }
+        - { Name: ssaoTexture,   Usage: sampled, Shader: u_SSAO,                           ViewKind: Color2D }
       Writes: [editorViewport]
       Clear:
         color: [0.1, 0.1, 0.1, 1.0]
