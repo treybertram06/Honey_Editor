@@ -19,15 +19,18 @@ layout(set = 1, binding = 5) readonly buffer DrawDataBuffer { DrawData draws[]; 
 struct TaskPayload { uint meshlet_id; uint draw_id; };
 taskPayloadSharedEXT TaskPayload payload;
 
-layout(push_constant) uniform ShadowDrawPC {
-    uint draw_data_base;
-    int  light_index; // unused — present to match ShadowDrawPC layout (16 bytes)
-    uint face_index;  // unused
-    uint _pad;
+// Heap-mode push block — must match Honey::ShadowMeshletPushData's byte layout exactly
+// (resource_heap_base first, consumed by the driver for set=1 PUSH_INDEX resolution).
+// light_index is unused here — present only to keep the layout identical to the cubemap shader.
+layout(push_constant) uniform ShadowMeshletPushData {
+    uint resource_heap_base;
+    int  draw_data_base;
+    int  light_index; // unused
+    uint face_index;  // cascade index
 } u_PC;
 
 void main() {
-    uint draw_id  = u_PC.draw_data_base + gl_DrawID;
+    uint draw_id  = uint(u_PC.draw_data_base) + uint(gl_DrawID);
     DrawData d    = draws[draw_id];
     uint local_id = gl_GlobalInvocationID.x;
 
@@ -62,7 +65,9 @@ struct DrawData {
 };
 layout(set = 1, binding = 5) readonly buffer DrawDataBuffer { DrawData draws[]; };
 
-layout(set = 0, binding = 7, std430) readonly buffer DirShadowBuf {
+#include "global_bindings.glsli"
+
+layout(set = HN_GLOBAL_SET, binding = HN_GBIND_DIR_SHADOW, std430) readonly buffer DirShadowBuf {
     mat4     cascade_vp[4];       // one per cascade
     float    cascade_splits[4];
     uint     cascade_count;
@@ -71,11 +76,12 @@ layout(set = 0, binding = 7, std430) readonly buffer DirShadowBuf {
     uint     _pad;
 } u_DirShadow;
 
-layout(push_constant) uniform ShadowDrawPC {
-    uint draw_data_base;
-    int  light_index; // unused — present to match ShadowDrawPC layout (16 bytes)
-    uint face_index;  // unused
-    uint _pad;
+// Heap-mode push block — must match Honey::ShadowMeshletPushData's byte layout exactly.
+layout(push_constant) uniform ShadowMeshletPushData {
+    uint resource_heap_base;
+    int  draw_data_base;
+    int  light_index; // unused
+    uint face_index;  // cascade index
 } u_PC;
 
 struct TaskPayload { uint meshlet_id; uint draw_id; };

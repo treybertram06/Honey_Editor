@@ -1,10 +1,10 @@
 // Renderer3D_ShadowCubemap.glsl
 // Task/mesh stages write depth into each cubemap face for point light shadow maps.
 // Fragment stage is empty — depth is written automatically by the rasterizer.
-// Pipeline layout mirrors Renderer3D_MeshletDeferred:
-//   set=0 = global descriptor set (shadow matrices SSBO at binding 6)
-//   set=1 = per-mesh meshlet buffers
-//   push constants = ShadowDrawPC (draw_data_base, light_index, face_index)
+// Heap-mode pipeline (VK_EXT_descriptor_heap), mirrors Renderer3D_MeshletDeferred:
+//   set=0 = engine globals (shadow matrices SSBO at HN_GBIND_SHADOW_MATRICES)
+//   set=1 = per-mesh meshlet buffers, resolved via the pushed resource_heap_base
+//   push  = ShadowMeshletPushData (resource_heap_base, draw_data_base, light_index, face_index)
 
 #type task
 #version 460
@@ -24,15 +24,17 @@ layout(set = 1, binding = 5) readonly buffer DrawDataBuffer { DrawData draws[]; 
 struct TaskPayload { uint meshlet_id; uint draw_id; };
 taskPayloadSharedEXT TaskPayload payload;
 
-layout(push_constant) uniform ShadowDrawPC {
-    uint draw_data_base;
+// Heap-mode push block — must match Honey::ShadowMeshletPushData's byte layout exactly
+// (resource_heap_base first, consumed by the driver for set=1 PUSH_INDEX resolution).
+layout(push_constant) uniform ShadowMeshletPushData {
+    uint resource_heap_base;
+    int  draw_data_base;
     int  light_index;
     uint face_index;
-    uint _pad;
 } u_PC;
 
 void main() {
-    uint draw_id  = u_PC.draw_data_base + gl_DrawID;
+    uint draw_id  = uint(u_PC.draw_data_base) + uint(gl_DrawID);
     DrawData d    = draws[draw_id];
     uint local_id = gl_GlobalInvocationID.x;
 
@@ -67,23 +69,26 @@ struct DrawData {
 };
 layout(set = 1, binding = 5) readonly buffer DrawDataBuffer { DrawData draws[]; };
 
+#include "global_bindings.glsli"
+
 struct ShadowLightMatrices {
     mat4  face_view_proj[6];
     vec3  position;
     float range;
 };
-layout(set = 0, binding = 6, std430) readonly buffer ShadowBuf {
+layout(set = HN_GLOBAL_SET, binding = HN_GBIND_SHADOW_MATRICES, std430) readonly buffer ShadowBuf {
     uint              shadow_light_count;
     uint              shadow_light_point_indices[8];
     uint              _pad[3];
     ShadowLightMatrices lights[];
 } u_Shadow;
 
-layout(push_constant) uniform ShadowDrawPC {
-    uint draw_data_base;
+// Heap-mode push block — must match Honey::ShadowMeshletPushData's byte layout exactly.
+layout(push_constant) uniform ShadowMeshletPushData {
+    uint resource_heap_base;
+    int  draw_data_base;
     int  light_index;
     uint face_index;
-    uint _pad;
 } u_PC;
 
 struct TaskPayload { uint meshlet_id; uint draw_id; };

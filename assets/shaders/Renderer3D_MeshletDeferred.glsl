@@ -22,15 +22,18 @@ layout(set = 1, binding = 5) readonly buffer DrawDataBuffer { DrawData draws[]; 
 struct TaskPayload { uint meshlet_id; uint draw_id; };
 taskPayloadSharedEXT TaskPayload payload;
 
-layout(push_constant) uniform MeshletPC {
-    int u_DrawDataBase;
-    int _pad0;
-    int _pad1;
-    int _pad2;
+// Heap-mode push block (VK_EXT_descriptor_heap): resource_heap_base/sampler_heap_base/flags are
+// consumed by the driver to resolve set=1 PUSH_INDEX descriptors, not read here. draw_data_base is
+// the one field this stage actually uses — must match Honey::PassPushData's byte layout exactly.
+layout(push_constant) uniform PassPushData {
+    uint resource_heap_base;
+    uint sampler_heap_base;
+    uint flags;
+    uint draw_data_base;
 } u_PC;
 
 void main() {
-    uint draw_id = uint(u_PC.u_DrawDataBase) + uint(gl_DrawID);
+    uint draw_id = u_PC.draw_data_base + uint(gl_DrawID);
     DrawData d = draws[draw_id];
     uint local_id = gl_GlobalInvocationID.x;
 
@@ -67,7 +70,9 @@ struct DrawData {
 };
 layout(set = 1, binding = 5) readonly buffer DrawDataBuffer { DrawData draws[]; };
 
-layout(set = 0, binding = 0) uniform CameraUBO {
+#include "global_bindings.glsli"
+
+layout(set = HN_GLOBAL_SET, binding = HN_GBIND_CAMERA) uniform CameraUBO {
     mat4  u_ViewProjection;
     vec3  u_Position;
     float u_Exposure;
@@ -152,8 +157,10 @@ layout(location = 0) out vec4 o_albedo;
 layout(location = 1) out vec4 o_normal;
 layout(location = 2) out vec4 o_pbr;
 
-layout(set = 0, binding = 3) uniform sampler u_Sampler;
-layout(set = 0, binding = 4) uniform texture2D u_Textures[];
+#include "global_bindings.glsli"
+
+layout(set = HN_GLOBAL_SET, binding = 3) uniform sampler u_Sampler;
+layout(set = HN_GLOBAL_SET, binding = 4) uniform texture2D u_Textures[];
 
 struct GPUMaterial {
     vec4  base_color;
@@ -197,7 +204,7 @@ struct GPUMaterial {
     float _pad1;
     float _pad2;
 };
-layout(set = 0, binding = 2) readonly buffer MaterialBuffer {
+layout(set = HN_GLOBAL_SET, binding = HN_GBIND_MATERIALS) readonly buffer MaterialBuffer {
     GPUMaterial materials[];
 } u_Materials;
 
