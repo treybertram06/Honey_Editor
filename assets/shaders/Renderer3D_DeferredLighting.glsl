@@ -106,7 +106,7 @@ layout(set = 1, binding = 5) uniform texture2DArray   u_ShadowDirMap;
 layout(set = 1, binding = 6) uniform texture2D        u_SSAO;
 layout(set = 1, binding = 7) uniform sampler          u_LinearSampler;
 layout(set = 1, binding = 8) uniform sampler          u_NearestSampler;
-// NOTE: shadow comparison is done manually because hardware sampling is not working with heap-mode pipelines
+layout(set = 1, binding = 9) uniform samplerShadow    u_ShadowCmpSampler;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -186,9 +186,8 @@ float sample_shadow(int shadow_slot, vec3 world_pos) {
     float s = 0.0;
     for (int i = 0; i < 8; ++i) {
         vec3 offset = taps[i].x * p1 + taps[i].y * p2;
-        // Manual depth comparison (LESS_OR_EQUAL): lit when ref <= stored occluder depth.
-        float stored = texture(samplerCubeArray(u_ShadowCubeArray, u_NearestSampler), vec4(dir + offset * r, float(shadow_slot))).r;
-        s += (ref <= stored) ? 1.0 : 0.0;
+        s += texture(samplerCubeArrayShadow(u_ShadowCubeArray, u_ShadowCmpSampler),
+                vec4(dir + offset * r, float(shadow_slot)), ref);
     }
     return s / 8.0;
 }
@@ -223,9 +222,8 @@ float sample_dir_shadow(vec3 world_pos) {
     vec2  texel = 1.0 / vec2(float(4096));
     for (int x = -1; x <= 1; ++x)
     for (int y = -1; y <= 1; ++y) {
-        // Manual depth comparison (LESS_OR_EQUAL): lit when ref <= stored occluder depth.
-        float stored = texture(sampler2DArray(u_ShadowDirMap, u_NearestSampler), vec3(uv + vec2(x, y) * texel, float(cascade))).r;
-        s += (ref <= stored) ? 1.0 : 0.0;
+        s += texture(sampler2DArrayShadow(u_ShadowDirMap, u_ShadowCmpSampler),
+                vec4(uv + vec2(x, y) * texel, float(cascade), ref));
     }
     float shadow = s / 9.0;
 
