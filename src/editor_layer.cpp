@@ -712,6 +712,7 @@ namespace Honey {
 
 
     void EditorLayer::new_scene() {
+        m_scene_filepath.clear();
         m_editor_scene = CreateRef<Scene>();
         m_active_scene = m_editor_scene;
         m_active_scene->on_viewport_resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
