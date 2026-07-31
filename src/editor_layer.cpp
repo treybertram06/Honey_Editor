@@ -608,6 +608,7 @@ namespace Honey {
 
     void EditorLayer::on_overlay_render() {
 
+#if HN_RENDERER_2D_ENABLED
         if (m_scene_state == SceneState::play) {
             Entity camera_entity = m_active_scene->get_primary_camera();
             if (!camera_entity.is_valid())
@@ -653,6 +654,7 @@ namespace Honey {
         }
 
         Renderer2D::end_scene();
+#endif
 
         // 3D physics debug shapes
         if (Settings::get().physics.show_jolt_debug_draw) {

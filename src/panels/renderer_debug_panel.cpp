@@ -81,7 +81,7 @@ namespace Honey {
                 }
             }
             //ImGui::Text("Smoothed FPS: %d", editor.m_framerate_counter.get_smoothed_fps());
-
+#if HN_RENDERER_2D_ENABLED
             ImGui::Separator();
             auto stats = Renderer2D::get_stats();
             ImGui::Text("Draw Calls: %d", stats.draw_calls);
@@ -92,6 +92,7 @@ namespace Honey {
             if (ImGui::Button("Reset Statistics")) {
                 Renderer2D::reset_stats();
             }
+#endif
 
             ImGui::Separator();
             const auto& fg_stats = editor.m_scene_viewport_renderer.get_frame_graph_stats();
