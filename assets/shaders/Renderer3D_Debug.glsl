@@ -5,7 +5,8 @@ layout(location = 0) in vec3 a_position;
 layout(location = 1) in vec4 a_color;
 
 #ifdef HN_VULKAN
-layout(set = 0, binding = 0, std140) uniform CameraUBO {
+#include "global_bindings.glsli"
+layout(set = HN_GLOBAL_SET, binding = HN_GBIND_CAMERA, std140) uniform CameraUBO {
     mat4 u_view_projection;
 };
 #else
