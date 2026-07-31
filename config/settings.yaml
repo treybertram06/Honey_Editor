@@ -14,7 +14,7 @@ Renderer:
   AnisotropicFilteringLevel: 16
   TextureFilter: Anisotropic
   CullMode: None
-  DirShadowDistance: 400
+  DirShadowDistance: 250
   EditorCameraExposure: 1
 Physics:
   Enabled: true
