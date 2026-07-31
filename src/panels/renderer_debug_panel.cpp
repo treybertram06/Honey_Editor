@@ -222,9 +222,14 @@ namespace Honey {
             {
                 static const char* geometry_path_names[] = { "Classic", "Meshlet" };
                 int current_index = static_cast<int>(renderer.geometry_path);
+                ImGui::BeginDisabled(true);
                 if (ImGui::Combo("Geometry Path", &current_index, geometry_path_names, IM_ARRAYSIZE(geometry_path_names))) {
                     renderer.geometry_path = static_cast<GeometryPath>(current_index);
-                    Renderer3D::set_geometry_render_path(renderer.geometry_path);
+                    //Renderer3D::set_geometry_render_path(renderer.geometry_path);
+                }
+                ImGui::EndDisabled();
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                    ImGui::SetTooltip("Classic-geo pipelines have been removed. Will be replaced with emulation to support older hardware when deemed necessary.");
                 }
             }
 
