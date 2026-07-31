@@ -10,13 +10,26 @@
 #include "Honey/renderer/render_command.h"
 #include "Honey/renderer/texture_cache.h"
 #include "Honey/scene/entity.h"
+#include "platform/vulkan/vk_context.h"
+#include "platform/vulkan/vk_backend.h"
+#include "platform/vulkan/vk_descriptor_heap.h"
 
 static const std::filesystem::path asset_root = ASSET_ROOT;
 
 namespace Honey {
 
     namespace {
-
+        const char* descriptor_type_name(VkDescriptorType type) {
+            switch (type) {
+                case VK_DESCRIPTOR_TYPE_SAMPLER:                 return "Sampler";
+                case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:            return "SampledImage";
+                case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:            return "StorageImage";
+                case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:           return "UniformBuffer";
+                case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:           return "StorageBuffer";
+                case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:   return "CombinedImageSampler";
+                default:                                          return "Unknown";
+            }
+        }
     }
 
     RendererDebugPanel::RendererDebugPanel() {}
@@ -98,6 +111,43 @@ namespace Honey {
                     }
                 }
                 ImGui::TreePop();
+            }
+        }
+
+        // Descriptor Heap Section (Vulkan-only)
+        if (RendererAPI::get_api() == RendererAPI::API::vulkan &&
+            ImGui::CollapsingHeader("Descriptor Heap")) {
+            auto& app = Application::get();
+            auto& window = app.get_window();
+            auto* ctx = static_cast<VulkanContext*>(window.get_context());
+            auto entries = ctx->get_backend()->get_descriptor_heap()->get_frame_dump_entries();
+
+            ImGui::Text("Entries this frame: %zu", entries.size());
+            if (ImGui::BeginTable("DescriptorHeapDump", 5,
+                                   ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY,
+                                   ImVec2(0, 300))) {
+                ImGui::TableSetupColumn("Offset");
+                ImGui::TableSetupColumn("Size");
+                ImGui::TableSetupColumn("Type");
+                ImGui::TableSetupColumn("Resource");
+                ImGui::TableSetupColumn("Pass");
+                ImGui::TableSetupScrollFreeze(0, 1);
+                ImGui::TableHeadersRow();
+
+                for (const auto& e : entries) {
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    ImGui::Text("%u", e.offset);
+                    ImGui::TableSetColumnIndex(1);
+                    ImGui::Text("%u", e.size);
+                    ImGui::TableSetColumnIndex(2);
+                    ImGui::Text("%s", descriptor_type_name(e.type));
+                    ImGui::TableSetColumnIndex(3);
+                    ImGui::Text("%s", e.resource_name.c_str());
+                    ImGui::TableSetColumnIndex(4);
+                    ImGui::Text("%s", e.pass_name.c_str());
+                }
+                ImGui::EndTable();
             }
         }
 
