@@ -98,6 +98,11 @@ Scenes are YAML files (`.hns`) serialized by `SceneSerializer`. Prefabs use `.hn
 
 Use the engine macros: `HN_INFO(...)`, `HN_WARN(...)`, `HN_ERROR(...)`, `HN_TRACE(...)`. Backed by spdlog.
 
+
+### Vulkan Validation Warnings
+
+- Do a web search of the link provided in the validation warning to ensure your understanding of the issue is correct.
+
 ## Architecture Invariants
 
 Standing rules that hold across **all** work, not just one feature. If a plan or change would violate one, **stop and flag it** — don't quietly work around it or find a place to park the offending code. This list is meant to grow — add an invariant here the moment a cross-cutting rule causes (or nearly causes) a mistake.
