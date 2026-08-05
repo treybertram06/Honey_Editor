@@ -27,6 +27,8 @@ void main() {
 //#define CSM_CASCADE_DEBUG
 #undef SSAO_DEBUG
 //#define SSAO_DEBUG
+#undef VECTOR_ICON_DEBUG
+//#define VECTOR_ICON_DEBUG
 
 layout(location = 0) in vec2 v_uv;
 
@@ -93,7 +95,7 @@ layout(set = HN_GLOBAL_SET, binding = HN_GBIND_DIR_SHADOW, std430) readonly buff
     uint  _pad;
 } u_DirShadow;
 
-
+//TODO: Add a new HN_NAME_MATCHED macro that will autofill these binding numbers, or even a macro that handles the whole delaraation: HN_DEFINE_FG_RESOURCE(u_gAlbedo);
 // ---- set=1 G-buffer textures and samplers ----
 layout(set = 1, binding = 0) uniform texture2D        u_gAlbedo;
 layout(set = 1, binding = 1) uniform texture2D        u_gNormal;
@@ -104,9 +106,13 @@ layout(set = 1, binding = 4) uniform textureCubeArray u_ShadowCubeArray;
 layout(set = 1, binding = 5) uniform texture2DArray   u_ShadowDirMap;
 // binding 6: SSAO occlusion factor (1.0 = fully lit, 0.0 = fully occluded)
 layout(set = 1, binding = 6) uniform texture2D        u_SSAO;
-layout(set = 1, binding = 7) uniform sampler          u_LinearSampler;
-layout(set = 1, binding = 8) uniform sampler          u_NearestSampler;
-layout(set = 1, binding = 9) uniform samplerShadow    u_ShadowCmpSampler;
+// Vector icon data
+layout(set = 1, binding = 7) uniform texture2D       u_VectorTexture;
+layout(set = 1, binding = 8) uniform itexture2D      u_VectorEntityTexture;
+// Texture samplers
+layout(set = 1, binding = 9) uniform sampler          u_LinearSampler;
+layout(set = 1, binding = 10) uniform sampler          u_NearestSampler;
+layout(set = 1, binding = 11) uniform samplerShadow    u_ShadowCmpSampler;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -290,10 +296,17 @@ void main() {
     float roughness = max(pbr_samp.g, 0.04);
     float ao        = pbr_samp.b * texture(sampler2D(u_SSAO, u_LinearSampler), v_uv).r;
 
-    // Background: no geometry written (depth == 1.0), skip lighting
+    // Vector icon overlay
+    vec4 vector_icon =      texture(sampler2D(u_VectorTexture, u_LinearSampler), v_uv);
+    int  vector_icon_id =   texture(isampler2D(u_VectorEntityTexture, u_NearestSampler), v_uv).r;
+
+    // Background: no geometry written (depth == 1.0), skip lighting. Icons can still
+    // draw here (e.g. a light gizmo floating over empty sky), so apply the same
+    // icon composite as the lit path before returning.
     if (depth >= 1.0) {
-        o_color     = vec4(albedo, 1.0);
-        o_entity_id = -1;
+        vec3 bg_color = mix(albedo, vector_icon.rgb, vector_icon.a);
+        o_color     = vec4(bg_color, 1.0);
+        o_entity_id = (vector_icon.a > 0.0) ? vector_icon_id : -1;
         return;
     }
 
@@ -347,6 +360,9 @@ void main() {
     vec3 ambient = (kD * albedo + kS * 0.04) * vec3(0.08) * ao;
     vec3 color   = ambient + Lo * mix(1.0, ao, 0.5) + emissive; // Adding ao contribution to lit parts of the scene is not physically accurate, but I think it looks better
 
+    // Add vector icon overlay
+    color = mix(color, vector_icon.rgb, vector_icon.a);
+
     // ACES tonemap + gamma correction
     color *= u_Camera.u_Exposure;
     color = aces_tonemap(color);
@@ -374,5 +390,6 @@ void main() {
     #ifdef SSAO_DEBUG
     o_color     = vec4(vec3(texture(sampler2D(u_SSAO, u_LinearSampler), v_uv).r), 1.0);
     #endif
-    o_entity_id = -1;
+
+    o_entity_id = (vector_icon.a > 0.0) ? vector_icon_id : -1;
 }
