@@ -36,6 +36,9 @@ namespace Honey {
         m_icon_pause        = Texture2D::create_async("../resources/icons/toolbar/pause_button.png");
         m_icon_simulate     = Texture2D::create_async("../resources/icons/toolbar/simulate_button.png");
 
+        m_icon_light        = VectorIcon::create(asset_root / "textures" / "flask-solid-full.svg");
+        m_icon_camera       = VectorIcon::create("../resources/icons/scene/camera/camera-regular-full.svg");
+
         m_scene_hierarchy_panel.set_notification_center(&m_notification_center);
 
         new_scene();
@@ -708,6 +711,36 @@ namespace Honey {
             }
 
             DebugRenderer3D::end_scene();
+        }
+
+        // Editor gizmo icons for entities that otherwise render nothing in the viewport
+        // (lights, cameras). Selection is free once entity_id is wired through - clicking one
+        // goes through the normal pick_entity_at_mouse() path, no separate click handling here.
+        {
+            constexpr float k_gizmo_icon_px_size = 32.0f;
+            auto submit_gizmo_icon = [&](entt::entity entity, const Ref<VectorIcon>& icon) {
+                if (!icon) return;
+                Entity e{ entity, m_active_scene.get() };
+                glm::vec3 world_pos = glm::vec3(e.get_world_transform()[3]);
+                Renderer3D::submit_icon(icon, world_pos, k_gizmo_icon_px_size,
+                    Renderer3D::SizeMode::ScreenSpace, glm::vec4(1.0f), (int)entity);
+            };
+
+            auto point_lights = m_active_scene->get_all_entities_with<TransformComponent, PointLightComponent>();
+            for (auto entity : point_lights)
+                submit_gizmo_icon(entity, m_icon_light);
+
+            auto dir_lights = m_active_scene->get_all_entities_with<TransformComponent, DirectionalLightComponent>();
+            for (auto entity : dir_lights)
+                submit_gizmo_icon(entity, m_icon_light);
+
+            auto spot_lights = m_active_scene->get_all_entities_with<TransformComponent, SpotLightComponent>();
+            for (auto entity : spot_lights)
+                submit_gizmo_icon(entity, m_icon_light);
+
+            auto cameras = m_active_scene->get_all_entities_with<TransformComponent, CameraComponent>();
+            for (auto entity : cameras)
+                submit_gizmo_icon(entity, m_icon_camera);
         }
 
     }
