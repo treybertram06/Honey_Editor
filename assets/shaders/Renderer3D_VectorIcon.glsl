@@ -9,6 +9,7 @@ layout(location = 4) out vec2 v_canvas_size;
 layout(location = 5) out vec4 v_bbox;
 layout(location = 6) flat out uint v_band_offset;
 layout(location = 7) flat out uint v_band_count;
+layout(location = 8) out vec4 v_clip;
 
 
 #include "global_bindings.glsli"
@@ -70,6 +71,9 @@ void main() {
         // solved for world_height. See Renderer3D_DeferredLighting.glsl for the same
         // abs(view-space z) idiom used for view_z here.
         float view_z          = abs((u_Camera.u_View * vec4(inst.world_pos.xyz, 1.0)).z);
+        // u_gDepth's height IS this pass's target height - vectorTexture is declared
+        // MatchSize: gBuffer in deferred.hnfg, so the two resolutions are equal by construction.
+        // Reused here only to avoid plumbing a separate render-target-size uniform.
         float viewport_height = float(textureSize(sampler2D(u_gDepth, u_NearestSampler), 0).y);
         float fov_scale        = u_Camera.u_Projection[1][1]; // = 1 / tan(fovY / 2)
 
@@ -82,7 +86,9 @@ void main() {
     + (camera_up * local_pos.y * size);
 
     // Calculate final clip position
-    gl_Position = u_Camera.u_Projection * u_Camera.u_View * vec4(world_pos, 1.0);
+    vec4 clip = u_Camera.u_Projection * u_Camera.u_View * vec4(world_pos, 1.0);
+    gl_Position = clip;
+    v_clip = clip;
 
     // Pass instance attributes to fragment shader - all flat/constant across one shape's quad
     // except v_uv, which the fragment stage re-maps into this shape's own SVG-unit space.
@@ -106,6 +112,7 @@ layout(location = 4) in vec2 v_canvas_size;
 layout(location = 5) in vec4 v_bbox;
 layout(location = 6) flat in uint v_band_offset;
 layout(location = 7) flat in uint v_band_count;
+layout(location = 8) in vec4 v_clip;
 
 layout(location = 0) out vec4 o_color;
 layout(location = 1) out int  o_entity_id;
@@ -175,24 +182,15 @@ float bezier_winding(vec2 p0, vec2 p1, vec2 p2, float px_size) {
 }
 
 void main() {
-    // gBuffer's depth target is full swapchain resolution, same as this
-    // pass's own targets, so this fragment's screen UV can be recovered
-    // straight from its window-space coordinate without a resolution uniform.
-    vec2 depth_size = vec2(textureSize(sampler2D(u_gDepth, u_NearestSampler), 0));
-    vec2 screen_uv  = gl_FragCoord.xy / depth_size;
+    // Screen UV comes from the interpolated clip position, not gl_FragCoord / textureSize(u_gDepth):
+    // NDC -> UV carries no resolution term, so this stays correct even if the pass target and the
+    // depth texture ever differ in size. (They no longer do - vectorTexture is MatchSize: gBuffer -
+    // but deriving it this way means the occlusion test never depends on that holding.)
+    // The divide happens per-fragment: v_clip is passed through un-divided so the rasterizer can
+    // interpolate it perspective-correctly.
+    vec2 screen_uv  = clamp((v_clip.xy / v_clip.w) * 0.5 + 0.5, 0.0, 1.0);
 
     float scene_depth = texture(sampler2D(u_gDepth, u_NearestSampler), screen_uv).r;
-
-#if 1 // TEMP DEBUG - remove once occlusion is confirmed working
-    // Binary pass/fail of the exact same comparison used for the real discard below - avoids
-    // raw-depth-value visualization being useless due to standard-Z's precision compression
-    // (everything past a few meters reads near-1.0 to the eye either way).
-    bool occluded = gl_FragCoord.z > scene_depth;
-    o_color = occluded ? vec4(1.0, 0.0, 0.0, 1.0)  // RED = this pixel thinks it's occluded
-                        : vec4(0.0, 1.0, 0.0, 1.0); // GREEN = this pixel thinks it's visible
-    o_entity_id = v_entity_id;
-    return;
-#endif
 
     // Standard (non-reversed) depth: smaller = nearer. If real scene geometry
     // at this pixel is closer to the camera than this icon fragment, the

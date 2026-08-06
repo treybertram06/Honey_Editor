@@ -86,7 +86,7 @@ namespace Honey {
 
         //Editor resources
         Ref<Texture2D> m_icon_play, m_icon_stop, m_icon_pause, m_icon_simulate;
-        Ref<VectorIcon> m_icon_light, m_icon_camera;
+        Ref<VectorIcon> m_icon_point_light, m_icon_dir_light, m_icon_camera;
 
         UI::NotificationCenter m_notification_center;
         bool m_quit_requested = false;

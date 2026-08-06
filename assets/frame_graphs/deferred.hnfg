@@ -51,17 +51,18 @@ FrameGraph:
       Height: swapchain
       Layers: 1
 
+    # Both must match gBuffer, not the swapchain: the vector pass has no depth attachment and
+    # instead samples gBuffer's depth for occlusion, and the transient-target allocator requires
+    # every texture a single pass writes to share one resolution.
     vectorTexture:
       Type: Texture
       Format: RGBA16F
-      Width: swapchain
-      Height: swapchain
+      MatchSize: gBuffer
       Layers: 1
     vectorEntityTexture:
       Type: Texture
       Format: red_integer
-      Width: swapchain
-      Height: swapchain
+      MatchSize: gBuffer
       Layers: 1
 
   Passes:
