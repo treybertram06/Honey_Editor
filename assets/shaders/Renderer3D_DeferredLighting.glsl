@@ -114,6 +114,8 @@ layout(set = 1, binding = 9) uniform sampler          u_LinearSampler;
 layout(set = 1, binding = 10) uniform sampler          u_NearestSampler;
 layout(set = 1, binding = 11) uniform samplerShadow    u_ShadowCmpSampler;
 
+layout(set = 1, binding = 12) uniform itexture2D        u_gEntityID;
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -124,6 +126,17 @@ vec2 unpack_rg(float v) {
     float r = floor(v * 256.0) / 255.0;
     float g = fract(v * 256.0);
     return vec2(r, g);
+}
+
+vec3 entity_id_to_debug_color(int entity_id) {
+    if (entity_id < 0)
+        return vec3(0.0);
+
+    float id = float(entity_id);
+    return vec3(
+        fract(sin(id * 12.9898) * 43758.5453),
+        fract(sin(id * 78.2330) * 43758.5453),
+        fract(sin(id * 39.4250) * 43758.5453));
 }
 
 float distribution_ggx(float NdotH, float roughness) {
@@ -296,9 +309,16 @@ void main() {
     float roughness = max(pbr_samp.g, 0.04);
     float ao        = pbr_samp.b * texture(sampler2D(u_SSAO, u_LinearSampler), v_uv).r;
 
+    int geometry_id = texture(isampler2D(u_gEntityID, u_NearestSampler), v_uv).r;
     // Vector icon overlay
     vec4 vector_icon =      texture(sampler2D(u_VectorTexture, u_LinearSampler), v_uv);
     int  vector_icon_id =   texture(isampler2D(u_VectorEntityTexture, u_NearestSampler), v_uv).r;
+
+    // Icons win picking over whatever is behind them across their whole quad, not just where
+    // they have ink - the icon pass writes its id for every unoccluded quad fragment and leaves
+    // -1 elsewhere, so the id itself is the hit test. Gating on vector_icon.a instead would
+    // shrink the hitbox back down to the visible strokes.
+    int picked_id = (vector_icon_id >= 0) ? vector_icon_id : geometry_id;
 
     // Background: no geometry written (depth == 1.0), skip lighting. Icons can still
     // draw here (e.g. a light gizmo floating over empty sky), so apply the same
@@ -306,7 +326,10 @@ void main() {
     if (depth >= 1.0) {
         vec3 bg_color = mix(albedo, vector_icon.rgb, vector_icon.a);
         o_color     = vec4(bg_color, 1.0);
-        o_entity_id = (vector_icon.a > 0.0) ? vector_icon_id : -1;
+        #ifdef VECTOR_ICON_DEBUG
+        o_color     = vec4(entity_id_to_debug_color(picked_id), 1.0);
+        #endif
+        o_entity_id = picked_id;
         return;
     }
 
@@ -390,6 +413,9 @@ void main() {
     #ifdef SSAO_DEBUG
     o_color     = vec4(vec3(texture(sampler2D(u_SSAO, u_LinearSampler), v_uv).r), 1.0);
     #endif
+    #ifdef VECTOR_ICON_DEBUG
+    o_color     += vec4(entity_id_to_debug_color(picked_id), 1.0);
+    #endif
 
-    o_entity_id = (vector_icon.a > 0.0) ? vector_icon_id : -1;
+    o_entity_id = picked_id;
 }

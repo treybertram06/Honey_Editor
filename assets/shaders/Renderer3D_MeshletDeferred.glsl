@@ -156,6 +156,7 @@ layout(location = 6) flat in int  v_materialIndex;
 layout(location = 0) out vec4 o_albedo;
 layout(location = 1) out vec4 o_normal;
 layout(location = 2) out vec4 o_pbr;
+layout(location = 3) out int  o_entityID;
 
 #include "global_bindings.glsli"
 
@@ -303,4 +304,5 @@ void main() {
                     pack_rg(clamp(emissive.b, 0.0, 1.0), 0.0));
 
     o_pbr = vec4(metallic, roughness, ao, 0.0);
+    o_entityID = v_entityID;
 }
