@@ -718,7 +718,7 @@ namespace Honey {
         // (lights, cameras). Selection is free once entity_id is wired through - clicking one
         // goes through the normal pick_entity_at_mouse() path, no separate click handling here.
         {
-            constexpr float k_gizmo_icon_px_size = 32.0f;
+            const float k_gizmo_icon_px_size = Settings::get().editor.gizmo_icon_size;
             auto submit_gizmo_icon = [&](entt::entity entity, const Ref<VectorIcon>& icon) {
                 if (!icon) return;
                 Entity e{ entity, m_active_scene.get() };

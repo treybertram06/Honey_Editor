@@ -26,3 +26,5 @@ Window:
   PosX: 190
   PosY: 213
   Fullscreen: false
+Editor:
+  GizmoIconSize: 48
