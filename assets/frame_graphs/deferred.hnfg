@@ -11,7 +11,25 @@ FrameGraph:
     editorViewport:
       Type: ImportedTarget
       Kind: ExternalFramebuffer
-    gBuffer:
+    # gAlbedo/gNormal/gPBRParams/gEntityID/gDepth all alias the same externally-owned G-buffer
+    # framebuffer (registered under these 5 names in scene_viewport_renderer.cpp), one name per
+    # attachment instead of one "gBuffer" name with hand-written Attachment: indices at every read
+    # site. attachment_index is derived automatically from this list's order in the GBuffer pass's
+    # Writes: below — do not reorder without updating gbuffer_spec.attachments in
+    # scene_viewport_renderer.cpp to match.
+    gAlbedo:
+      Type: ImportedTarget
+      Kind: ExternalFramebuffer
+    gNormal:
+      Type: ImportedTarget
+      Kind: ExternalFramebuffer
+    gPBRParams:
+      Type: ImportedTarget
+      Kind: ExternalFramebuffer
+    gEntityID:
+      Type: ImportedTarget
+      Kind: ExternalFramebuffer
+    gDepth:
       Type: ImportedTarget
       Kind: ExternalFramebuffer
     ssaoKernel:
@@ -51,18 +69,19 @@ FrameGraph:
       Height: swapchain
       Layers: 1
 
-    # Both must match gBuffer, not the swapchain: the vector pass has no depth attachment and
-    # instead samples gBuffer's depth for occlusion, and the transient-target allocator requires
-    # every texture a single pass writes to share one resolution.
+    # Both must match the G-buffer, not the swapchain: the vector pass has no depth attachment and
+    # instead samples gDepth for occlusion, and the transient-target allocator requires every
+    # texture a single pass writes to share one resolution. gAlbedo is just the conventional choice
+    # among the 5 gBuffer aliases — any of them resolves to the same width/height.
     vectorTexture:
       Type: Texture
       Format: RGBA16F
-      MatchSize: gBuffer
+      MatchSize: gAlbedo
       Layers: 1
     vectorEntityTexture:
       Type: Texture
       Format: red_integer
-      MatchSize: gBuffer
+      MatchSize: gAlbedo
       Layers: 1
 
   Passes:
@@ -86,7 +105,7 @@ FrameGraph:
     - Name: GBuffer
       Executor: deferred.gbuffer
       Queue: graphics
-      Writes: [gBuffer]
+      Writes: [gAlbedo, gNormal, gPBRParams, gEntityID, gDepth]
       Clear:
         color: [0.0, 0.0, 0.0, 0.0]
 
@@ -108,8 +127,8 @@ FrameGraph:
       Executor: ssao.draw
       Queue: graphics
       ReadBindings:
-        - { Name: gBuffer,    Usage: sampled, Shader: u_gNormal,     Attachment: 1, ViewKind: Color2D }
-        - { Name: gBuffer,    Usage: sampled, Shader: u_gDepth,                     ViewKind: DepthSampler }
+        - { Name: gNormal,    Usage: sampled, Shader: u_gNormal,                    ViewKind: Color2D }
+        - { Name: gDepth,     Usage: sampled, Shader: u_gDepth,                     ViewKind: DepthSampler }
         - { Name: ssaoNoise,  Usage: sampled, Shader: u_NoiseTexture,               ViewKind: Color2D }
         - { Name: ssaoKernel, Usage: uniform, Shader: SSAOKernelUBO }
       Writes: [ssaoRaw]
@@ -120,7 +139,7 @@ FrameGraph:
       Executor: vector.draw
       Queue: graphics
       ReadBindings:
-        - { Name: gBuffer,    Usage: sampled, Shader: u_gDepth,                     ViewKind: DepthSampler }
+        - { Name: gDepth,     Usage: sampled, Shader: u_gDepth,                     ViewKind: DepthSampler }
       Writes: [vectorTexture, vectorEntityTexture]
       Clear:
         color: [0.0, 0.0, 0.0, 0.0]
@@ -141,16 +160,16 @@ FrameGraph:
       Executor: deferred.lighting
       Queue: graphics
       ReadBindings:
-        - { Name: gBuffer,       Usage: sampled, Shader: u_gAlbedo,         Attachment: 0, ViewKind: Color2D }
-        - { Name: gBuffer,       Usage: sampled, Shader: u_gNormal,         Attachment: 1, ViewKind: Color2D }
-        - { Name: gBuffer,       Usage: sampled, Shader: u_gPBRParams,      Attachment: 2, ViewKind: Color2D }
-        - { Name: gBuffer,       Usage: sampled, Shader: u_gEntityID,       Attachment: 3, ViewKind: Color2D }
-        - { Name: gBuffer,       Usage: sampled, Shader: u_gDepth,                         ViewKind: DepthSampler }
+        - { Name: gAlbedo,       Usage: sampled, Shader: u_gAlbedo,                       ViewKind: Color2D }
+        - { Name: gNormal,       Usage: sampled, Shader: u_gNormal,                       ViewKind: Color2D }
+        - { Name: gPBRParams,    Usage: sampled, Shader: u_gPBRParams,                    ViewKind: Color2D }
+        - { Name: gEntityID,     Usage: sampled, Shader: u_gEntityID,                     ViewKind: Color2D }
+        - { Name: gDepth,        Usage: sampled, Shader: u_gDepth,                        ViewKind: DepthSampler }
         - { Name: shadowCubemap, Usage: sampled, Shader: u_ShadowCubeArray,                ViewKind: CubeArray }
         - { Name: shadowDirMap,  Usage: sampled, Shader: u_ShadowDirMap,                   ViewKind: DepthSampler }
         - { Name: ssaoTexture,   Usage: sampled, Shader: u_SSAO,                           ViewKind: Color2D }
-        - { Name: vectorTexture,       Usage: sampled, Shader: u_VectorTexture,       Attachment: 0, ViewKind: Color2D }
-        - { Name: vectorEntityTexture, Usage: sampled, Shader: u_VectorEntityTexture, Attachment: 1, ViewKind: Color2D }
+        - { Name: vectorTexture,       Usage: sampled, Shader: u_VectorTexture,       ViewKind: Color2D }
+        - { Name: vectorEntityTexture, Usage: sampled, Shader: u_VectorEntityTexture, ViewKind: Color2D }
       Writes: [editorViewport]
       Clear:
         color: [0.1, 0.1, 0.1, 1.0]
