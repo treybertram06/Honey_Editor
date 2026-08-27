@@ -183,6 +183,8 @@ float bezier_winding(vec2 p0, vec2 p1, vec2 p2, float px_size) {
 
 void main() {
     o_entity_id = v_entity_id; // Write entity ID immediately
+    o_color     = vec4(0.0); // Write 0.0 so the later early-returns dont flush whatever garbage o_color was initialized with to the fb
+
     // Screen UV comes from the interpolated clip position, not gl_FragCoord / textureSize(u_gDepth):
     // NDC -> UV carries no resolution term, so this stays correct even if the pass target and the
     // depth texture ever differ in size. (They no longer do - vectorTexture is MatchSize: gBuffer -
