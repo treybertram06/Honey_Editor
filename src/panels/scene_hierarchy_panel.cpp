@@ -2,6 +2,7 @@
 
 #include <type_traits>
 #include <filesystem>
+#include <algorithm>
 #include <imgui.h>
 
 #include "imgui_internal.h"
@@ -28,6 +29,9 @@ namespace Honey {
 
     void SceneHierarchyPanel::on_imgui_render() {
         ImGui::Begin("Scene Hierarchy");
+
+        m_selection_parent_set.clear();
+        populate_selection_parent_set(m_selected_entity); // Must run first so the set is populated when nodes are drawn
 
         if (m_context) {
             auto view = m_context->get_registry().view<TagComponent>();
@@ -141,19 +145,48 @@ namespace Honey {
         return false;
     }
 
+    void SceneHierarchyPanel::populate_selection_parent_set(const Entity child) {
+        if (!child.is_valid())
+            return;
+
+        Entity parent = child.get_parent();
+        if (parent.is_valid()) {
+            m_selection_parent_set.emplace_back(parent);
+            populate_selection_parent_set(parent);
+        }
+    }
+
     void SceneHierarchyPanel::draw_entity_node(Entity entity) {
         auto& tag = entity.get_component<TagComponent>();
         bool has_children = entity.has_component<RelationshipComponent>() &&
                             !entity.get_component<RelationshipComponent>().children.empty();
+        bool is_selected = m_selected_entity == entity;
+        // m_selection_parent_set is repopulated every frame in on_imgui_render
+        bool is_selection_ancestor = std::ranges::find(m_selection_parent_set, entity) != m_selection_parent_set.end();
 
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth |
-                                   ((m_selected_entity == entity) ? ImGuiTreeNodeFlags_Selected : 0);
+                                   ((is_selected || is_selection_ancestor) ? ImGuiTreeNodeFlags_Selected : 0);
         if (!has_children)
             flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 
+        // Ancestors of the selection get a dimmed version of the Selected header color, so a
+        // collapsed parent hints "the selection is in here" without reading as the selection itself.
+        int pushed_header_colors = 0;
+        if (is_selection_ancestor && !is_selected) {
+            for (ImGuiCol col : { ImGuiCol_Header, ImGuiCol_HeaderHovered, ImGuiCol_HeaderActive }) {
+                ImVec4 color = ImGui::GetStyleColorVec4(col);
+                color.w *= 0.5f;
+                ImGui::PushStyleColor(col, color);
+                ++pushed_header_colors;
+            }
+        }
+
         bool opened = ImGui::TreeNodeEx((void*)(uint64_t)(uint32_t)entity.get_handle(), flags, "%s", tag.tag.c_str());
 
-        if (ImGui::IsItemClicked())
+        if (pushed_header_colors > 0)
+            ImGui::PopStyleColor(pushed_header_colors);
+
+        if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
             m_selected_entity = entity;
 
         if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {

@@ -27,9 +27,11 @@ namespace Honey {
         void delete_entity(Entity entity);
     private:
         bool is_descendant(Entity entity, Entity ancestor) const;
+        void populate_selection_parent_set(Entity child);
 
         Ref<Scene> m_context;
         Entity m_selected_entity;
+        std::vector<Entity> m_selection_parent_set;
         UI::NotificationCenter* m_notification_center = nullptr;
 
         void draw_entity_node(Entity entity);
