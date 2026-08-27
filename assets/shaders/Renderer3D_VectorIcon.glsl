@@ -182,6 +182,7 @@ float bezier_winding(vec2 p0, vec2 p1, vec2 p2, float px_size) {
 }
 
 void main() {
+    o_entity_id = v_entity_id; // Write entity ID immediately
     // Screen UV comes from the interpolated clip position, not gl_FragCoord / textureSize(u_gDepth):
     // NDC -> UV carries no resolution term, so this stays correct even if the pass target and the
     // depth texture ever differ in size. (They no longer do - vectorTexture is MatchSize: gBuffer -
@@ -197,7 +198,7 @@ void main() {
     // icon is occluded. This is the manual stand-in for hardware depthTest
     // now that this pass has no bound depth attachment of its own.
     if (gl_FragCoord.z > scene_depth)
-        discard;
+        discard; // This needs to be discard, if the icon is occluded it should not write entity ID
 
     // Recover this fragment's position in the icon's SVG canvas space. v_uv spans the whole
     // quad, which corresponds to the icon's whole canvas (0,0)-(canvas_size), shared by every
@@ -209,7 +210,7 @@ void main() {
     vec2 bbox_min = v_bbox.xy;
     vec2 bbox_max = v_bbox.zw;
     if (any(lessThan(frag_font, bbox_min)) || any(greaterThan(frag_font, bbox_max)))
-        discard;
+        return; // Return rather than discard, so the entity ID write is still flushed to the fb
 
     // Pixel footprint in SVG units — drives the AA width.
     float px_size = fwidth(frag_font.x);
@@ -231,11 +232,11 @@ void main() {
                                   px_size);
     }
 
-    // Non-zero fill rule; coverage is smooth thanks to the per-crossing AA.
+// Non-zero fill rule; coverage is smooth thanks to the per-crossing AA.
     float coverage = clamp(abs(winding), 0.0, 1.0);
     if (coverage <= 0.0)
-        discard;
+        return; // Same reason to use return as above
 
     o_color     = vec4(v_fill_color.rgb * v_tint.rgb, v_fill_color.a * v_tint.a * coverage);
-    o_entity_id = v_entity_id;
+    //o_entity_id = v_entity_id; // moved this to the beginning; should write the entity ID for the whole quad? does discard throw out the whole fragment even if its already been written?
 }
