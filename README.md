@@ -113,7 +113,7 @@ It combines a **custom rendering engine**, **ECS architecture**, and a **fully i
 Ensure you clone with submodules if any are used (though most dependencies are vendored directly in `Honey/vendor` and `Honey/engine/vendor`):
 
 ```bash
-git clone https://github.com/yourusername/Honey_Editor.git
+git clone https://github.com/treybertram06/Honey_Editor.git --recurse-submodules
 cd Honey_Editor
 ```
 
