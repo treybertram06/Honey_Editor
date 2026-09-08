@@ -57,7 +57,9 @@ namespace Honey {
         void draw_ui_toolbar();
         void draw_menu_bar();
 
+        // Temp testing stuff
         Ref<Texture2D::AsyncHandle> m_test_async_tex;
+        Ref<TextureCube> m_test_tex_cube;
 
         SceneViewportRenderer m_scene_viewport_renderer;
         bool m_collect_frame_graph_timings = true;

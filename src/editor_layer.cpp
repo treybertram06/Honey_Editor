@@ -48,6 +48,9 @@ namespace Honey {
         m_scene_viewport_renderer.initialize();
         m_scene_viewport_renderer.resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
 
+
+        // Temp testing
+        m_test_tex_cube = TextureCube::create(asset_root / "hdris" / "skybox.hdr");
     }
 
     bool EditorLayer::update_scene_for_current_state(Timestep ts) {

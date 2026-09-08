@@ -1,0 +1,36 @@
+#version 460
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) uniform sampler2D u_equirect;
+layout(set = 0, binding = 1, rgba16f) uniform writeonly image2DArray u_cubeFaces;
+
+layout(push_constant) uniform PC {
+    int face_size;
+} pc;
+
+const float PI = 3.14159265359;
+
+void main() {
+    ivec3 coord = ivec3(gl_GlobalInvocationID);
+    if (coord.x >= pc.face_size || coord.y >= pc.face_size) return;
+
+    vec2 uv = (vec2(coord.xy) + 0.5) / float(pc.face_size) * 2.0 - 1.0; // [-1,1]
+    vec3 dir;
+    switch (coord.z) {
+        case 0: dir = vec3(1.0, -uv.y, -uv.x); break; // +X
+        case 1: dir = vec3(-1.0, -uv.y, uv.x); break; // -X
+        case 2: dir = vec3(uv.x, 1.0, uv.y); break; // +Y
+        case 3: dir = vec3(uv.x, -1.0, -uv.y); break; // -Y
+        case 4: dir = vec3(uv.x, -uv.y, 1.0); break; // +Z
+        case 5: dir = vec3(-uv.x, -uv.y, -1.0); break; // -Z
+    }
+    dir = normalize(dir);
+
+    vec2 eq_uv;
+    eq_uv.x = atan(dir.z, dir.x) / (2.0 * PI) + 0.5;
+    eq_uv.y = 0.5 - asin(clamp(dir.y, -1.0, 1.0)) / PI;
+
+    vec4 color = textureLod(u_equirect, eq_uv, 0.0);
+    imageStore(u_cubeFaces, coord, color);
+}
