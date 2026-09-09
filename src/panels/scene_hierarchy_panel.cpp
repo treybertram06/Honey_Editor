@@ -519,6 +519,13 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                     ImGui::CloseCurrentPopup();
                 }
             }
+            if (!m_selected_entity.has_component<SkyboxComponent>()) {
+                if (ImGui::MenuItem("Skybox Component")) {
+                    entity.add_component<SkyboxComponent>();
+                    scene_changed = true;
+                    ImGui::CloseCurrentPopup();
+                }
+            }
             if (!m_selected_entity.has_component<PointLightComponent>()) {
                 if (ImGui::MenuItem("Point Light Component")) {
                     entity.add_component<PointLightComponent>();
@@ -1193,6 +1200,34 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
             changed |= ImGui::DragFloat("Intensity", &component.intensity, 0.01f, 0.0f, 100.0f);
             changed |= ImGui::Checkbox("Enabled", &component.enabled);
             changed |= ImGui::Checkbox("Shadows", &component.shadows);
+            return changed;
+        });
+
+        scene_changed |= draw_component<SkyboxComponent>("Skybox", entity, [](auto& component) -> bool {
+            bool changed = false;
+            ImGui::Button("HDRI Texture", ImVec2(100, 20));
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+                    if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
+                        const char* path_str = (const char*)payload->Data;
+                        std::filesystem::path path = path_str;
+                        std::filesystem::path texture_path = std::filesystem::path(g_assets_dir) / path;
+                        component.update_file_synchronous(texture_path);
+                        changed = true;
+                    }
+                }
+                ImGui::EndDragDropTarget();
+            }
+
+            if (component.is_loaded()) {
+                auto& path = component.get_file_path();
+
+                if (ImGui::TreeNodeEx("Texture Info", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    ImGui::Text("Name: %s", path.stem().string().c_str());
+                    ImGui::TreePop();
+                }
+            }
+            changed |= ImGui::Checkbox("Enabled", &component.active);
             return changed;
         });
 
