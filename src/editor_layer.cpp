@@ -50,7 +50,7 @@ namespace Honey {
 
 
         // Temp testing
-        m_test_tex_cube = TextureCube::create(asset_root / "hdris" / "skybox.hdr");
+        m_test_tex_cube = TextureCube::create((asset_root / "hdris" / "skybox.hdr").string());
     }
 
     bool EditorLayer::update_scene_for_current_state(Timestep ts) {

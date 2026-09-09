@@ -25,6 +25,6 @@ Window:
   Height: 768
   PosX: 190
   PosY: 213
-  Fullscreen: false
+  Fullscreen: true
 Editor:
   GizmoIconSize: 48
