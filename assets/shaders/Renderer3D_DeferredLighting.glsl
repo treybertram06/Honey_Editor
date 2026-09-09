@@ -19,6 +19,7 @@ void main() {
 
 #type fragment
 #version 450
+#extension GL_EXT_nonuniform_qualifier : enable
 
 #define MAX_POINT_LIGHTS 32
 #define TILE_SIZE 16
@@ -65,6 +66,11 @@ layout(set = HN_GLOBAL_SET, binding = HN_GBIND_LIGHTS) uniform LightsUBO {
     PointLight       u_PointLights[MAX_POINT_LIGHTS];
 } u_Lights;
 
+layout(set = HN_GLOBAL_SET, binding = HN_GBIND_ENVIRONMENT) uniform EnvironmentUBO {
+    int cubemap_index;
+    float intensity;
+} u_Environment;
+
 layout(set = HN_GLOBAL_SET, binding = HN_GBIND_TILED_LIGHTING, std430) readonly buffer TiledLightingBuffer {
     uint tile_count_x;
     uint tile_count_y;
@@ -94,6 +100,8 @@ layout(set = HN_GLOBAL_SET, binding = HN_GBIND_DIR_SHADOW, std430) readonly buff
     float shadow_distance;
     uint  _pad;
 } u_DirShadow;
+
+layout(set = 0, binding = 11) uniform textureCube u_TextureCube[];
 
 //TODO: Add a new HN_NAME_MATCHED macro that will autofill these binding numbers, or even a macro that handles the whole delaraation: HN_DEFINE_FG_RESOURCE(u_gAlbedo);
 // ---- set=1 G-buffer textures and samplers ----
@@ -324,8 +332,26 @@ void main() {
     // draw here (e.g. a light gizmo floating over empty sky), so apply the same
     // icon composite as the lit path before returning.
     if (depth >= 1.0) {
-        vec3 bg_color = mix(albedo, vector_icon.rgb, vector_icon.a);
-        o_color     = vec4(bg_color, 1.0);
+        if (u_Environment.cubemap_index >= 0) {
+            vec3 dir = normalize(world_pos - u_Camera.u_Position);
+            vec3 bg_color = textureLod(samplerCube(u_TextureCube[nonuniformEXT(u_Environment.cubemap_index)], u_LinearSampler), dir, 0.0).rgb;
+            bg_color *= u_Environment.intensity;
+
+            // Add vector icon overlay
+            bg_color = mix(bg_color, vector_icon.rgb, vector_icon.a);
+
+            // ACES tonemap + gamma correction
+            bg_color *= u_Camera.u_Exposure;
+            bg_color = aces_tonemap(bg_color);
+            bg_color = pow(bg_color, vec3(1.0 / 2.2));
+
+            o_color = vec4(bg_color, 1.0);
+        } else {
+            vec3 bg_color = mix(albedo, vector_icon.rgb, vector_icon.a);
+            o_color = vec4(bg_color, 1.0);
+
+        }
+
         #ifdef VECTOR_ICON_DEBUG
         o_color     = vec4(entity_id_to_debug_color(picked_id), 1.0);
         #endif

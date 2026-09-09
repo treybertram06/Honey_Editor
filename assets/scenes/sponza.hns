@@ -75,6 +75,7 @@ Entities:
     SkyboxComponent:
       FilePath: ../assets/hdris/skybox.hdr
       Active: true
+      Intensity: 1.0
     DirectionalLightComponent:
       Color: [1, 1, 1]
       Intensity: 5
