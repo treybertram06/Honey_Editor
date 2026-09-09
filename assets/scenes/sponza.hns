@@ -73,9 +73,9 @@ Entities:
       Rotation: [0, 0, 0.2617994]
       Scale: [1, 1, 1]
     SkyboxComponent:
-      FilePath: ../assets/hdris/skybox.hdr
+      FilePath: ../assets/hdris/skybox8k.hdr
       Active: true
-      Intensity: 1.0
+      Intensity: 0.1
     DirectionalLightComponent:
       Color: [1, 1, 1]
       Intensity: 5
@@ -115,15 +115,15 @@ Entities:
       Exposure: 1
       Camera:
         Position:
-          - [0, 0, 0]
+          - [3.0611e-41, 0, 0]
         AspectRatio: 2.0613637
         FOV: 45
         Rotation: [0, 0]
 Editor:
   Camera:
-    Position: [-6.6817145, 2.8764555, 0.4741355]
-    Yaw: 7.78314
-    Pitch: 0.40560582
+    Position: [-51.978466, 15.036664, -12.730654]
+    Yaw: 8.09513
+    Pitch: 0.27120572
     FOV: 45
     Near: 0.1
     Far: 1000

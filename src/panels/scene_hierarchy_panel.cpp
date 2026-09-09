@@ -1227,6 +1227,7 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                     ImGui::TreePop();
                 }
             }
+            changed |= ImGui::DragFloat("Intensity", &component.intensity, 0.01f, 0.0f, 3.0f);
             changed |= ImGui::Checkbox("Enabled", &component.active);
             return changed;
         });
