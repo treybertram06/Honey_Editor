@@ -1,0 +1,57 @@
+#version 460
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) uniform samplerCube u_envMap;
+layout(set = 0, binding = 1, rgba16f) uniform writeonly image2DArray u_irradianceFaces;
+
+layout(push_constant) uniform PC {
+    int face_size;
+} pc;
+
+const float PI = 3.14159265359;
+const float SAMPLE_DELTA = 0.025;
+
+void main() {
+    ivec3 coord = ivec3(gl_GlobalInvocationID);
+    if (coord.x >= pc.face_size || coord.y >= pc.face_size) return;
+
+    // Same coord -> world-direction reconstruction as EquirectToCube.comp -- this is the
+    // direction the output texel represents, not a source lookup direction.
+    vec2 uv = (vec2(coord.xy) + 0.5) / float(pc.face_size) * 2.0 - 1.0; // [-1,1]
+    vec3 N;
+    switch (coord.z) {
+        case 0: N = vec3(1.0, -uv.y, -uv.x); break; // +X
+        case 1: N = vec3(-1.0, -uv.y, uv.x); break; // -X
+        case 2: N = vec3(uv.x, 1.0, uv.y); break; // +Y
+        case 3: N = vec3(uv.x, -1.0, -uv.y); break; // -Y
+        case 4: N = vec3(uv.x, -uv.y, 1.0); break; // +Z
+        case 5: N = vec3(-uv.x, -uv.y, -1.0); break; // -Z
+    }
+    N = normalize(N);
+
+    // Tangent basis around N. The up-vector flip avoids right = cross(up, N) degenerating to
+    // zero when N is (near-)parallel to (0,1,0).
+    vec3 up = abs(N.y) < 0.999 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+    vec3 right = normalize(cross(up, N));
+    up = cross(N, right);
+
+    vec3 irradiance = vec3(0.0);
+    int sample_count = 0;
+    for (float phi = 0.0; phi < 2.0 * PI; phi += SAMPLE_DELTA) {
+        for (float theta = 0.0; theta < 0.5 * PI; theta += SAMPLE_DELTA) {
+            // Spherical -> tangent-space sample direction, then into world space via the basis.
+            vec3 tangent_sample = vec3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
+            vec3 sample_vec = tangent_sample.x * right + tangent_sample.y * up + tangent_sample.z * N;
+
+            // cos(theta): Lambert's law weighting. sin(theta): solid-angle Jacobian for a
+            // (phi, theta) grid -- without it, samples near theta=0 (the pole opposite N) would
+            // be over-counted relative to samples near the horizon.
+            irradiance += texture(u_envMap, sample_vec).rgb * cos(theta) * sin(theta);
+            sample_count++;
+        }
+    }
+    irradiance = PI * irradiance / float(sample_count);
+
+    imageStore(u_irradianceFaces, coord, vec4(irradiance, 1.0));
+}
