@@ -314,5 +314,12 @@ namespace Honey {
         if (ImGui::DragFloat("Exposure##EditorCam", &exp, 0.01f, 0.0f, 10.0f, "%.2f")) {
             editor.m_editor_camera.set_exposure(exp);
         }
+
+        ImGui::Separator();
+        ImGui::Text("Scene lighting");
+        float& ibl_intensity = Settings::get().renderer.ibl_intensity;
+        if (ImGui::DragFloat("Ibl Intensity##SceneLighting", &ibl_intensity, 0.01f, 0.0f, 1.0f, "%.2f")) {
+            // Value is read directly in Scene::on_update_render()
+        }
     }
 }

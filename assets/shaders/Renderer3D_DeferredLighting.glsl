@@ -69,6 +69,12 @@ layout(set = HN_GLOBAL_SET, binding = HN_GBIND_LIGHTS) uniform LightsUBO {
 layout(set = HN_GLOBAL_SET, binding = HN_GBIND_ENVIRONMENT) uniform EnvironmentUBO {
     int cubemap_index;
     float intensity;
+    int irradiance_cubemap_index;
+    int prefiltered_cubemap_index;
+    int prefiltered_mip_count;
+    int brdf_lut_index;
+    float ibl_intensity;
+    int _pad;
 } u_Environment;
 
 layout(set = HN_GLOBAL_SET, binding = HN_GBIND_TILED_LIGHTING, std430) readonly buffer TiledLightingBuffer {
@@ -101,6 +107,7 @@ layout(set = HN_GLOBAL_SET, binding = HN_GBIND_DIR_SHADOW, std430) readonly buff
     uint  _pad;
 } u_DirShadow;
 
+layout(set = 0, binding = 4) uniform texture2D u_Textures[];
 layout(set = 0, binding = 11) uniform textureCube u_TextureCube[];
 
 //TODO: Add a new HN_NAME_MATCHED macro that will autofill these binding numbers, or even a macro that handles the whole delaraation: HN_DEFINE_FG_RESOURCE(u_gAlbedo);
@@ -404,9 +411,31 @@ void main() {
     }
 
     // Ambient
-    vec3 kS      = fresnel_schlick_roughness(max(dot(N, V), 0.0), F0, roughness);
+    float NdotV = max(dot(N, V), 0.0);
+    vec3 kS      = fresnel_schlick_roughness(NdotV, F0, roughness);
     vec3 kD      = (1.0 - kS) * (1.0 - metallic);
-    vec3 ambient = (kD * albedo + kS * 0.04) * vec3(0.08) * ao;
+    vec3 ambient;
+    if (u_Environment.irradiance_cubemap_index >= 0 && u_Environment.brdf_lut_index >= 0) {
+        //split sum
+        // diffuse term
+        vec3 irradiance = textureLod(samplerCube(u_TextureCube[nonuniformEXT(u_Environment.irradiance_cubemap_index)], u_LinearSampler), N, 0.0).rgb;
+        vec3 diffuse_indirect = irradiance * albedo * kD;
+        // specular term
+        vec3 R = reflect(-V, N);
+        vec3 prefiltered = textureLod(
+                samplerCube(u_TextureCube[nonuniformEXT(u_Environment.prefiltered_cubemap_index)], u_LinearSampler),
+                R,
+                roughness * float(u_Environment.prefiltered_mip_count - 1)).rgb;
+
+        vec2 brdf = texture(sampler2D(u_Textures[nonuniformEXT(u_Environment.brdf_lut_index)], u_LinearSampler), vec2(NdotV, roughness)).rg; // u_Textures isnt real, I'm not sure what thats referring to in the instructions
+        vec3 specular_indirect = prefiltered * (kS * brdf.x + brdf.y);
+
+        ambient = (diffuse_indirect + specular_indirect) * ao * u_Environment.ibl_intensity;
+
+    } else {
+        ambient = (kD * albedo + kS * 0.04) * vec3(0.08) * ao;
+        //ambient = vec3(0.0, 0.0, 0.0);
+    }
     vec3 color   = ambient + Lo * mix(1.0, ao, 0.5) + emissive; // Adding ao contribution to lit parts of the scene is not physically accurate, but I think it looks better
 
     // Add vector icon overlay
