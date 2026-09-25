@@ -16,6 +16,7 @@ Renderer:
   CullMode: None
   DirShadowDistance: 250
   EditorCameraExposure: 1
+  IBLIntensity: 1
 Physics:
   Enabled: true
   Substeps: 6

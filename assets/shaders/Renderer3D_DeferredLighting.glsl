@@ -430,7 +430,7 @@ void main() {
         vec2 brdf = texture(sampler2D(u_Textures[nonuniformEXT(u_Environment.brdf_lut_index)], u_LinearSampler), vec2(NdotV, roughness)).rg; // u_Textures isnt real, I'm not sure what thats referring to in the instructions
         vec3 specular_indirect = prefiltered * (kS * brdf.x + brdf.y);
 
-        ambient = (diffuse_indirect + specular_indirect) * ao * u_Environment.ibl_intensity;
+        ambient = (diffuse_indirect + specular_indirect) * ao * u_Environment.ibl_intensity * u_Environment.intensity; // Env.intensity is included so IBL is dimmer when the environment is dimmer
 
     } else {
         ambient = (kD * albedo + kS * 0.04) * vec3(0.08) * ao;
