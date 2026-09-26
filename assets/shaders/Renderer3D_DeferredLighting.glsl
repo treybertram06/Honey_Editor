@@ -291,11 +291,6 @@ vec3 pbr_point_light(vec3 world_pos, vec3 N, vec3 V, vec3 F0, vec3 albedo, float
     return (kD * albedo / 3.14159265 + specular) * pl.color * pl.intensity * NdotL * attenuation;
 }
 
-vec3 aces_tonemap(vec3 x) {
-    const float a = 2.51, b = 0.03, c = 2.43, d = 0.59, e = 0.14;
-    return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
-}
-
 // ---------------------------------------------------------------------------
 
 void main() {
@@ -346,11 +341,6 @@ void main() {
 
             // Add vector icon overlay
             bg_color = mix(bg_color, vector_icon.rgb, vector_icon.a);
-
-            // ACES tonemap + gamma correction
-            bg_color *= u_Camera.u_Exposure;
-            bg_color = aces_tonemap(bg_color);
-            bg_color = pow(bg_color, vec3(1.0 / 2.2));
 
             o_color = vec4(bg_color, 1.0);
         } else {
@@ -440,11 +430,6 @@ void main() {
 
     // Add vector icon overlay
     color = mix(color, vector_icon.rgb, vector_icon.a);
-
-    // ACES tonemap + gamma correction
-    color *= u_Camera.u_Exposure;
-    color = aces_tonemap(color);
-    color = pow(color, vec3(1.0 / 2.2));
 
     // CSM DEBUG: tint by cascade index. Remove once cascade selection is verified.
     #ifdef CSM_CASCADE_DEBUG

@@ -38,6 +38,17 @@ FrameGraph:
     ssaoNoise:
       Type: ImportedTexture
 
+    hdrColor:
+      Type: Texture
+      Format: RGBA16F
+      MatchSize: gAlbedo
+      Layers: 1
+    hdrEntityId:
+      Type: Texture
+      Format: red_integer
+      MatchSize: gAlbedo
+      Layers: 1
+
     shadowCubemap:
       Type: Texture
       Format: D32_SFLOAT
@@ -170,6 +181,16 @@ FrameGraph:
         - { Name: ssaoTexture,   Usage: sampled, Shader: u_SSAO,                           ViewKind: Color2D }
         - { Name: vectorTexture,       Usage: sampled, Shader: u_VectorTexture,       ViewKind: Color2D }
         - { Name: vectorEntityTexture, Usage: sampled, Shader: u_VectorEntityTexture, ViewKind: Color2D }
-      Writes: [editorViewport]
+      Writes: [hdrColor, hdrEntityId]
       Clear:
         color: [0.1, 0.1, 0.1, 1.0]
+
+    - Name: PostProcessComposite
+      Executor: postprocess.composite
+      Queue: graphics
+      ReadBindings:
+        - { Name: hdrColor,    Usage: sampled, Shader: u_HDRColor }
+        - { Name: hdrEntityId, Usage: sampled, Shader: u_EntityId, ViewKind: Color2D }
+      Writes: [ editorViewport ]
+      Clear:
+        color: [ 0.1, 0.1, 0.1, 1.0 ]
