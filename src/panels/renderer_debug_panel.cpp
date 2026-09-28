@@ -316,10 +316,17 @@ namespace Honey {
         }
 
         ImGui::Separator();
-        ImGui::Text("Scene lighting");
+        ImGui::Text("Scene Lighting");
         float& ibl_intensity = Settings::get().renderer.ibl_intensity;
         if (ImGui::DragFloat("Ibl Intensity##SceneLighting", &ibl_intensity, 0.01f, 0.0f, 1.0f, "%.2f")) {
             // Value is read directly in Scene::on_update_render()
         }
+
+        ImGui::Separator();
+        ImGui::Text("Post Processing");
+        auto& bloom_settings = Settings::get().renderer.bloom;
+        ImGui::DragFloat("Bloom Strength##PostProcessing", &bloom_settings.strength, 0.01f, 0.0f, 3.0f, "%.2f");
+        ImGui::DragFloat("Bloom Threshold##PostProcessing", &bloom_settings.threshold, 0.01f, 0.0f, 10.0f, "%.2f");
+        ImGui::DragFloat("Bloom Soft Knee##PostProcessing", &bloom_settings.soft_knee, 0.01f, 0.0f, 1.0f, "%.2f");
     }
 }

@@ -49,6 +49,79 @@ FrameGraph:
       MatchSize: gAlbedo
       Layers: 1
 
+# Bloom data
+    bloomParams:
+      Type: Buffer
+      Size: 16 # 3 floats and a pad
+
+    bloomMip0:
+      Type: Texture
+      Format: RGBA16F
+      MatchSize: gAlbedo # Note, it would be useful to be able to chain MatchSize textures, also the application crashes before the FG logs are printed - which makes them useless
+      Scale: 0.5
+      Layers: 1
+    bloomMip1:
+      Type: Texture
+      Format: RGBA16F
+      MatchSize: gAlbedo
+      Scale: 0.25
+      Layers: 1
+    bloomMip2:
+      Type: Texture
+      Format: RGBA16F
+      MatchSize: gAlbedo
+      Scale: 0.125
+      Layers: 1
+    bloomMip3:
+      Type: Texture
+      Format: RGBA16F
+      MatchSize: gAlbedo
+      Scale: 0.0625
+      Layers: 1
+    bloomMip4:
+      Type: Texture
+      Format: RGBA16F
+      MatchSize: gAlbedo
+      Scale: 0.03125
+      Layers: 1
+    bloomMip5:
+      Type: Texture
+      Format: RGBA16F
+      MatchSize: gAlbedo
+      Scale: 0.015625
+      Layers: 1
+
+    bloomUp4:
+      Type: Texture
+      Format: RGBA16F
+      MatchSize: gAlbedo
+      Scale: 0.03125
+      Layers: 1
+    bloomUp3:
+      Type: Texture
+      Format: RGBA16F
+      MatchSize: gAlbedo
+      Scale: 0.0625
+      Layers: 1
+    bloomUp2:
+      Type: Texture
+      Format: RGBA16F
+      MatchSize: gAlbedo
+      Scale: 0.125
+      Layers: 1
+    bloomUp1:
+      Type: Texture
+      Format: RGBA16F
+      MatchSize: gAlbedo
+      Scale: 0.25
+      Layers: 1
+    bloomUp0:
+      Type: Texture
+      Format: RGBA16F
+      MatchSize: gAlbedo
+      Scale: 0.5
+      Layers: 1
+
     shadowCubemap:
       Type: Texture
       Format: D32_SFLOAT
@@ -179,18 +252,108 @@ FrameGraph:
         - { Name: shadowCubemap, Usage: sampled, Shader: u_ShadowCubeArray,                ViewKind: CubeArray }
         - { Name: shadowDirMap,  Usage: sampled, Shader: u_ShadowDirMap,                   ViewKind: DepthSampler }
         - { Name: ssaoTexture,   Usage: sampled, Shader: u_SSAO,                           ViewKind: Color2D }
-        - { Name: vectorTexture,       Usage: sampled, Shader: u_VectorTexture,       ViewKind: Color2D }
-        - { Name: vectorEntityTexture, Usage: sampled, Shader: u_VectorEntityTexture, ViewKind: Color2D }
       Writes: [hdrColor, hdrEntityId]
       Clear:
         color: [0.1, 0.1, 0.1, 1.0]
 
+    # Bloom passes
+    - Name: BloomThreshold
+      Executor: bloom.threshold
+      Queue: graphics
+      ReadBindings:
+        - { Name: hdrColor,     Usage: sampled, Shader: u_HDRColor }
+        - { Name: bloomParams,  Usage: uniform, Shader: BloomParamsUBO }
+      Writes: [bloomMip0]
+
+    # Downsample chain
+    - Name: BloomDownsample1
+      Executor: bloom.downsample
+      Queue: graphics
+      ReadBindings:
+        - { Name: bloomMip0, Usage: sampled, Shader: u_Source }
+      Writes: [bloomMip1]
+
+    - Name: BloomDownsample2
+      Executor: bloom.downsample
+      Queue: graphics
+      ReadBindings:
+        - { Name: bloomMip1, Usage: sampled, Shader: u_Source }
+      Writes: [ bloomMip2 ]
+
+    - Name: BloomDownsample3
+      Executor: bloom.downsample
+      Queue: graphics
+      ReadBindings:
+        - { Name: bloomMip2, Usage: sampled, Shader: u_Source }
+      Writes: [ bloomMip3 ]
+
+    - Name: BloomDownsample4
+      Executor: bloom.downsample
+      Queue: graphics
+      ReadBindings:
+        - { Name: bloomMip3, Usage: sampled, Shader: u_Source }
+      Writes: [ bloomMip4 ]
+
+    - Name: BloomDownsample5
+      Executor: bloom.downsample
+      Queue: graphics
+      ReadBindings:
+        - { Name: bloomMip4, Usage: sampled, Shader: u_Source }
+      Writes: [ bloomMip5 ]
+
+    # Upsample chain
+    - Name: BloomUpsample4
+      Executor: bloom.upsample
+      Queue: graphics
+      ReadBindings:
+        - { Name: bloomMip5, Usage: sampled, Shader: u_Low }
+        - { Name: bloomMip4, Usage: sampled, Shader: u_Detail }
+      Writes: [ bloomUp4 ]
+
+    - Name: BloomUpsample3
+      Executor: bloom.upsample
+      Queue: graphics
+      ReadBindings:
+        - { Name: bloomUp4, Usage: sampled, Shader: u_Low }
+        - { Name: bloomMip3, Usage: sampled, Shader: u_Detail }
+      Writes: [ bloomUp3 ]
+
+    - Name: BloomUpsample2
+      Executor: bloom.upsample
+      Queue: graphics
+      ReadBindings:
+        - { Name: bloomUp3, Usage: sampled, Shader: u_Low }
+        - { Name: bloomMip2, Usage: sampled, Shader: u_Detail }
+      Writes: [ bloomUp2 ]
+
+    - Name: BloomUpsample1
+      Executor: bloom.upsample
+      Queue: graphics
+      ReadBindings:
+        - { Name: bloomUp2, Usage: sampled, Shader: u_Low }
+        - { Name: bloomMip1, Usage: sampled, Shader: u_Detail }
+      Writes: [ bloomUp1 ]
+
+    - Name: BloomUpsample0
+      Executor: bloom.upsample
+      Queue: graphics
+      ReadBindings:
+        - { Name: bloomUp1, Usage: sampled, Shader: u_Low }
+        - { Name: bloomMip0, Usage: sampled, Shader: u_Detail }
+      Writes: [ bloomUp0 ]
+
+
+    # Final composite post process pass has to be at the end because it reads from resources declared earlier
     - Name: PostProcessComposite
       Executor: postprocess.composite
       Queue: graphics
       ReadBindings:
         - { Name: hdrColor,    Usage: sampled, Shader: u_HDRColor }
         - { Name: hdrEntityId, Usage: sampled, Shader: u_EntityId, ViewKind: Color2D }
+        - { Name: bloomUp0,    Usage: sampled, Shader: u_Bloom }
+        - { Name: bloomParams, Usage: uniform, Shader: BloomParamsUBO }
+        - { Name: vectorTexture,       Usage: sampled, Shader: u_VectorTexture,       ViewKind: Color2D }
+        - { Name: vectorEntityTexture, Usage: sampled, Shader: u_VectorEntityTexture, ViewKind: Color2D }
       Writes: [ editorViewport ]
       Clear:
         color: [ 0.1, 0.1, 0.1, 1.0 ]
