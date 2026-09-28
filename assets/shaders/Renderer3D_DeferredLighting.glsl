@@ -311,7 +311,7 @@ void main() {
     vec3  emissive = vec3(em_rg, em_b);
 
     float metallic  = pbr_samp.r;
-    float roughness = max(pbr_samp.g, 0.04);
+    float roughness = max(pbr_samp.g, 0.08);
     float ao        = pbr_samp.b * texture(sampler2D(u_SSAO, u_LinearSampler), v_uv).r;
 
     // Sample ID of entity from picking texture

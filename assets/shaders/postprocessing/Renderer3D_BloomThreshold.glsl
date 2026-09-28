@@ -51,12 +51,28 @@ void main() {
     vec2 src_texel = 1.0 / vec2(textureSize(sampler2D(u_HDRColor, u_LinearClampSampler), 0));
     vec2 halfpixel = src_texel * 0.5;
 
-    vec3 sum = sample_hdr(v_uv) * 4.0;
-    sum += sample_hdr(v_uv - halfpixel);
-    sum += sample_hdr(v_uv + halfpixel);
-    sum += sample_hdr(v_uv + vec2(halfpixel.x, -halfpixel.y));
-    sum += sample_hdr(v_uv - vec2(halfpixel.x, -halfpixel.y));
-    vec3 color = sum / 8.0;
+    // Karis average (firefly filter): each tap is additionally weighted by 1/(1+luma) and
+    // the result is divided by the sum of the *combined* weights instead of a fixed 8.
+    // A single sub-pixel specular glint (luma in the hundreds, e.g. from the reflective
+    // curtains) then gets roughly 1/luma of the weight of its neighbours, so it can't
+    // dominate the average and get smeared through the whole mip chain as a flickering
+    // blob. Only done here, on the first downsample — later passes average already-tamed
+    // values, and re-weighting there would darken legitimate bloom.
+    vec3  sum   = vec3(0.0);
+    float wsum  = 0.0;
+    vec3  taps[5];
+    float tap_w[5] = float[5](4.0, 1.0, 1.0, 1.0, 1.0);
+    taps[0] = sample_hdr(v_uv);
+    taps[1] = sample_hdr(v_uv - halfpixel);
+    taps[2] = sample_hdr(v_uv + halfpixel);
+    taps[3] = sample_hdr(v_uv + vec2(halfpixel.x, -halfpixel.y));
+    taps[4] = sample_hdr(v_uv - vec2(halfpixel.x, -halfpixel.y));
+    for (int i = 0; i < 5; ++i) {
+        float w = tap_w[i] / (1.0 + luminance(taps[i]));
+        sum  += taps[i] * w;
+        wsum += w;
+    }
+    vec3 color = sum / wsum;
 
     // Karis soft-knee threshold. A hard cutoff (color = luma > threshold ? color : 0)
     // flickers: as a pixel's luminance crosses the threshold frame to frame (camera

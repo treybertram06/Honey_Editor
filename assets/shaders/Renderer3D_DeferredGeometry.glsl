@@ -183,7 +183,7 @@ void main() {
 
     // --- Metallic / Roughness ---
     float metallic  = clamp(mat.metallic,  0.0, 1.0);
-    float roughness = clamp(mat.roughness, 0.04, 1.0);
+    float roughness = clamp(mat.roughness, 0.08, 1.0);
 
     if (mat.metallic_roughness_tex_id >= 0) {
         vec2 mr_uv = apply_uv_transform(select_uv(mat.metallic_roughness_uv_set),
