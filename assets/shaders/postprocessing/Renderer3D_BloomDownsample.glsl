@@ -26,14 +26,14 @@ layout(location = 0) out vec4 o_color;
 // Generic single-input downsample: whichever bloomMip[i-1] the .hnfg pass binds here
 // via `Shader: u_Source`. Same shader/pipeline reused for all 5 downsample passes.
 layout(set=1, binding=0) uniform texture2D u_Source;
-layout(set=1, binding=1) uniform sampler   u_LinearSampler;
+layout(set=1, binding=1) uniform sampler   u_LinearClampSampler;
 
 vec3 sample_src(vec2 uv) {
-    return texture(sampler2D(u_Source, u_LinearSampler), uv).rgb;
+    return texture(sampler2D(u_Source, u_LinearClampSampler), uv).rgb;
 }
 
 void main() {
-    vec2 src_texel = 1.0 / vec2(textureSize(sampler2D(u_Source, u_LinearSampler), 0));
+    vec2 src_texel = 1.0 / vec2(textureSize(sampler2D(u_Source, u_LinearClampSampler), 0));
     vec2 halfpixel = src_texel * 0.5;
 
     vec3 sum = sample_src(v_uv) * 4.0;

@@ -31,14 +31,14 @@ layout(set=1, binding=0) uniform BloomParamsUBO {
 } u_BloomParams;
 
 layout(set=1, binding=1) uniform texture2D u_HDRColor;
-layout(set=1, binding=2) uniform sampler   u_LinearSampler;
+layout(set=1, binding=2) uniform sampler   u_LinearClampSampler;
 
 float luminance(vec3 c) {
     return dot(c, vec3(0.2126, 0.7152, 0.0722));
 }
 
 vec3 sample_hdr(vec2 uv) {
-    return texture(sampler2D(u_HDRColor, u_LinearSampler), uv).rgb;
+    return texture(sampler2D(u_HDRColor, u_LinearClampSampler), uv).rgb;
 }
 
 void main() {
@@ -48,7 +48,7 @@ void main() {
     // covers. Weighted 4:1:1:1:1 (sum 8) instead of a plain unweighted average: this
     // is the specific weighting that makes dual-Kawase behave like a Gaussian-ish
     // blur across the whole mip chain instead of a blocky box blur.
-    vec2 src_texel = 1.0 / vec2(textureSize(sampler2D(u_HDRColor, u_LinearSampler), 0));
+    vec2 src_texel = 1.0 / vec2(textureSize(sampler2D(u_HDRColor, u_LinearClampSampler), 0));
     vec2 halfpixel = src_texel * 0.5;
 
     vec3 sum = sample_hdr(v_uv) * 4.0;

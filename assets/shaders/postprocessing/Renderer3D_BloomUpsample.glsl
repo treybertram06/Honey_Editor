@@ -31,10 +31,10 @@ layout(location = 0) out vec4 o_color;
 //            converging to looking like the smallest mip blown up.
 layout(set=1, binding=0) uniform texture2D u_Low;
 layout(set=1, binding=1) uniform texture2D u_Detail;
-layout(set=1, binding=2) uniform sampler   u_LinearSampler;
+layout(set=1, binding=2) uniform sampler   u_LinearClampSampler;
 
 vec3 sample_low(vec2 uv) {
-    return texture(sampler2D(u_Low, u_LinearSampler), uv).rgb;
+    return texture(sampler2D(u_Low, u_LinearClampSampler), uv).rgb;
 }
 
 void main() {
@@ -42,7 +42,7 @@ void main() {
     // filter): 4 axis-aligned taps at 2x weight, 4 diagonal taps at 1x weight, sum 12.
     // halfpixel is relative to u_Low's resolution since that's the image being
     // magnified — not u_Detail's, which is already at this pass's output resolution.
-    vec2 low_texel = 1.0 / vec2(textureSize(sampler2D(u_Low, u_LinearSampler), 0));
+    vec2 low_texel = 1.0 / vec2(textureSize(sampler2D(u_Low, u_LinearClampSampler), 0));
     vec2 halfpixel = low_texel * 0.5;
 
     vec3 sum  = sample_low(v_uv + vec2(-halfpixel.x * 2.0, 0.0));
@@ -55,6 +55,6 @@ void main() {
     sum      += sample_low(v_uv + vec2(-halfpixel.x, -halfpixel.y)) * 2.0;
     vec3 upsampled = sum / 12.0;
 
-    vec3 detail = texture(sampler2D(u_Detail, u_LinearSampler), v_uv).rgb;
+    vec3 detail = texture(sampler2D(u_Detail, u_LinearClampSampler), v_uv).rgb;
     o_color = vec4(upsampled + detail, 1.0);
 }
