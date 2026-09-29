@@ -31,27 +31,20 @@ layout(set = HN_GLOBAL_SET, binding = HN_GBIND_CAMERA) uniform CameraUBO {
 } u_Camera;
 
 layout(set=1, binding=0) uniform texture2D  u_HDRColor;
-layout(set=1, binding=4) uniform texture2D  u_Bloom;
-layout(set=1, binding=1) uniform sampler    u_LinearSampler;
-layout(set=1, binding=2) uniform itexture2D u_EntityId;
+layout(set=1, binding=1) uniform texture2D  u_Bloom;
+layout(set=1, binding=2) uniform sampler    u_LinearSampler;
 layout(set=1, binding=3) uniform sampler    u_NearestSampler;
 
-layout(set=1, binding=5) uniform BloomParamsUBO {
+layout(set=1, binding=4) uniform BloomParamsUBO {
     float threshold;
     float soft_knee;
     float strength; // Only this is needed here, but the whole UBO is already in memory and must be referenced as-is
     int _pad;
 } u_BloomParams;
 
-// Vector icon overlay
-layout(set = 1, binding = 6) uniform texture2D       u_VectorTexture;
-layout(set = 1, binding = 7) uniform itexture2D      u_VectorEntityTexture;
-
-
 layout(location=0) in vec2 v_uv;
 
 layout(location=0) out vec4 o_color;
-layout(location=1) out int  o_entity_id;
 
 vec3 aces_tonemap(vec3 x) {
     const float a = 2.51, b = 0.03, c = 2.43, d = 0.59, e = 0.14;
@@ -66,14 +59,5 @@ void main() {
     color  = aces_tonemap(color);
     color  = pow(color, vec3(1.0/2.2));
 
-    // Picking
-    int geometry_id = texelFetch(isampler2D(u_EntityId, u_NearestSampler), ivec2(gl_FragCoord.xy), 0).r;
-    int vector_icon_id = texture(isampler2D(u_VectorEntityTexture, u_NearestSampler), v_uv).r;
-    int picked_id = (vector_icon_id >= 0) ? vector_icon_id : geometry_id;
-
-    vec4 vector_icon = texture(sampler2D(u_VectorTexture, u_LinearSampler), v_uv);
-    color = mix(color, vector_icon.rgb, vector_icon.a);
-
-    o_entity_id = picked_id;
     o_color = vec4(color, 1.0);
 }

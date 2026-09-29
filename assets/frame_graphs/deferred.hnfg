@@ -49,6 +49,16 @@ FrameGraph:
       MatchSize: gAlbedo
       Layers: 1
 
+    ldrColor:
+      Type: Texture
+      Format: RGBA8
+      MatchSize: gAlbedo
+      Layers: 1
+
+    fxaaParams:
+      Type: Buffer
+      Size: 32
+
 # Bloom data
     bloomParams:
       Type: Buffer
@@ -343,17 +353,27 @@ FrameGraph:
       Writes: [ bloomUp0 ]
 
 
-    # Final composite post process pass has to be at the end because it reads from resources declared earlier
+    # Composite post process pass has to be at the end because it reads from resources declared earlier
     - Name: PostProcessComposite
       Executor: postprocess.composite
       Queue: graphics
       ReadBindings:
         - { Name: hdrColor,    Usage: sampled, Shader: u_HDRColor }
-        - { Name: hdrEntityId, Usage: sampled, Shader: u_EntityId, ViewKind: Color2D }
         - { Name: bloomUp0,    Usage: sampled, Shader: u_Bloom }
         - { Name: bloomParams, Usage: uniform, Shader: BloomParamsUBO }
+      Writes: [ ldrColor ]
+      Clear:
+        color: [ 0.1, 0.1, 0.1, 1.0 ]
+
+    - Name: PostProcessOutput
+      Executor: postprocess.output
+      Queue: graphics
+      ReadBindings:
+        - { Name: ldrColor,    Usage: sampled, Shader: u_LDRColor }
+        - { Name: hdrEntityId, Usage: sampled, Shader: u_EntityId, ViewKind: Color2D }
         - { Name: vectorTexture,       Usage: sampled, Shader: u_VectorTexture,       ViewKind: Color2D }
         - { Name: vectorEntityTexture, Usage: sampled, Shader: u_VectorEntityTexture, ViewKind: Color2D }
+        - { Name: fxaaParams, Usage: uniform, Shader: FxaaParamsUBO }
       Writes: [ editorViewport ]
       Clear:
         color: [ 0.1, 0.1, 0.1, 1.0 ]
