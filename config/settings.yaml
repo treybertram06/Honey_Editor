@@ -25,10 +25,10 @@ Physics:
   Substeps: 6
 Window:
   Title: Honey Engine
-  Width: 1802
-  Height: 768
-  PosX: 190
-  PosY: 213
-  Fullscreen: true
+  Width: 1728
+  Height: 967
+  PosX: 0
+  PosY: 65
+  Fullscreen: false
 Editor:
   GizmoIconSize: 48
