@@ -236,11 +236,34 @@ namespace Honey {
 
             // Renderer type
             {
-                static const char* renderer_type_names[] = { "Forward", "Deferred", "Path Tracer" };
+                static const char* renderer_type_names[] = { "Forward", "Deferred", "Path Tracer", "Lite" };
                 int current_index = static_cast<int>(renderer.renderer_type);
                 if (ImGui::Combo("Renderer Type", &current_index, renderer_type_names, IM_ARRAYSIZE(renderer_type_names))) {
                     renderer.renderer_type = static_cast<RendererSettings::RendererType>(current_index);
                     editor.m_scene_viewport_renderer.mark_frame_graph_dirty();
+                }
+
+                if (ImGui::BeginCombo("Renderer Type", renderer_type_names[current_index])) {
+                    for (int n = 0; n < IM_ARRAYSIZE(renderer_type_names); n++) {
+                        // Handle compatibility
+                        bool is_disabled = false;
+                        // TODO: check compatibility against backend and disable those which are not available
+                        ImGui::BeginDisabled(is_disabled);
+
+                        bool is_selected = (current_index == n);
+                        if (ImGui::Selectable(renderer_type_names[n], is_selected))
+                            current_index = n;
+
+                        if (is_selected)
+                            ImGui::SetItemDefaultFocus();
+
+                        ImGui::EndDisabled();
+
+                        // Handle onClick
+                        renderer.renderer_type = static_cast<RendererSettings::RendererType>(current_index);
+                        editor.m_scene_viewport_renderer.mark_frame_graph_dirty();
+                    }
+                    ImGui::EndCombo();
                 }
             }
 

@@ -1,0 +1,15 @@
+FrameGraph:
+  Version: 1
+
+  Resources:
+    editorViewport:
+      Type: ImportedTarget
+      Kind: ExternalFramebuffer
+
+  Passes:
+    - Name: LiteScene
+      Executor: lite.scene
+      Queue: graphics
+      Writes: [editorViewport]
+      Clear:
+        color: [0.1, 0.1, 0.1, 1.0]
