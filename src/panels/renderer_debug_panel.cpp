@@ -324,9 +324,84 @@ namespace Honey {
 
         ImGui::Separator();
         ImGui::Text("Post Processing");
-        auto& bloom_settings = Settings::get().renderer.bloom;
-        ImGui::DragFloat("Bloom Strength##PostProcessing", &bloom_settings.strength, 0.01f, 0.0f, 3.0f, "%.2f");
-        ImGui::DragFloat("Bloom Threshold##PostProcessing", &bloom_settings.threshold, 0.01f, 0.0f, 10.0f, "%.2f");
-        ImGui::DragFloat("Bloom Soft Knee##PostProcessing", &bloom_settings.soft_knee, 0.01f, 0.0f, 1.0f, "%.2f");
+        if (ImGui::CollapsingHeader("Bloom")) {
+            auto& bloom_settings = Settings::get().renderer.bloom;
+            ImGui::DragFloat("Bloom Strength##PostProcessing", &bloom_settings.strength, 0.01f, 0.0f, 3.0f, "%.2f");
+            ImGui::DragFloat("Bloom Threshold##PostProcessing", &bloom_settings.threshold, 0.01f, 0.0f, 10.0f, "%.2f");
+            ImGui::DragFloat("Bloom Soft Knee##PostProcessing", &bloom_settings.soft_knee, 0.01f, 0.0f, 1.0f, "%.2f");
+        }
+
+        if (ImGui::CollapsingHeader("Anti-Aliasing")) {
+            using AAType = RendererSettings::AntiAliasingSettings::AAType;
+            using FxaaDebugView = RendererSettings::AntiAliasingSettings::FxaaDebugView;
+            auto& aa_settings = Settings::get().renderer.anti_aliasing;
+
+            // Mode is a shader parameter, not graph surgery -- no mark_frame_graph_dirty() here
+            {
+                static const char* aa_type_names[] = { "None", "FXAA", "TAA" };
+                int current_index = static_cast<int>(aa_settings.type);
+                if (ImGui::BeginCombo("Mode##AntiAliasing", aa_type_names[current_index])) {
+                    for (int i = 0; i < IM_ARRAYSIZE(aa_type_names); i++) {
+                        const bool unimplemented = static_cast<AAType>(i) == AAType::taa;
+                        ImGuiSelectableFlags flags = unimplemented ? ImGuiSelectableFlags_Disabled : 0;
+                        if (ImGui::Selectable(aa_type_names[i], current_index == i, flags)) {
+                            aa_settings.type = static_cast<AAType>(i);
+                        }
+                        if (unimplemented && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                            ImGui::SetTooltip("TAA is not implemented yet.");
+                        }
+                        if (current_index == i) {
+                            ImGui::SetItemDefaultFocus();
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+            }
+
+            if (aa_settings.type == AAType::fxaa) {
+                // Presets from FXAA 3.11's quality table
+                if (ImGui::Button("Default##AntiAliasing")) {
+                    aa_settings.subpix = 0.75f;
+                    aa_settings.edge_threshold = 0.166f;
+                    aa_settings.edge_threshold_min = 0.0833f;
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("High Quality##AntiAliasing")) {
+                    aa_settings.subpix = 0.75f;
+                    aa_settings.edge_threshold = 0.125f;
+                    aa_settings.edge_threshold_min = 0.0625f;
+                }
+
+                auto preferred_tooltip_flags = ImGuiHoveredFlags_DelayNormal | ImGuiHoveredFlags_NoSharedDelay;
+                ImGui::SliderFloat("Subpix##AntiAliasing", &aa_settings.subpix,
+                    0.0f, 1.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+                if (ImGui::IsItemHovered(preferred_tooltip_flags)) {
+                    ImGui::SetTooltip("Subpixel aliasing removal.\n"
+                                      "1.00 = softest, 0.75 = default, 0.50 = sharper, 0.00 = off (edges only).");
+                }
+                ImGui::SliderFloat("Edge Threshold##AntiAliasing", &aa_settings.edge_threshold,
+                    0.063f, 0.333f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+                if (ImGui::IsItemHovered(preferred_tooltip_flags)) {
+                    ImGui::SetTooltip("Relative local contrast required to process a pixel. Lower = more pixels.\n"
+                                      "0.333 = fastest, 0.166 = default, 0.125 = high quality, 0.063 = overkill.");
+                }
+                ImGui::SliderFloat("Edge Threshold Min##AntiAliasing", &aa_settings.edge_threshold_min,
+                    0.0312f, 0.0833f, "%.4f", ImGuiSliderFlags_AlwaysClamp);
+                if (ImGui::IsItemHovered(preferred_tooltip_flags)) {
+                    ImGui::SetTooltip("Absolute contrast floor; skips dark regions.\n"
+                                      "0.0833 = default, 0.0625 = high quality, 0.0312 = visible limit.");
+                }
+
+                static const char* debug_view_names[] = { "Off", "Edge Mask", "Edge Orientation", "Edge Side" };
+                int debug_index = static_cast<int>(aa_settings.debug_view);
+                if (ImGui::Combo("Debug View##AntiAliasing", &debug_index, debug_view_names, IM_ARRAYSIZE(debug_view_names))) {
+                    aa_settings.debug_view = static_cast<FxaaDebugView>(debug_index);
+                }
+                if (ImGui::IsItemHovered(preferred_tooltip_flags)) {
+                    ImGui::SetTooltip("Edge Mask: pixels FXAA processed.\n"
+                                      "Edge Orientation: horizontal vs. vertical edge classification.");
+                }
+            }
+        }
     }
 }

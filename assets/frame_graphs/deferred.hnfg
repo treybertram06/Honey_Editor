@@ -49,7 +49,7 @@ FrameGraph:
       MatchSize: gAlbedo
       Layers: 1
 
-    ldrColor:
+    ldrColor: # alpha encodes pixel luminance for later fxaa pass
       Type: Texture
       Format: RGBA8
       MatchSize: gAlbedo

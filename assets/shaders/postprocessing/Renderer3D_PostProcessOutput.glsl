@@ -20,13 +20,15 @@ void main() {
 #type fragment
 #version 450
 #include "global_bindings.glsli"
+#include "postprocessing/fxaa.glsl"
 
 layout(set=1, binding=0) uniform texture2D  u_LDRColor;
 layout(set=1, binding=1) uniform sampler    u_LinearSampler;
 layout(set=1, binding=2) uniform itexture2D u_EntityId;
 layout(set=1, binding=3) uniform sampler    u_NearestSampler;
+layout(set=1, binding=7) uniform sampler   u_LinearClampSampler;
 
-layout(set=1, binding=4) uniform BloomParamsUBO {
+layout(set=1, binding=4) uniform FxaaParamsUBO {
     float subpix;
     float edge_threshold;
     float edge_threshold_min;
@@ -35,7 +37,7 @@ layout(set=1, binding=4) uniform BloomParamsUBO {
     int _pad0;
     int _pad1;
     int _pad2;
-} u_BloomParams;
+} u_FxaaParams;
 
 layout(set = 1, binding = 5) uniform texture2D       u_VectorTexture;
 layout(set = 1, binding = 6) uniform itexture2D      u_VectorEntityTexture;
@@ -47,8 +49,15 @@ layout(location=0) out vec4 o_color;
 layout(location=1) out int  o_entity_id;
 
 void main() {
-    vec3 color = texture(sampler2D(u_LDRColor, u_LinearSampler), v_uv).rgb;
-    // do FXAA...
+
+    vec2 rcp_frame = 1.0 / vec2(textureSize(sampler2D(u_LDRColor, u_LinearSampler), 0));
+    vec3 color;
+    if (u_FxaaParams.mode == 1) {
+        color = fxaa(u_LDRColor, u_LinearClampSampler, v_uv, rcp_frame,
+                u_FxaaParams.subpix, u_FxaaParams.edge_threshold, u_FxaaParams.edge_threshold_min, u_FxaaParams.debug_view);
+    } else {
+        color = texture(sampler2D(u_LDRColor, u_LinearSampler), v_uv).rgb;
+    }
 
     // Picking
     int geometry_id = texelFetch(isampler2D(u_EntityId, u_NearestSampler), ivec2(gl_FragCoord.xy), 0).r;

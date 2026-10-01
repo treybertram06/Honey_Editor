@@ -20,6 +20,8 @@ void main() {
 #type fragment
 #version 450
 #include "global_bindings.glsli"
+#include "postprocessing/fxaa.glsl"
+
 layout(set = HN_GLOBAL_SET, binding = HN_GBIND_CAMERA) uniform CameraUBO {
     mat4 u_ViewProjection;
     vec3 u_Position;
@@ -59,5 +61,6 @@ void main() {
     color  = aces_tonemap(color);
     color  = pow(color, vec3(1.0/2.2));
 
-    o_color = vec4(color, 1.0);
+    float luminance = fxaa_luma(color);
+    o_color = vec4(color, luminance);
 }

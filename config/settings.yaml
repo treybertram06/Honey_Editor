@@ -18,8 +18,12 @@ Renderer:
   EditorCameraExposure: 1
   IBLIntensity: 1
   BloomStrength: 0.5
-  BloomThreshold: 1
+  BloomThreshold: 0.7
   BloomSoftKnee: 0.5
+  AASubpix: 0.75
+  AAEdgeThreshold: 0.166
+  AAEdgeThresholdMin: 0.0833
+  AAType: FXAA
 Physics:
   Enabled: true
   Substeps: 6
