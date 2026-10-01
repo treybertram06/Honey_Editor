@@ -21,8 +21,8 @@ Renderer:
   BloomThreshold: 0.7
   BloomSoftKnee: 0.5
   AASubpix: 0.75
-  AAEdgeThreshold: 0.166
-  AAEdgeThresholdMin: 0.0833
+  AAEdgeThreshold: 0.125
+  AAEdgeThresholdMin: 0.0625
   AAType: FXAA
 Physics:
   Enabled: true
