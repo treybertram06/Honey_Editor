@@ -236,11 +236,25 @@ namespace Honey {
 
             // Renderer type
             {
-                static const char* renderer_type_names[] = { "Forward", "Deferred", "Path Tracer" };
+                static const char* renderer_type_names[] = { "Forward", "Deferred", "Path Tracer", "Lite" };
                 int current_index = static_cast<int>(renderer.renderer_type);
-                if (ImGui::Combo("Renderer Type", &current_index, renderer_type_names, IM_ARRAYSIZE(renderer_type_names))) {
-                    renderer.renderer_type = static_cast<RendererSettings::RendererType>(current_index);
-                    editor.m_scene_viewport_renderer.mark_frame_graph_dirty();
+                auto& backend = Application::get().get_vulkan_backend();
+                if (ImGui::BeginCombo("Renderer Type", renderer_type_names[current_index])) {
+                    for (int n = 0; n < IM_ARRAYSIZE(renderer_type_names); n++) {
+                        const auto type = static_cast<RendererSettings::RendererType>(n);
+                        // Lite runs anywhere; everything else needs the full tier (and RT for the path tracer).
+                        bool is_disabled = type != RendererSettings::RendererType::lite && !backend.supports_full_renderer();
+                        if (type == RendererSettings::RendererType::pathtracing && !backend.is_rt_supported())
+                            is_disabled = true;
+
+                        ImGui::BeginDisabled(is_disabled);
+                        if (ImGui::Selectable(renderer_type_names[n], current_index == n) && current_index != n) {
+                            renderer.renderer_type = type;
+                            editor.m_scene_viewport_renderer.mark_frame_graph_dirty();
+                        }
+                        ImGui::EndDisabled();
+                    }
+                    ImGui::EndCombo();
                 }
             }
 
