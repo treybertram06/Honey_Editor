@@ -100,6 +100,7 @@ namespace Honey {
 
         int m_gizmo_type = -1;
         bool m_show_physics_colliders = false;
+        bool m_show_notification_history = false;
 
         //Panels
         SceneHierarchyPanel m_scene_hierarchy_panel;

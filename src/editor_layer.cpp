@@ -233,6 +233,8 @@ namespace Honey {
         }
 
         m_notification_center.render(ImGui::GetIO().DeltaTime);
+        if (m_show_notification_history)
+            m_notification_center.show_history_window(&m_show_notification_history);
     }
 
     void EditorLayer::draw_ui_toolbar() {
@@ -350,6 +352,7 @@ namespace Honey {
                 if (ImGui::MenuItem(min_max_viewport_label, "Shift+Space")) {
                     m_viewport_maximized = !m_viewport_maximized;
                 }
+                ImGui::MenuItem("Notifications", nullptr, &m_show_notification_history);
                 if (ImGui::MenuItem("Reset View")) {
                     // Reset camera or scene view
                 }
@@ -769,17 +772,34 @@ namespace Honey {
             return;
         }
 
-        m_scene_filepath = path;
         Ref<Scene> new_scene = CreateRef<Scene>();
         SceneSerializer serializer(new_scene);
-        if (serializer.deserialize(path)) {
+        const bool loaded = serializer.deserialize(path);
+        const SceneLoadReport& report = serializer.get_load_report();
+        const std::string file_name = path.filename().string();
+
+        if (!loaded) {
+            // Keep the current scene open; the failed load never touches editor state.
+            m_notification_center.push_toast(UI::ToastType::Error, "Couldn't open scene", file_name, 6.0f);
+            m_notification_center.open_report("scene_load_report", "Scene load failed: " + file_name, report.to_lines());
+            return;
+        }
+
+        {
+            m_scene_filepath = path;
             m_scene_hierarchy_panel.set_selected_entity({});
             m_editor_scene = new_scene;
             m_editor_scene->on_viewport_resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
 
             m_active_scene = m_editor_scene;
             m_scene_hierarchy_panel.set_context(m_active_scene);
-            m_notification_center.push_toast(UI::ToastType::Success, "Scene Opened", "Loaded " + path.filename().string());
+            if (report.has_issues()) {
+                m_notification_center.push_toast(UI::ToastType::Warning, "Scene loaded with issues",
+                                                 file_name + ": " + std::to_string(report.issues.size()) + " issue(s)", 6.0f);
+                m_notification_center.open_report("scene_load_report", "Scene loaded with issues: " + file_name, report.to_lines());
+            } else {
+                m_notification_center.push_toast(UI::ToastType::Success, "Scene Opened", "Loaded " + file_name);
+            }
 
             // Restore editor camera if the scene had editor meta
             const EditorSceneMeta& meta = serializer.get_loaded_editor_meta();
