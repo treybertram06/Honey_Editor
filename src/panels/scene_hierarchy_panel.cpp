@@ -27,8 +27,11 @@ namespace Honey {
         m_context = context;
     }
 
-    void SceneHierarchyPanel::on_imgui_render() {
-        ImGui::Begin("Scene Hierarchy");
+    void SceneHierarchyPanel::on_imgui_render(EditorLayer&) {
+        if (!ImGui::Begin(name(), &m_open)) {
+            ImGui::End();
+            return;
+        }
 
         m_selection_parent_set.clear();
         populate_selection_parent_set(m_selected_entity); // Must run first so the set is populated when nodes are drawn
@@ -101,13 +104,20 @@ namespace Honey {
         }
 
         ImGui::End();
+    }
 
-        ImGui::Begin("Properties");
-
+    void SceneHierarchyPanel::draw_properties() {
         if (m_selected_entity) {
             draw_components(m_selected_entity);
         }
+    }
 
+    void PropertiesPanel::on_imgui_render(EditorLayer&) {
+        if (!ImGui::Begin(name(), &m_open)) {
+            ImGui::End();
+            return;
+        }
+        m_hierarchy.draw_properties();
         ImGui::End();
     }
 

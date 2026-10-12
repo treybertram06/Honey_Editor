@@ -35,7 +35,10 @@ namespace Honey {
     RendererDebugPanel::RendererDebugPanel() {}
 
     void RendererDebugPanel::on_imgui_render(EditorLayer& editor) {
-        ImGui::Begin("Renderer Debug Panel");
+        if (!ImGui::Begin(name(), &m_open)) {
+            ImGui::End();
+            return;
+        }
 
         render_camera_info(editor);
 

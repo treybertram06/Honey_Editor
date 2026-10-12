@@ -11,8 +11,11 @@ namespace Honey {
 
     PhysicsDebugPanel::PhysicsDebugPanel() {}
 
-    void PhysicsDebugPanel::on_imgui_render() {
-        ImGui::Begin("Physics Debug Panel");
+    void PhysicsDebugPanel::on_imgui_render(EditorLayer&) {
+        if (!ImGui::Begin(name(), &m_open)) {
+            ImGui::End();
+            return;
+        }
 
         if (ImGui::CollapsingHeader("Physics Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
             auto& physics = Settings::get().physics;

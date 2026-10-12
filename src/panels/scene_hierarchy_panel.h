@@ -1,5 +1,6 @@
 #pragma once
 #include "Honey/core/base.h"
+#include "editor_panel.h"
 #include "Honey/scene/scene.h"
 #include "Honey/scene/components.h"
 #include "Honey/scene/entity.h"
@@ -10,14 +11,18 @@
 
 namespace Honey {
 
-    class SceneHierarchyPanel {
+    class SceneHierarchyPanel : public EditorPanel {
     public:
         SceneHierarchyPanel() = default;
         SceneHierarchyPanel(const Ref<Scene>& context);
 
         void set_context(const Ref<Scene>& context);
 
-        void on_imgui_render();
+        const char* name() const override { return "Scene Hierarchy"; }
+        void on_imgui_render(EditorLayer& editor) override;
+
+        // Draws the selected entity's components (hosted by PropertiesPanel).
+        void draw_properties();
 
         Entity get_selected_entity() const { return m_selected_entity; }
         void set_selected_entity(Entity entity) { m_selected_entity = entity; }
@@ -36,5 +41,17 @@ namespace Honey {
 
         void draw_entity_node(Entity entity);
         void draw_components(Entity entity);
+    };
+
+    // Separate dockable window showing the hierarchy panel's current selection.
+    class PropertiesPanel : public EditorPanel {
+    public:
+        explicit PropertiesPanel(SceneHierarchyPanel& hierarchy) : m_hierarchy(hierarchy) {}
+
+        const char* name() const override { return "Properties"; }
+        void on_imgui_render(EditorLayer& editor) override;
+
+    private:
+        SceneHierarchyPanel& m_hierarchy;
     };
 }

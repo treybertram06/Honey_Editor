@@ -28,7 +28,10 @@ namespace Honey {
     extern const std::filesystem::path g_assets_dir;
 
     EditorLayer::EditorLayer()
-        : Layer("EditorLayer") {}
+        : Layer("EditorLayer") {
+        m_panels = {&m_scene_hierarchy_panel, &m_properties_panel, &m_content_browser_panel,
+                    &m_renderer_debug_panel, &m_physics_debug_panel, &m_console_panel};
+    }
 
     void EditorLayer::on_attach() {
         m_icon_play         = Texture2D::create_async("../resources/icons/toolbar/play_button.png");
@@ -224,10 +227,9 @@ namespace Honey {
             draw_ui_toolbar();
         } else {
             draw_menu_bar(); // TODO: Spend some time cleaning up how this is handled
-            m_scene_hierarchy_panel.on_imgui_render();
-            m_content_browser_panel.on_imgui_render();
-            m_renderer_debug_panel.on_imgui_render(*this);
-            m_physics_debug_panel.on_imgui_render();
+            for (EditorPanel* panel : m_panels)
+                if (panel->open())
+                    panel->on_imgui_render(*this);
             m_viewport_panel.on_imgui_render(*this);
             draw_ui_toolbar();
         }
@@ -352,6 +354,8 @@ namespace Honey {
                 if (ImGui::MenuItem(min_max_viewport_label, "Shift+Space")) {
                     m_viewport_maximized = !m_viewport_maximized;
                 }
+                for (EditorPanel* panel : m_panels)
+                    ImGui::MenuItem(panel->name(), nullptr, &panel->open());
                 ImGui::MenuItem("Notifications", nullptr, &m_show_notification_history);
                 if (ImGui::MenuItem("Reset View")) {
                     // Reset camera or scene view

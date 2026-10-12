@@ -61,8 +61,11 @@ namespace Honey {
         m_file_icon = Texture2D::create_async("../resources/icons/content_browser/document.png");
     }
 
-    void ContentBrowserPanel::on_imgui_render() {
-        ImGui::Begin("Content Browser");
+    void ContentBrowserPanel::on_imgui_render(EditorLayer&) {
+        if (!ImGui::Begin(name(), &m_open)) {
+            ImGui::End();
+            return;
+        }
 
         // --- Top bar: breadcrumbs + view mode toggle ---
         {

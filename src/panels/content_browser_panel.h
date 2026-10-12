@@ -1,14 +1,16 @@
 #pragma once
+#include "editor_panel.h"
 #include "Honey/renderer/texture.h"
 #include <filesystem>
 
 namespace Honey {
-    class ContentBrowserPanel {
+    class ContentBrowserPanel : public EditorPanel {
     public:
         ContentBrowserPanel();
         ~ContentBrowserPanel() = default;
 
-        void on_imgui_render();
+        const char* name() const override { return "Content Browser"; }
+        void on_imgui_render(EditorLayer& editor) override;
 
     private:
         Ref<Texture2D> get_icon_for_extension(const std::string& path);

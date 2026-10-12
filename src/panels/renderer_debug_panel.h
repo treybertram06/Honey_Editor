@@ -1,13 +1,16 @@
 #pragma once
 
+#include "editor_panel.h"
+
 namespace Honey {
     class EditorLayer;
-    class RendererDebugPanel {
+    class RendererDebugPanel : public EditorPanel {
     public:
         RendererDebugPanel();
         ~RendererDebugPanel() = default;
 
-        void on_imgui_render(EditorLayer& editor);
+        const char* name() const override { return "Renderer Debug Panel"; }
+        void on_imgui_render(EditorLayer& editor) override;
         void render_camera_info(EditorLayer& editor);
 
     private:

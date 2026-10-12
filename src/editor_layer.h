@@ -13,6 +13,8 @@
 #include "panels/physics_debug_panel.h"
 #include "panels/renderer_debug_panel.h"
 #include "panels/viewport_panel.h"
+#include "panels/console_panel.h"
+#include <vector>
 
 
 namespace Honey {
@@ -104,8 +106,13 @@ namespace Honey {
 
         //Panels
         SceneHierarchyPanel m_scene_hierarchy_panel;
+        PropertiesPanel     m_properties_panel{m_scene_hierarchy_panel};
         ContentBrowserPanel m_content_browser_panel;
         PhysicsDebugPanel   m_physics_debug_panel;
+        ConsolePanel        m_console_panel;
+
+        // Panels derived from EditorPanel: rendered while open, toggled from the View menu.
+        std::vector<EditorPanel*> m_panels;
         friend class RendererDebugPanel;
         RendererDebugPanel  m_renderer_debug_panel;
         friend class ViewportPanel;
