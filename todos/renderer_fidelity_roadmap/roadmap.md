@@ -125,12 +125,12 @@ if you only implement bloom first.
 and a concrete per-item build order). Summary below unchanged; don't re-derive detail
 already written there.
 
-### 2a. Bloom
+### 2a. Bloom (Done)
 **Effort:** 1-2 days. Already scoped in
 [`lighting_improvements.md § 1`](../deferred_renderer/lighting_improvements.md) — dual
 Kawase filter, threshold or emissive-channel source, composite pre-tonemap.
 
-### 2b. Anti-aliasing: FXAA now, TAA as the real target
+### 2b. Anti-aliasing: FXAA now (Done), TAA as the real target
 **Effort:** FXAA ~1 day (stopgap). TAA ~1-2 weeks (the real target).
 
 MSAA doesn't compose cleanly with a deferred G-buffer + mesh-shader geometry path (no

@@ -238,6 +238,8 @@ float pack_rg(float r, float g) {
     return floor(r * 255.0) / 256.0 + g / 256.0;
 }
 
+#include "CommonHelpers.glsl"
+
 void main() {
     GPUMaterial mat = u_Materials.materials[v_materialIndex];
 
@@ -249,9 +251,6 @@ void main() {
     vec3 base_linear = (mat.base_color_tex_id >= 0) ? pow(base_tex.rgb, vec3(2.2)) : vec3(1.0);
     vec3 albedo = base_linear * mat.base_color.rgb;
     float alpha = base_tex.a * mat.base_color.a;
-
-    if (mat.alpha_mode == 1 && alpha < mat.alpha_cutoff)
-        discard;
 
     float metallic  = clamp(mat.metallic,  0.0, 1.0);
     float roughness = clamp(mat.roughness, 0.04, 1.0);
@@ -278,6 +277,13 @@ void main() {
         mat3 TBN = mat3(T, B, N);
         N = normalize(TBN * nrm_ts);
     }
+
+    // Derivatives (specular AA) are taken before the alpha test: after a discard the quad's
+    // neighbours may be dead and dFdx/dFdy would be undefined.
+    roughness = specular_aa_roughness(N, roughness);
+
+    if (mat.alpha_mode == 1 && alpha < mat.alpha_cutoff)
+        discard;
 
     float ao = 1.0;
     if (mat.occlusion_tex_id >= 0) {
