@@ -69,3 +69,34 @@ if (WIN32)
             COMMAND_EXPAND_LISTS
     )
 endif ()
+
+# Runtime application
+add_executable(Honey_Runtime
+        src/runtime/honey_runtime_app.cpp
+        src/runtime/runtime_layer.cpp
+)
+
+set_property(TARGET Honey_Runtime PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+
+# Linux dlopen
+if(UNIX AND NOT APPLE)
+    target_link_libraries(Honey_Runtime PRIVATE dl)
+endif()
+
+target_include_directories(Honey_Runtime PRIVATE
+        ${CMAKE_SOURCE_DIR}/Honey/engine/src
+        ${CMAKE_SOURCE_DIR}/Honey/engine/vendor
+)
+
+# ---- Engine ----
+target_link_libraries(Honey_Runtime PRIVATE engine)
+
+# Move shaderc dll next to executable
+if (WIN32)
+    add_custom_command(TARGET Honey_Editor POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:Honey_Editor>
+            $<TARGET_FILE_DIR:Honey_Editor>
+            COMMAND_EXPAND_LISTS
+    )
+endif ()
