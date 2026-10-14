@@ -1,5 +1,6 @@
 #include "hnpch.h"
 #include "viewport_panel.h"
+#include "Honey/core/asset_paths.h"
 #include "Honey/core/settings.h"
 #include "../editor_layer.h"
 
@@ -9,7 +10,6 @@
 #include "Honey/math/math.h"
 #include "Honey/ui/imgui_utils.h"
 
-static const std::filesystem::path asset_root = ASSET_ROOT;
 
 namespace Honey {
 
@@ -44,12 +44,12 @@ namespace Honey {
                     std::filesystem::path path = path_str;
 
                     if (path.extension() == ".hns")
-                        editor.open_scene(asset_root / path);
+                        editor.open_scene(AssetPaths::asset_root() / path);
                     else if (path.extension() == ".hnp")
-                        editor.m_active_scene->add_prefab_to_scene((asset_root / path).string());
+                        editor.m_active_scene->add_prefab_to_scene((AssetPaths::asset_root() / path).string());
                     else if (path.extension() == ".glb" || path.extension() == ".gltf") {
-                        auto handle = load_gltf_scene_tree_async(asset_root / path);
-                        editor.m_pending_gltf_loads.push_back({handle, asset_root / path});
+                        auto handle = load_gltf_scene_tree_async(AssetPaths::asset_root() / path);
+                        editor.m_pending_gltf_loads.push_back({handle, AssetPaths::asset_root() / path});
                     }
                 }
             }

@@ -8,6 +8,8 @@ add_executable(Honey_Editor
         src/honey_editor_app.cpp
         src/editor_layer.cpp
         src/editor_layer.h
+        src/editor_paths.h
+        src/editor_paths.cpp
         src/panels/scene_hierarchy_panel.h
         src/panels/scene_hierarchy_panel.cpp
         src/panels/content_browser_panel.h
@@ -42,8 +44,6 @@ target_include_directories(Honey_Editor PRIVATE
 
 add_compile_definitions(
         GLM_FORCE_SILENT_WARNINGS
-        ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets"
-        CONFIG_ROOT="${CMAKE_SOURCE_DIR}/config"
 )
 
 # ---- Engine ----

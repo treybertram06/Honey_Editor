@@ -63,7 +63,7 @@ public class FirstPersonController : EntityScript {
 
         // Shooting
         if (Input.IsMouseButtonDown(MouseButton.Left)) {
-            var bullet = Scene.InstantiatePrefab("../assets/prefabs/Bulletish.hnp");
+            var bullet = Scene.InstantiatePrefab("prefabs/Bulletish.hnp");
             bullet.Rigidbody.SetPosition(new Vector3(transform.Translation.X, transform.Translation.Y - 0.1f, transform.Translation.Z));
 
             float bFwdX = -(float)Math.Sin(_yaw) * (float)Math.Cos(_pitch);

@@ -1,5 +1,6 @@
 #include "hnpch.h"
 #include "renderer_debug_panel.h"
+#include "Honey/core/asset_paths.h"
 #include "Honey/core/settings.h"
 
 #include <imgui.h>
@@ -14,7 +15,6 @@
 #include "platform/vulkan/vk_backend.h"
 #include "platform/vulkan/vk_descriptor_heap.h"
 
-static const std::filesystem::path asset_root = ASSET_ROOT;
 
 namespace Honey {
 
@@ -274,7 +274,7 @@ namespace Honey {
             if (ImGui::Combo("Renderer API", &api_index, api_names, IM_ARRAYSIZE(api_names))) {
                 renderer.api = static_cast<RendererAPI::API>(++api_index);
                 // Show small tooltip or text: "Takes effect on next restart"
-                Settings::write_renderer_api_to_file( asset_root / ".." / "config" / "settings.yaml" );
+                Settings::write_renderer_api_to_file(AssetPaths::settings_path());
             }
             if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip("Renderer API changes will take effect after restarting the editor.");

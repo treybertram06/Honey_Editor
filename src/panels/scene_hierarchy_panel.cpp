@@ -1,4 +1,5 @@
 #include "scene_hierarchy_panel.h"
+#include "Honey/core/asset_paths.h"
 
 #include <type_traits>
 #include <filesystem>
@@ -16,7 +17,6 @@
 
 
 namespace Honey {
-    extern const std::filesystem::path g_assets_dir;
 
     SceneHierarchyPanel::SceneHierarchyPanel(const Ref<Scene>& context) {
         set_context(context);
@@ -77,7 +77,7 @@ namespace Honey {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
                 if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
                     std::filesystem::path rel = (const char*)payload->Data;
-                    std::filesystem::path full = std::filesystem::path(g_assets_dir) / rel;
+                    std::filesystem::path full = AssetPaths::asset_root() / rel;
                     const auto& ext = full.extension();
                     if ((ext == ".glb" || ext == ".gltf") && m_context) {
                         GltfSceneTree tree = load_gltf_scene_tree(full);
@@ -247,7 +247,7 @@ namespace Honey {
 
             if (ImGui::MenuItem("Create Prefab")) {
                 std::string default_path =
-                    (g_assets_dir / "prefabs" / (tag.tag + ".hnp")).string();
+                    (AssetPaths::asset_root() / "prefabs" / (tag.tag + ".hnp")).string();
                 if (!default_path.empty()) {
                     SceneSerializer serializer(m_context);
                     serializer.serialize_entity_prefab(entity, default_path);
@@ -693,7 +693,7 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                         const char* path_str = (const char*)payload->Data;
                         std::filesystem::path path = path_str;
 
-                        std::filesystem::path texture_path = std::filesystem::path(g_assets_dir) / path;
+                        std::filesystem::path texture_path = AssetPaths::asset_root() / path;
                         Ref<Texture2D> texture = Texture2D::create(texture_path.string());
 
                         component.sprite = Sprite::create_from_texture(texture, 8.0f);
@@ -751,7 +751,7 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                     if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
                         const char* path_str = (const char*)payload->Data;
                         std::filesystem::path path = path_str;
-                        std::filesystem::path mesh_path = std::filesystem::path(g_assets_dir) / path;
+                        std::filesystem::path mesh_path = AssetPaths::asset_root() / path;
 
                         component.async_load_handle = load_gltf_mesh_async(mesh_path.string(), {});
                         component.mesh_path = mesh_path;
@@ -785,7 +785,7 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                     if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
                         const char* path_str = (const char*)payload->Data;
                         std::filesystem::path path = path_str;
-                        std::filesystem::path texture_path = std::filesystem::path(g_assets_dir) / path;
+                        std::filesystem::path texture_path = AssetPaths::asset_root() / path;
                         component.texture_path = texture_path;
                         component.texture = Texture2D::create(texture_path.string());
                         changed = true;
@@ -811,7 +811,7 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                     if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
                         const char* path_str = (const char*)payload->Data;
                         std::filesystem::path path = path_str;
-                        std::filesystem::path texture_path = std::filesystem::path(g_assets_dir) / path;
+                        std::filesystem::path texture_path = AssetPaths::asset_root() / path;
                         component.texture_path = texture_path;
                         component.texture = Texture2D::create(texture_path.string());
                         changed = true;
@@ -845,7 +845,7 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                 if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
                     if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
                         const char* path_str = (const char*)payload->Data;
-                        component.font_path = std::filesystem::path(g_assets_dir) / path_str;
+                        component.font_path = AssetPaths::asset_root() / path_str;
                         component.font_data.reset(); // force reload on next draw
                         changed = true;
                     }
@@ -867,7 +867,7 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                 if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
                     if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
                         const char* path_str = (const char*)payload->Data;
-                        component.icon_path = std::filesystem::path(g_assets_dir) / path_str;
+                        component.icon_path = AssetPaths::asset_root() / path_str;
                         component.icon_data.reset(); // force reload on next draw
                         changed = true;
                     }
@@ -945,7 +945,7 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
             }
 
             if (ImGui::BeginCombo("Available Scripts", display_name.c_str())) {
-                const std::filesystem::path cs_dir = g_assets_dir / "scripts";
+                const std::filesystem::path cs_dir = AssetPaths::asset_root() / "scripts";
                 if (std::filesystem::exists(cs_dir)) {
                     for (auto& entry : std::filesystem::directory_iterator(cs_dir)) {
                         if (entry.path().extension() == ".cs") {
@@ -1171,7 +1171,7 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                         std::filesystem::path path = path_str;
 
                         if (path.extension() == ".wav") {
-                            auto new_path = std::filesystem::path(g_assets_dir) / path;
+                            auto new_path = AssetPaths::asset_root() / path;
                             if (component.file_path != new_path) {
                                 component.file_path = new_path;
                                 changed = true;
@@ -1221,7 +1221,7 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
                     if (payload->IsDelivery() && payload->Data && payload->DataSize > 0) {
                         const char* path_str = (const char*)payload->Data;
                         std::filesystem::path path = path_str;
-                        std::filesystem::path texture_path = std::filesystem::path(g_assets_dir) / path;
+                        std::filesystem::path texture_path = AssetPaths::asset_root() / path;
                         component.update_file_synchronous(texture_path);
                         changed = true;
                     }

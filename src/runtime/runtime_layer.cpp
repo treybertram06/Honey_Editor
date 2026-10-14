@@ -1,10 +1,9 @@
 #include "hnpch.h"
 #include "runtime_layer.h"
 
+#include "Honey/core/asset_paths.h"
 #include "Honey/scene/cloth_system.h"
 #include "Honey/scene/scene_serializer.h"
-
-static const std::filesystem::path asset_root = ASSET_ROOT;
 
 namespace Honey {
     RuntimeLayer::RuntimeLayer()
@@ -29,7 +28,7 @@ namespace Honey {
         m_viewport_size = { (float)window.get_width(), (float)window.get_height() };
         m_scene_viewport_renderer.resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
 
-        const auto entry_path = asset_root / "scenes" / "main.hns";
+        const auto entry_path = AssetPaths::resolve("scenes/main.hns"); // TODO(0.4): start scene from game.yaml
         m_active_scene = open_scene(entry_path);
         if (!m_active_scene) {
             Application::quit(11);

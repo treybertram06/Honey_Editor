@@ -1,5 +1,7 @@
 #include "hnpch.h"
 #include "content_browser_panel.h"
+#include "../editor_paths.h"
+#include "Honey/core/asset_paths.h"
 
 #include <imgui.h>
 #include <filesystem>
@@ -52,13 +54,11 @@ namespace Honey {
         return false;
     }
 
-    //will change when theres separate projects
-    extern const std::filesystem::path g_assets_dir = "../assets";
 
     ContentBrowserPanel::ContentBrowserPanel()
-        : m_current_directory(g_assets_dir) {
-        m_directory_icon = Texture2D::create_async("../resources/icons/content_browser/folder.png");
-        m_file_icon = Texture2D::create_async("../resources/icons/content_browser/document.png");
+        : m_current_directory(AssetPaths::asset_root()) {
+        m_directory_icon = Texture2D::create_async(EditorPaths::resource("icons/content_browser/folder.png").string());
+        m_file_icon = Texture2D::create_async(EditorPaths::resource("icons/content_browser/document.png").string());
     }
 
     void ContentBrowserPanel::on_imgui_render(EditorLayer&) {
@@ -70,18 +70,18 @@ namespace Honey {
         // --- Top bar: breadcrumbs + view mode toggle ---
         {
             // Breadcrumbs: assets / foo / bar
-            std::filesystem::path relative = std::filesystem::relative(m_current_directory, g_assets_dir);
+            std::filesystem::path relative = std::filesystem::relative(m_current_directory, AssetPaths::asset_root());
 
             ImGui::TextUnformatted("Path: ");
             ImGui::SameLine();
 
             // Root "assets" segment
             if (ImGui::SmallButton("assets")) {
-                m_current_directory = g_assets_dir;
+                m_current_directory = AssetPaths::asset_root();
                 memset(m_search_filter, 0, sizeof(m_search_filter));
             }
 
-            std::filesystem::path temp_path = g_assets_dir;
+            std::filesystem::path temp_path = AssetPaths::asset_root();
             for (const auto& part : relative) {
                 ImGui::SameLine();
                 ImGui::TextUnformatted("/");
@@ -154,7 +154,7 @@ namespace Honey {
 
         for (auto& it : std::filesystem::directory_iterator(m_current_directory)) {
             const auto& path = it.path();
-            auto relative_path = std::filesystem::relative(path, g_assets_dir);
+            auto relative_path = std::filesystem::relative(path, AssetPaths::asset_root());
             std::string filename_string = relative_path.filename().string();
 
             // Skip hidden files if option is off

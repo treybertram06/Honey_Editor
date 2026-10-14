@@ -1,4 +1,6 @@
 #include "editor_layer.h"
+#include "editor_paths.h"
+#include "Honey/core/asset_paths.h"
 
 #include <glm/glm/gtc/type_ptr.hpp>
 #include "hnpch.h"
@@ -22,10 +24,8 @@
 #include <glm/gtc/constants.hpp>
 
 
-static const std::filesystem::path asset_root = ASSET_ROOT;
 
 namespace Honey {
-    extern const std::filesystem::path g_assets_dir;
 
     EditorLayer::EditorLayer()
         : Layer("EditorLayer") {
@@ -34,14 +34,14 @@ namespace Honey {
     }
 
     void EditorLayer::on_attach() {
-        m_icon_play         = Texture2D::create_async("../resources/icons/toolbar/play_button.png");
-        m_icon_stop         = Texture2D::create_async("../resources/icons/toolbar/stop_button.png");
-        m_icon_pause        = Texture2D::create_async("../resources/icons/toolbar/pause_button.png");
-        m_icon_simulate     = Texture2D::create_async("../resources/icons/toolbar/simulate_button.png");
+        m_icon_play         = Texture2D::create_async(EditorPaths::resource("icons/toolbar/play_button.png").string());
+        m_icon_stop         = Texture2D::create_async(EditorPaths::resource("icons/toolbar/stop_button.png").string());
+        m_icon_pause        = Texture2D::create_async(EditorPaths::resource("icons/toolbar/pause_button.png").string());
+        m_icon_simulate     = Texture2D::create_async(EditorPaths::resource("icons/toolbar/simulate_button.png").string());
 
-        m_icon_point_light  = VectorIcon::create("../resources/icons/scene/lights/lightbulb-regular-full.svg");
-        m_icon_dir_light    = VectorIcon::create("../resources/icons/scene/lights/sun-regular-full.svg");
-        m_icon_camera       = VectorIcon::create("../resources/icons/scene/camera/camera-regular-full.svg");
+        m_icon_point_light  = VectorIcon::create(EditorPaths::resource("icons/scene/lights/lightbulb-regular-full.svg").string());
+        m_icon_dir_light    = VectorIcon::create(EditorPaths::resource("icons/scene/lights/sun-regular-full.svg").string());
+        m_icon_camera       = VectorIcon::create(EditorPaths::resource("icons/scene/camera/camera-regular-full.svg").string());
 
         m_scene_hierarchy_panel.set_notification_center(&m_notification_center);
 
@@ -368,7 +368,7 @@ namespace Honey {
             }
             if (ImGui::BeginMenu("Preferences")) {
                 if (ImGui::MenuItem("Save settings to file")) {
-                    Settings::save_to_file( asset_root / ".." / "config" / "settings.yaml" );
+                    Settings::save_to_file(AssetPaths::settings_path());
                 }
                 ImGui::EndMenu();
             }
@@ -383,14 +383,14 @@ namespace Honey {
                         //print current working directory
                         std::filesystem::path current_path = std::filesystem::current_path();
                         HN_CORE_INFO("Current working directory: {0}", current_path.string());
-                        ScriptLoader::get().reload_library("assets/scripts/libHoneyScripts.so");
+                        ScriptLoader::get().reload_library(AssetPaths::resolve("scripts/libHoneyScripts.so").string());
                     } else {
                         HN_CORE_ERROR("Script build failed with code: {0}", result);
                         m_notification_center.push_toast(UI::ToastType::Error, "Build Failed", "HoneyScripts build failed. See console for details.");
                     }
                 }
                 if (ImGui::MenuItem("Reload Native Scripts")) {
-                    ScriptLoader::get().reload_library("assets/scripts/libHoneyScripts.so");
+                    ScriptLoader::get().reload_library(AssetPaths::resolve("scripts/libHoneyScripts.so").string());
                     m_notification_center.push_toast(UI::ToastType::Info, "Scripts Reloaded", "HoneyScripts reloaded.");
                 }
 

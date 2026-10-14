@@ -10,10 +10,12 @@ Use CLion MCP or ask user to build with CMake
 ```
 
 ### Running
-Always run from the project root so assets resolve correctly:
+Can run from any working directory — `AssetPaths` (`Honey/engine/src/Honey/core/asset_paths.*`) finds the asset root at startup (`--assets <dir>` → `HONEY_ASSET_ROOT` → `<exe dir>/assets` → source tree in dev builds) and logs which rule matched:
 ```bash
 ./cmake-build-debug/Honey_Editor
+./cmake-build-debug/Honey_Runtime
 ```
+Never add `ASSET_ROOT`/`"../assets"`-style paths: use `AssetPaths::asset_root()` / `resolve()`, and `to_portable`/`from_portable` when writing/reading paths in scene/prefab files (asset-relative on disk, absolute in memory). Editor-only icons go through `EditorPaths::resource()`.
 
 ### Windows
 ```bat
