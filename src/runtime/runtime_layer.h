@@ -1,6 +1,8 @@
 #pragma once
 #include <Honey.h>
 
+#include "Honey/renderer/scene_viewport_renderer.h"
+
 namespace Honey {
     class RuntimeLayer : public Layer {
 
@@ -15,15 +17,11 @@ namespace Honey {
         void on_event(Event& event) override;
 
     private:
-        bool on_key_pressed(KeyPressedEvent& e);
-        bool on_mouse_button_pressed(MouseButtonPressedEvent& e);
-
         Ref<Scene> open_scene(const std::filesystem::path& path);
 
         Ref<Scene> m_active_scene;
-        glm::vec2 m_viewport_size = {1680.0f, 720.0f};
-        bool m_viewport_maximized = false;
 
-
+        SceneViewportRenderer m_scene_viewport_renderer;
+        glm::vec2 m_viewport_size = {1280.0f, 720.0f};
     };
 }

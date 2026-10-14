@@ -1,0 +1,3 @@
+- **Make it easy to see direction of things in which that matters** Camera, directional lights, etc.
+- **Look into bug with lights being children of an entity that is scaled**
+- **Find better way to have lantern-type models used to light a scene** Maybe make it so entities that are further nested than the one the light belongs to are not shadowed? Seems inefficient...

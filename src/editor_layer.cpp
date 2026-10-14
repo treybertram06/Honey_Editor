@@ -91,20 +91,8 @@ namespace Honey {
         context.timestep = ts;
 
         if (m_scene_state == SceneState::play) {
-            Entity camera_entity = m_active_scene ? m_active_scene->get_primary_camera() : Entity{};
-            if (camera_entity.is_valid()) {
-                auto& cc = camera_entity.get_component<CameraComponent>();
-                auto& tc = camera_entity.get_component<TransformComponent>();
-
-                if (Camera* primary_camera = cc.get_camera()) {
-                    const glm::mat4 transform = camera_entity.get_world_transform();
-                    context.view = glm::inverse(transform);
-                    context.projection = primary_camera->get_projection_matrix();
-                    context.camera_position = tc.translation;
-                    context.camera_exposure = cc.exposure;
-                    context.scene_is_runtime_camera = true;
-                }
-            }
+            if (m_active_scene)
+                fill_runtime_camera(context, *m_active_scene, ts);
 
             context.post_scene_overlay_render = [this]() { on_overlay_render(); };
             return context;

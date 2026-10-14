@@ -62,10 +62,10 @@ add_custom_command(TARGET Honey_Editor POST_BUILD
 
 # Move shaderc dll next to executable
 if (WIN32)
-    add_custom_command(TARGET Honey_Editor POST_BUILD
+    add_custom_command(TARGET Honey_Runtime POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_RUNTIME_DLLS:Honey_Editor>
-            $<TARGET_FILE_DIR:Honey_Editor>
+            $<TARGET_RUNTIME_DLLS:Honey_Runtime>
+            $<TARGET_FILE_DIR:Honey_Runtime>
             COMMAND_EXPAND_LISTS
     )
 endif ()
