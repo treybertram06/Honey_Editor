@@ -60,15 +60,6 @@ add_custom_command(TARGET Honey_Editor POST_BUILD
         -P "${CMAKE_SOURCE_DIR}/cmake/CopyIfMissing.cmake"
 )
 
-# Move shaderc dll next to executable
-if (WIN32)
-    add_custom_command(TARGET Honey_Runtime POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_RUNTIME_DLLS:Honey_Runtime>
-            $<TARGET_FILE_DIR:Honey_Runtime>
-            COMMAND_EXPAND_LISTS
-    )
-endif ()
 
 # Runtime application
 add_executable(Honey_Runtime
@@ -91,6 +82,15 @@ target_include_directories(Honey_Runtime PRIVATE
 # ---- Engine ----
 target_link_libraries(Honey_Runtime PRIVATE engine)
 
+# Move shaderc dll next to executable
+if (WIN32)
+    add_custom_command(TARGET Honey_Runtime POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:Honey_Runtime>
+            $<TARGET_FILE_DIR:Honey_Runtime>
+            COMMAND_EXPAND_LISTS
+    )
+endif ()
 # Move shaderc dll next to executable
 if (WIN32)
     add_custom_command(TARGET Honey_Editor POST_BUILD
