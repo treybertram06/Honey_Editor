@@ -12,20 +12,26 @@ namespace Honey {
     void RuntimeLayer::on_attach() {
         HN_PROFILE_FUNCTION();
 
+        if (!Application::get().get_vulkan_backend().supports_full_renderer()) {
+            HN_ERROR("Honey_Runtime requires full renderer support."); // TODO(4.2)
+            Application::quit(10);
+            return;
+        }
+
         m_scene_viewport_renderer.initialize();
         const auto& rs = Settings::get().renderer;
         m_scene_viewport_renderer.set_settings(SceneViewportRenderSettings{
-            .renderer_type = rs.renderer_type,
+            .renderer_type = rs.renderer_type == RendererSettings::RendererType::lite
+            ? RendererSettings::RendererType::deferred : rs.renderer_type,
             .geometry_path = rs.geometry_path,
             .collect_frame_graph_timings = false,
             .log_frame_graph_pass_timings = false,
             .debug_pick_enabled = false,
         });
 
-        // Actual window size, not the saved settings (which can be stale when maximized/fullscreen).
-        // TODO(0.2): use framebuffer pixel size and follow resizes.
-        const auto& window = Application::get().get_window();
-        m_viewport_size = { (float)window.get_width(), (float)window.get_height() };
+        // Actual framebuffer size, not the saved settings (which can be stale when maximized/fullscreen).
+        const auto [fb_width, fb_height] = Application::get().get_window().get_framebuffer_size();
+        m_viewport_size = { (float)fb_width, (float)fb_height };
         m_scene_viewport_renderer.resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
 
         const auto entry_path = AssetPaths::resolve("scenes/main.hns"); // TODO(0.4): start scene from game.yaml
@@ -56,10 +62,16 @@ namespace Honey {
     void RuntimeLayer::on_update(Timestep ts) {
         HN_PROFILE_FUNCTION();
 
+        m_scene_rendered_this_frame = false;
         if (!m_active_scene)
             return;
 
-        // TODO(0.2): Apply pending resize
+        if (m_pending_size.x > 0 && m_pending_size.y > 0 &&
+            ((float)m_pending_size.x != m_viewport_size.x || (float)m_pending_size.y != m_viewport_size.y)) {
+            m_viewport_size = { (float)m_pending_size.x, (float)m_pending_size.y };
+            m_scene_viewport_renderer.resize(m_pending_size.x, m_pending_size.y);
+            m_active_scene->on_viewport_resize(m_pending_size.x, m_pending_size.y);
+        }
 
         // Same as editor Play, so cloth behaves identically in both.
         if (m_active_scene->get_cloth_system())
@@ -69,8 +81,17 @@ namespace Honey {
         m_active_scene->on_update_runtime(ts, paused);
 
         SceneViewportRenderContext render_context{};
-        if (fill_runtime_camera(render_context, *m_active_scene, ts))
+        if (fill_runtime_camera(render_context, *m_active_scene, ts)) {
             m_scene_viewport_renderer.render(render_context);
+            m_scene_rendered_this_frame = true;
+        }
+    }
+
+    void RuntimeLayer::on_window_render() {
+        HN_PROFILE_FUNCTION();
+
+        if (m_scene_rendered_this_frame)
+            Renderer::present(m_scene_viewport_renderer.get_output_framebuffer(), PresentFit::letterbox);
     }
 
     Ref<Scene> RuntimeLayer::open_scene(const std::filesystem::path& path) {
@@ -96,6 +117,10 @@ namespace Honey {
     }
 
     void RuntimeLayer::on_event(Event &event) {
-        Layer::on_event(event);
+        EventDispatcher dispatcher(event);
+        dispatcher.dispatch<FramebufferResizeEvent>([this](FramebufferResizeEvent& e) {
+            m_pending_size = { e.get_width(), e.get_height() };
+            return false;
+        });
     }
 }

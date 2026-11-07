@@ -14,6 +14,7 @@ namespace Honey {
         void on_detach() override;
 
         void on_update(Timestep ts) override;
+        void on_window_render() override;
         void on_event(Event& event) override;
 
     private:
@@ -23,5 +24,7 @@ namespace Honey {
 
         SceneViewportRenderer m_scene_viewport_renderer;
         glm::vec2 m_viewport_size = {1280.0f, 720.0f};
+        glm::uvec2 m_pending_size = {0, 0};
+        bool m_scene_rendered_this_frame = false;
     };
 }
