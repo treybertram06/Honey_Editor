@@ -52,7 +52,9 @@ The comment after each one says how this plan is likely to break it.
 - **`MatchSize` doesn't chain.** Every new texture below uses `MatchSize: gAlbedo`.
 - **`GeometryPath: Meshlet` is the geometry path going forward.** Velocity output is
   first-class on the meshlet G-buffer shader. The classic path gets the camera-only fallback
-  (B2e) and nothing more.
+  (B2e) and nothing more. It's on the classic-descriptor debt list
+  (`todos/deferred_renderer/descriptor_heaps.md`); if it has been deleted by the time you get here,
+  skip the B2e classic item.
 
 ### New invariants this plan adds (later sub-plans such as SSR/RT denoisers inherit them)
 

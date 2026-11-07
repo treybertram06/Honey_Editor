@@ -12,9 +12,17 @@ Correctness bugs and hazards found during that migration were tracked in `descri
 size, and heap capacity sizing) — that doc is now fully closed and has been deleted; see git
 history if you need it.
 
-**Steps 9 and 10 are now both closed too.** Step 9 closed via a follow-up audit — the remaining
-"legacy" descriptor code turned out to be load-bearing for systems intentionally staying on the
-classic path, not cruft; see that section for the corrected facts. Step 10's remaining items
+> **Policy update (2026-10-13): heap mode is the only descriptor model.** Non-heap descriptors are
+> allowed only inside the Lite tier (dev-only, Mac editor work) and in third-party code we don't
+> control (ImGui). The Full-tier classic paths Step 9 kept as "intentional exceptions" are now
+> **debt to migrate or delete**. See "Classic-descriptor debt" below, and CLAUDE.md → Architecture
+> Invariants. Where this doc calls something "legitimately classic" or "leave it alone", read that
+> as "still classic today, scheduled for removal".
+
+**Steps 9 and 10 are now both closed too.** Step 9 closed via a follow-up audit. The remaining
+"legacy" descriptor code turned out to be load-bearing for systems still on the classic path, so
+it couldn't simply be deleted. See that section for the facts (and the policy note above for why
+that's now debt rather than a permanent exception). Step 10's remaining items
 (profiler annotations, heap dump) landed: `HN_GPU_SCOPE(m_cmd, "FG: Heap Bind")` wraps the heap
 bind + descriptor writes in `FrameGraphPassContext::bind_heap_pipeline`
 (`frame_graph.cpp`), and `VulkanDescriptorHeap` now tracks an always-on per-frame `DumpEntry` list
@@ -115,7 +123,8 @@ migration:
   (`renderer_3d_pathtracer.cpp`) each own a fully private `VkDescriptorSetLayout`/`VkDescriptorPool`
   and never reference any `VulkanContext` global-descriptor symbol or the `extra_set_layout`
   overload. Matches the original "leave alone" guidance exactly. The target here is "renderer_3d is
-  heap-only", not whole-engine purity, and by that measure Step 9 is complete.
+  heap-only", not whole-engine purity, and by that measure Step 9 is complete. *(Superseded by
+  the 2026-10-13 policy: both are now on the "Classic-descriptor debt" list.)*
 
 ---
 
@@ -182,30 +191,48 @@ consumers are still alive and why. Ordered highest-value first.
    dimension cleanly; if it does, prefer that over the YAML field. Small, cosmetic (removes a
    manual annotation), no urgency.
 
-### Not worth it
+### Classic-descriptor debt (migrate or delete)
 
-- **Migrating `Renderer2D`'s SDF text/icon renderer to heap mode.** No driving need once billboard
-  icons get their own pass (see above) — that was the concrete use case that made this worth
-  reconsidering. What's left is a general 2D text/icon renderer used for on-screen debug text and
-  editor overlays; its descriptor footprint is already small and self-contained (two SSBOs behind
-  `VulkanContext`'s font descriptor set, no textures), so leaving it on the classic path costs
-  nothing. `bind_heap_pipeline` also assumes a registered frame-graph pass executor
-  (`frame_graph.cpp:795-830`), not an immediate-mode call site like `on_overlay_render` — heap-mode
-  migration here would mean restructuring the call pattern, not just swapping a descriptor set.
-  Revisit only if `renderer_2d.cpp`'s broader "needs a major refactor" item in `short_todos.md`
-  ever gets scheduled.
-- **Migrating `VulkanContext`'s global descriptor sets to heap mode** (`m_global_set_layout` /
-  `m_descriptor_pool` / `m_global_descriptor_sets`, populated by `apply_pending_globals`,
-  `vk_context.cpp:2060-2069`). This is what the general-purpose `Renderer2D` path, the forward
-  pass, classic G-buffer geometry, and the debug renderer all still run on. Migrating it is a
-  whole-engine legacy-path project, not a contained pass migration like SSAO/deferred/meshlet
-  were — and part of what it serves (the forward path) is itself flagged low-priority in
-  `short_todos.md` ("Use `TiledLighting` in the Forward renderer") pending confirmation it's still
-  needed. Don't start this without first deciding the forward path's fate.
-- **Migrating the shadow module's classic pipeline to heap mode.** Per the Step 9 audit, this
-  isn't a hardware-capability fallback — it's a runtime debug toggle (`GeometryPath` combo,
-  `renderer_debug_panel.cpp:172-178`) that exists specifically to give a side-by-side comparison
-  against the heap-mode meshlet shadow path. Migrating it to heap mode would either eliminate the
-  thing it's for (nothing left to compare against) or require keeping two heap-mode
-  implementations of the same pass around, which is worse than the current one-classic/one-heap
-  split. Leave it as the intentional exception it is.
+Per the 2026-10-13 policy (heap mode only; exceptions are Lite and third-party code), every
+Full-tier classic-descriptor user below is debt. Each one gets **migrated** to heap mode or
+**deleted**. None stay as permanent exceptions. Decide migrate vs. delete per item; deleting is
+preferred when the path only exists for comparison or legacy reasons. No new code may build on any
+of these. The facts from the earlier "not worth it" analysis are kept below because they describe
+what each migration actually involves.
+
+1. **Classic shadow pipeline** (`renderer_3d_shadow.cpp:243,665`, reads `get_global_descriptor_set()`
+   at `:299,715`). This is a runtime debug toggle (`GeometryPath` combo,
+   `renderer_debug_panel.cpp:172-178`) for side-by-side comparison against the heap-mode meshlet
+   shadow path, not a capability fallback. Shadows already require mesh shaders. **Likely delete**,
+   along with the classic `GeometryPath` option for shadows. A comparison toggle isn't worth
+   keeping two descriptor models alive.
+2. **Classic G-buffer geometry path** (the non-meshlet `GeometryPath`). Same reasoning: a comparison
+   path against the meshlet default. **Decide migrate vs. delete.** If it's kept as a debugging
+   reference, it must become heap-mode.
+3. **Forward pass.** Already flagged low-priority in `short_todos.md` ("Use `TiledLighting` in the
+   Forward renderer"), pending a decision on whether it's still needed. **Decide its fate first:**
+   delete if unused, otherwise migrate.
+4. **Debug renderer** (`debug_renderer_3d`). It's on the classic global sets via
+   `apply_pending_globals`. **Migrate.** Debug lines are needed on the Full tier.
+5. **Renderer2D text/icons** (`renderer_2d.cpp:270,864`, `Renderer2D_Text.glsl`, `VulkanContext`'s
+   font descriptor set, and the `extra_set_layout` overload of `Pipeline::create`/`create_mesh`).
+   **Migrate**, or replace with heap-native passes (see "Worth doing" item 1 for billboard icons).
+   Caveat from the earlier analysis: `bind_heap_pipeline` assumes a registered frame-graph pass
+   executor (`frame_graph.cpp:795-830`), so immediate-mode call sites like `on_overlay_render`
+   need either a frame-graph pass or a bindless-index path. Likely ties into the broader
+   "renderer_2d needs a major refactor" item in `short_todos.md`.
+6. **`VulkanContext` global descriptor sets** (`m_global_set_layout` / `m_descriptor_pool` /
+   `m_global_descriptor_sets`, populated by `apply_pending_globals`, `vk_context.cpp:2060-2069`) and
+   **font sets** (`m_font_set_layout` / `m_font_descriptor_pool` / `m_fonts_descriptor_sets`). These
+   go away once items 1–5 no longer read them. These are also renderer resources living on
+   `VulkanContext`, which violates the VulkanContext-boundary invariant on their own. See
+   `renderer_globals_migration.md`.
+7. **Cloth sim / cloth renderer** (`vk_cloth_sim.*`, `vk_cloth_renderer.*`) and the **path tracer**
+   (`renderer_3d_pathtracer.cpp`). Each owns a private `VkDescriptorSetLayout`/`VkDescriptorPool`.
+   They're isolated, so they're lower priority, but they're still classic and still debt.
+   **Migrate.**
+
+Once all items are done: the `extra_set_layout` overloads and any classic-set plumbing outside
+`Renderer3DLite` can be deleted. The `heap->bind(cmd)` re-bind workarounds
+(`frame_graph.cpp:989-996`, `renderer_3d_shadow.cpp:580`) can then be removed for the Full tier,
+since nothing classic would run between heap passes except ImGui at the end of the frame.

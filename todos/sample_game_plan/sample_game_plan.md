@@ -6,13 +6,13 @@ Goal: build a small game (main menu → lobby with a walkable door → gameplay 
 
 Inherited from CLAUDE.md — a step that would violate one must stop and flag it:
 - `VulkanContext` stays renderer-agnostic. The present/blit path for the player must live on `VulkanBackend`/the renderer, not as `VulkanContext` members.
-- The Lite tier never touches the descriptor heap, bindless, or mesh shaders. Anything the player runs each frame (present blit, UI draw) must work with `get_descriptor_heap()` / `Renderer::globals()` null. Full-tier behaviour must not change.
-- Lite-owned resources live inside `Renderer3DLite`.
+- **Descriptor heap mode only.** All new Vulkan code (present pass, script UI, anything else) uses `VK_EXT_descriptor_heap` (`Pipeline::create_heap_mode`, frame-graph automation or bindless indices). No new descriptor sets / pools / `create_layout_mode`. The only exceptions are code inside the Lite tier and third-party code (ImGui's Vulkan backend). If a step seems to need a classic path, stop and ask.
+- **Lite is dev-only.** It exists so engine features can be developed in the *editor* on a Mac. The player and exported games require the Full tier and carry no Lite fallbacks. Engine features built here (scene transitions, scripting bindings, character controller, game state, audio) must still work in editor Play under Lite, so they can be tested on the Mac. Player-only rendering (present, player UI) doesn't need to. Lite-owned resources live inside `Renderer3DLite`; Full-tier behaviour must not change.
 - Engine code uses `HN_CORE_*`, editor/app code uses `HN_*`; `Ref`/`Scope`; `HN_PROFILE_FUNCTION()`; `hnpch.h` first in `.cpp`.
 - C# is the scripting path. No `sol::`.
 
 Feature-specific:
-1. **Editor and player share one runtime path.** Editor "Play" and `Honey_Player` must drive the same scene lifecycle code (`Scene::on_runtime_start` / `on_update_runtime` / `on_runtime_stop` + the new scene-transition service). No behaviour that only works in one of them.
+1. **Editor and player share one runtime path.** Editor "Play" and `Honey_Runtime` must drive the same scene lifecycle code (`Scene::on_runtime_start` / `on_update_runtime` / `on_runtime_stop` + the new scene-transition service). No behaviour that only works in one of them.
 2. **Scene transitions are deferred.** `Scene.Load` only records a request; the swap happens at a safe point between frames, never inside a script callback or physics step.
 3. **Game code never uses absolute or source-tree paths.** All new code resolves assets through the runtime asset root (Step 0.3). No new `ASSET_ROOT` / `"../assets"` uses.
 4. **The editor must keep working at every step.** The editor remains the primary dev tool; the player is additive.
@@ -21,18 +21,20 @@ Feature-specific:
 
 ## Phase 0 — Foundation (needed before any scene can run outside the editor)
 
-### 0.1 `Honey_Player` executable
-- New CMake target (alongside `Honey_Editor`) linking `engine`, with `RuntimePlayer` `Application` + `RuntimeLayer` (`src/player/` or `Honey/player/`).
+### 0.1 `Honey_Runtime` executable — DONE
+- New CMake target (alongside `Honey_Editor`) linking `engine`, with `HoneyRuntime` `Application` + `RuntimeLayer` (`src/runtime/`).
+- On a Lite-only device (no `VK_EXT_descriptor_heap`), `Honey_Runtime` refuses to start: clear error ("Honey_Runtime requires the Full renderer tier") and a non-zero exit code. Test gameplay on the Mac through editor Play instead.
 - `RuntimeLayer`: load start scene → `Scene::copy`-free direct load → `on_runtime_start()` → each frame `on_update_runtime(ts)` → render via the primary camera.
 - Reuse the lifecycle in `src/editor_layer.cpp` (`on_scene_play` ~L865, `on_scene_stop` ~L883) and `Application::run` (`core/engine.cpp`).
-- Done when: `Honey_Player` opens a window and runs `assets/scenes/game.hns` with scripts and physics, no ImGui editor chrome.
+- Done when: `Honey_Runtime` opens a window and runs `assets/scenes/game.hns` with scripts and physics, no ImGui editor chrome.
 
-### 0.2 Present scene output to the swapchain
+### 0.2 Present scene output to the swapchain — DONE (code-complete; on-screen/sync-validation check by the user)
 - Scene currently renders to an offscreen framebuffer shown in an ImGui viewport. Add a fullscreen present/blit of the scene color target into the swapchain pass (the placeholder in `Application::run`: "Any future direct window-space rendering would go here").
-- Must work on both Full and Lite tiers; owned by `VulkanBackend`/renderer, not `VulkanContext`.
-- Done when: the player shows the 3D scene full-window on macOS (Lite) and on a Full-tier machine, and resizes correctly.
+- Full tier only, heap-mode: a heap-mode pipeline sampling the scene colour target through a per-frame transient heap block (rewritten each frame, so resizes are safe) with the static `LinearClamp` sampler. Implemented as `PresentPass` + `Renderer::present` + `Layer::on_window_render`; `FramebufferResizeEvent` / `Window::get_framebuffer_size()` drive resizing. Re-bind the heap before drawing, since earlier classic binds invalidate it. Owned by the renderer (`PresentPass`), not `VulkanContext`. ImGui (classic sets, third-party) draws on top in the same swapchain pass.
+- Resizes follow framebuffer *pixel* size (HiDPI), applied deferred at the start of the next update.
+- Done when: the player shows the 3D scene full-window on a Full-tier machine, resizes correctly, and is clean under sync validation.
 
-### 0.3 Runtime asset-root resolver
+### 0.3 Runtime asset-root resolver — DONE
 - Replace compile-time `ASSET_ROOT` / `CONFIG_ROOT` (~25 uses: shader cache, pipeline cache `vk_backend.cpp`, BRDF LUT, cloth, renderer_3d_*, `csharp_script_engine.cpp`, `engine.cpp` settings save) and `"../assets"` (`content_browser_panel.cpp`, scripts) with a single `AssetPaths` service: root derived at startup from the executable location, with a dev-mode fallback to the source tree.
 - Editor keeps working by using the dev fallback.
 - Done when: both executables run with the asset folder moved, and no `ASSET_ROOT` remains in engine runtime code.
@@ -58,7 +60,7 @@ Needs: a UI, mouse/cursor control, quit, and scene loading.
 - Done when: a script can show the cursor, and quit the player.
 
 ### 1.3 Screen-space UI
-- Recommended sample approach: expose an ImGui-backed immediate-mode UI to scripts (`UI.Begin/Button/Text/End`) drawn in the player's present pass, so the menu does not wait on a full retained-mode UI system. Keep the API narrow so it can later be re-backed by UI components.
+- Recommended sample approach: expose an ImGui-backed immediate-mode UI to scripts (`UI.Begin/Button/Text/End`) drawn in the swapchain pass after the present. It's ImGui-backed, so it uses ImGui's own descriptors (the allowed third-party exception), and script UI also works in editor Play under Lite. The menu then doesn't have to wait for a full retained-mode UI system. Keep the API narrow so it can later be re-backed by UI components.
 - Alternative (later): `UICanvas` / `UIText` / `UIButton` components. Out of scope for the sample.
 - Done when: a menu scene shows a title and Play / Quit buttons, with working mouse clicks, at different window sizes.
 
@@ -136,8 +138,8 @@ Do this last: the sample game defines what must ship.
 - Done when: the exported folder runs on a machine without the .NET SDK.
 
 ### 4.4 Package target / Export button
-- CMake `install`/`package` target and/or an editor "Export Game" menu action that produces `Game/{Honey_Player, assets (only referenced), managed, runtime, game.yaml}`. Use the manifest's scene list plus a dependency walk over scene/prefab references (reuse the serializer's missing-asset reporting from the recent notification work).
-- Done when: the exported folder runs the full sample game on macOS (Lite), then on Linux/Windows.
+- CMake `install`/`package` target and/or an editor "Export Game" menu action that produces `Game/{Honey_Runtime, assets (only referenced), managed, runtime, game.yaml}`. Use the manifest's scene list plus a dependency walk over scene/prefab references (reuse the serializer's missing-asset reporting from the recent notification work).
+- Done when: the exported folder runs the full sample game on Linux, then Windows. macOS is not an export target for this plan: Lite never ships, and macOS export only becomes relevant once it supports the Full tier and there's a real need, well after a game has shipped.
 
 ### 4.5 Retrospective
 - Record gaps found during the sample in this doc, and promote cross-cutting rules to CLAUDE.md "Architecture Invariants".
@@ -146,3 +148,12 @@ Do this last: the sample game defines what must ship.
 - UI: ImGui-backed immediate mode for the sample (recommended) vs. building real UI components now.
 - Character controller: Jolt `CharacterVirtual` (recommended) vs. capsule rigidbody stopgap.
 - Do scene transitions keep the CLR assembly loaded (faster, simpler state) or reload per scene?
+
+## Decisions log (answers from the user, 2026-10-13)
+- **Lite tier purpose:** development-only, so engine (non-renderer) features can be built and tested in the editor on a MacBook. Never used in production or in any runtime.
+- **Descriptor model:** heap mode only. Non-heap descriptors are allowed only inside the Lite tier and in third-party code we don't control (ImGui). Anything else needs explicit sign-off. Reason: running two descriptor models side by side is too confusing to maintain.
+- **Existing Full-tier classic paths** (Renderer2D text/icons, forward pass, classic G-buffer geometry, debug renderer, classic shadow pipeline, `VulkanContext` global/font sets): treat as debt to migrate or delete. Tracked in `todos/deferred_renderer/descriptor_heaps.md` → "Classic-descriptor debt".
+- **`Honey_Runtime` on a Lite-only device:** refuses to start with a clear error and a non-zero exit code.
+- **macOS as an export target:** not for now. Revisit only after a game has shipped and macOS support is a real need (which would also require the Full tier on macOS).
+- **Executable name:** `Honey_Runtime` (this doc originally said `Honey_Player`).
+
