@@ -23,6 +23,7 @@
 #include <cmath>
 #include <glm/gtc/constants.hpp>
 
+#include "Honey/scripting/csharp_script_glue.h"
 
 
 namespace Honey {
@@ -54,6 +55,11 @@ namespace Honey {
 
     bool EditorLayer::update_scene_for_current_state(Timestep ts) {
         HN_PROFILE_FUNCTION();
+        if (CSharpScriptEngine::s_quit_requested) {
+            CSharpScriptEngine::s_quit_requested = false;
+            if (m_scene_state == SceneState::play || m_scene_state == SceneState::simulate)
+                on_scene_stop();
+        }
 
         switch (m_scene_state) {
         case SceneState::edit:

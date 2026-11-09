@@ -4,6 +4,7 @@
 #include "Honey/core/asset_paths.h"
 #include "Honey/scene/cloth_system.h"
 #include "Honey/scene/scene_serializer.h"
+#include "Honey/scripting/csharp_script_engine.h"
 
 namespace Honey {
     RuntimeLayer::RuntimeLayer()
@@ -41,6 +42,7 @@ namespace Honey {
             return;
         }
         m_active_scene->on_viewport_resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
+        CSharpScriptEngine::s_quit_requested = false; // drop any stale request
         m_active_scene->on_runtime_start();
     }
 
@@ -79,6 +81,14 @@ namespace Honey {
 
         bool paused = false; // Make useful later
         m_active_scene->on_update_runtime(ts, paused);
+
+        // Application.Quit() from a script only sets a flag; act on it here, between frames,
+        // not inside the script callback. on_detach runs on_runtime_stop during shutdown.
+        if (CSharpScriptEngine::s_quit_requested) {
+            CSharpScriptEngine::s_quit_requested = false;
+            Application::quit();
+            return;
+        }
 
         SceneViewportRenderContext render_context{};
         if (fill_runtime_camera(render_context, *m_active_scene, ts)) {
