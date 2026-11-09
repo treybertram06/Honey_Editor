@@ -54,7 +54,7 @@ Needs: a UI, mouse/cursor control, quit, and scene loading.
 - Editor Play: transitions work inside play mode and restore the original editor scene on Stop.
 - Done when: a test script calls `Scene.Load` on key press and swaps between two scenes repeatedly without leaks or crashes.
 
-### 1.2 Cursor, quit, time bindings
+### 1.2 Cursor, quit, time bindings - DONE
 - C#: `Cursor.Visible/Locked` (maps to `Window::set_cursor_captured`), `Application.Quit()` (maps to `Application::quit()`), `Time.DeltaTime`/`Time.Elapsed`.
 - The editor currently captures/uncaptures the cursor in `editor_layer.cpp` (~L472, L605, L886). Keep it working.
 - Done when: a script can show the cursor, and quit the player.
