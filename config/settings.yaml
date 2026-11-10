@@ -31,8 +31,8 @@ Window:
   Title: Honey Engine
   Width: 1728
   Height: 967
-  PosX: 0
-  PosY: 65
-  Fullscreen: true
+  PosX: 619
+  PosY: 123
+  Fullscreen: false
 Editor:
   GizmoIconSize: 48
