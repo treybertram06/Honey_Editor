@@ -23,6 +23,7 @@
 #include <cmath>
 #include <glm/gtc/constants.hpp>
 
+#include "Honey/scene/scene_manager.h"
 #include "Honey/scripting/csharp_script_glue.h"
 
 
@@ -74,6 +75,15 @@ namespace Honey {
             {
                 m_gizmo_type = -1;
                 m_active_scene->on_update_runtime(ts, paused);
+
+                if (SceneManager::has_pending()) {
+                    m_active_scene = SceneManager::perform_pending_load(m_active_scene,
+                        m_viewport_size.x, m_viewport_size.y);
+                    m_scene_hierarchy_panel.set_context(m_active_scene);
+                    m_scene_hierarchy_panel.set_selected_entity({});
+                    Application::get().get_window().set_cursor_captured(false);
+                }
+
                 return m_active_scene->get_primary_camera().is_valid();
             }
         case SceneState::simulate:
@@ -857,6 +867,7 @@ namespace Honey {
 
     void EditorLayer::on_scene_play() {
         m_scene_state = SceneState::play;
+        SceneManager::clear_pending();
 
         m_active_scene = Scene::copy(m_editor_scene);
         m_active_scene->on_viewport_resize((uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y);
@@ -866,6 +877,7 @@ namespace Honey {
 
     void EditorLayer::on_scene_simulate() {
         m_scene_state = SceneState::simulate;
+        SceneManager::clear_pending();
 
         m_active_scene = Scene::copy(m_editor_scene);
         m_active_scene->on_viewport_resize((uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y);
@@ -881,6 +893,7 @@ namespace Honey {
         m_active_scene->on_runtime_stop();
         m_active_scene = m_editor_scene;
         m_scene_hierarchy_panel.set_context(m_active_scene);
+        SceneManager::clear_pending();
     }
 
     void EditorLayer::on_duplicate_entity() {

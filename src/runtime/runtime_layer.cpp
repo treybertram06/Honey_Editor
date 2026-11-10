@@ -4,6 +4,7 @@
 #include "Honey/core/asset_paths.h"
 #include "Honey/core/game_manifest.h"
 #include "Honey/scene/cloth_system.h"
+#include "Honey/scene/scene_manager.h"
 #include "Honey/scene/scene_serializer.h"
 #include "Honey/scripting/csharp_script_engine.h"
 
@@ -50,6 +51,7 @@ namespace Honey {
         }
         m_active_scene->on_viewport_resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
         CSharpScriptEngine::s_quit_requested = false; // drop any stale request
+        SceneManager::clear_pending(); // clear stale loads
         m_active_scene->on_runtime_start();
     }
 
@@ -97,6 +99,14 @@ namespace Honey {
             return;
         }
 
+        if (SceneManager::has_pending()) {
+            m_active_scene = SceneManager::perform_pending_load(m_active_scene,
+                m_viewport_size.x, m_viewport_size.y);
+            Application::get().get_window().set_cursor_captured(false);
+            return; // Skip render for this frame, as nothing will have happened in the new scene yet.
+            // ^^^ This _probably_ causes a single-frame hitch, but whatever. // TODO: Verify this.
+        }
+
         SceneViewportRenderContext render_context{};
         if (fill_runtime_camera(render_context, *m_active_scene, ts)) {
             m_scene_viewport_renderer.render(render_context);
@@ -112,25 +122,7 @@ namespace Honey {
     }
 
     Ref<Scene> RuntimeLayer::open_scene(const std::filesystem::path& path) {
-        if (path.empty()) {
-            HN_WARN("No scene path specified!");
-            return nullptr;
-        }
-        if (path.extension() != ".hns") {
-            HN_WARN("File {0} is not a Honey Scene file!", path.string());
-            return nullptr;
-        }
-
-        Ref<Scene> new_scene = CreateRef<Scene>();
-        SceneSerializer serializer(new_scene);
-        const bool loaded = serializer.deserialize(path);
-
-        if (!loaded) {
-            HN_WARN("Failed to load scene {0}!", path.string());
-            return nullptr;
-        }
-
-        return new_scene;
+        return SceneManager::load_scene(path);
     }
 
     void RuntimeLayer::on_event(Event &event) {

@@ -59,10 +59,6 @@ namespace Honey {
         void draw_ui_toolbar();
         void draw_menu_bar();
 
-        // Temp testing stuff
-        Ref<Texture2D::AsyncHandle> m_test_async_tex;
-        Ref<TextureCube> m_test_tex_cube;
-
         SceneViewportRenderer m_scene_viewport_renderer;
         bool m_collect_frame_graph_timings = true;
         bool m_log_frame_graph_pass_timings = false;
@@ -77,18 +73,11 @@ namespace Honey {
         Ref<Scene> m_active_scene;
         Ref<Scene> m_editor_scene;
 
-        Entity m_camera_ent;
-        Entity m_square_ent;
-        std::vector<Entity> m_camera_entities;
-        Entity m_hovered_entity;
-
         ImVec2 m_viewport_img_min = { 0.0f, 0.0f };
         ImVec2 m_viewport_img_max = { 0.0f, 0.0f };
 
-        //Editor camera
-        EditorCamera m_editor_camera;
-
         //Editor resources
+        EditorCamera m_editor_camera;
         Ref<Texture2D> m_icon_play, m_icon_stop, m_icon_pause, m_icon_simulate;
         Ref<VectorIcon> m_icon_point_light, m_icon_dir_light, m_icon_camera;
 
@@ -98,7 +87,6 @@ namespace Honey {
         FramerateCounter m_framerate_counter;
         int m_framerate = 0;
         float m_frame_time = 0.0f;
-
 
         int m_gizmo_type = -1;
         bool m_show_physics_colliders = false;
