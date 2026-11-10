@@ -1,0 +1,11 @@
+Game:
+  Name: Default Game
+  StartScene: scenes/main.hns      # asset-relative
+  Scenes:                          # build list; consumed by 1.1 (Scene.Load validation) and 4.4 (export walk)
+    - scenes/main.hns
+Window:
+  Title: Default Game
+  Width: 1280
+  Height: 720
+  Mode: windowed                   # windowed | maximized | fullscreen
+  VSync: true

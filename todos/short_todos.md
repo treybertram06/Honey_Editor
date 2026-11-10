@@ -5,6 +5,7 @@ quadrant, roughly highest-value first.
 - **Have no-longer-used GPU profiler entries be removed from the editor panel.** When the path-tracer is active, its GPU profiling entries (TLAS build, WF: ..., etc.) populate the performance panel and are not removed when the path-tracer is shut down.
 - **Make shader compilation errors not cause a crash** Kinda done? I'd like to extend this to using cached shaders/pipelines when shader compilation fails on startup
 - **Update components to follow new pattern established by SkyboxComponent** No more plain structs with fully public data
+- **Pipelines cached per render-pass handle, and are never invalidated and deleted** This caused an issue where the number of embedded samplers can exceed the maximum if the cached pipelines have embedded samplers
 
 ## High impact, low/medium effort — do these first
 

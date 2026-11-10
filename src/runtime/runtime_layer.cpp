@@ -2,6 +2,7 @@
 #include "runtime_layer.h"
 
 #include "Honey/core/asset_paths.h"
+#include "Honey/core/game_manifest.h"
 #include "Honey/scene/cloth_system.h"
 #include "Honey/scene/scene_serializer.h"
 #include "Honey/scripting/csharp_script_engine.h"
@@ -35,7 +36,13 @@ namespace Honey {
         m_viewport_size = { (float)fb_width, (float)fb_height };
         m_scene_viewport_renderer.resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
 
-        const auto entry_path = AssetPaths::resolve("scenes/main.hns"); // TODO(0.4): start scene from game.yaml
+        const GameManifest* manifest = GameManifest::get();
+        if (!manifest) {
+            HN_ERROR("RuntimeLayer: no game manifest loaded");
+            Application::quit(11);
+            return;
+        }
+        const auto entry_path = AssetPaths::resolve(manifest->start_scene);
         m_active_scene = open_scene(entry_path);
         if (!m_active_scene) {
             Application::quit(11);

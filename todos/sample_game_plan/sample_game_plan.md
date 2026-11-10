@@ -39,8 +39,11 @@ Feature-specific:
 - Editor keeps working by using the dev fallback.
 - Done when: both executables run with the asset folder moved, and no `ASSET_ROOT` remains in engine runtime code.
 
-### 0.4 Game manifest
-- `game.yaml` (start scene, scene list, window title/size/fullscreen, vsync). Loaded by the player. Editor reads the same file for a "Build Settings" view later.
+### 0.4 Game manifest — DONE (code-complete; needs a build + hand test)
+- `game.yaml` (start scene, scene list, window title/size/mode, vsync). Loaded by the player. Editor reads the same file for a "Build Settings" view later.
+- Lives at `<asset root>/../game.yaml`, or `--manifest <file>`. `AssetPaths` only *locates* it (`manifest_path()`); `GameManifest::load` parses/validates. Player loads it in `create_application()` (null → exit 1); the editor never loads it, it only copies `resources/defaults/game.yaml` into place if missing.
+- `GameManifest::apply_to` runs in `Application`'s ctor before window creation, overriding window/vsync. `Application::set_persist_settings(false)` in the player so it never writes `settings.yaml`.
+- `WindowSettings::mode` (`windowed | maximized | fullscreen`) replaces the `fullscreen` bool (`settings.yaml` still stores `Fullscreen: bool` = maximized). Real fullscreen (borderless at the monitor's video mode) is implemented for the Linux and Windows Vulkan window paths; the Windows backend still ignores maximize/position.
 - Done when: the player starts the scene named in the manifest.
 
 ## Phase 1 — Scene 1: Main Menu
