@@ -55,8 +55,7 @@ namespace Honey {
     }
 
 
-    ContentBrowserPanel::ContentBrowserPanel()
-        : m_current_directory(AssetPaths::asset_root()) {
+    ContentBrowserPanel::ContentBrowserPanel() {
         m_directory_icon = Texture2D::create_async(EditorPaths::resource("icons/content_browser/folder.png").string());
         m_file_icon = Texture2D::create_async(EditorPaths::resource("icons/content_browser/document.png").string());
     }
@@ -67,6 +66,23 @@ namespace Honey {
             return;
         }
 
+        // Follow the open project: a different asset root (or none) resets the view.
+        if (m_root != AssetPaths::asset_root()) {
+            m_root = AssetPaths::asset_root();
+            m_current_directory = m_root;
+            memset(m_search_filter, 0, sizeof(m_search_filter));
+            m_selected_path.clear();
+        }
+        if (m_root.empty()) {
+            ImGui::TextDisabled("No project open.");
+            ImGui::End();
+            return;
+        }
+        // The folder can disappear under us (deleted externally, project moved): fall back to the root.
+        std::error_code dir_ec;
+        if (!std::filesystem::is_directory(m_current_directory, dir_ec))
+            m_current_directory = m_root;
+
         // --- Top bar: breadcrumbs + view mode toggle ---
         {
             // Breadcrumbs: assets / foo / bar
@@ -76,7 +92,7 @@ namespace Honey {
             ImGui::SameLine();
 
             // Root "assets" segment
-            if (ImGui::SmallButton("assets")) {
+            if (ImGui::SmallButton("Assets")) {
                 m_current_directory = AssetPaths::asset_root();
                 memset(m_search_filter, 0, sizeof(m_search_filter));
             }

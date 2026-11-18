@@ -10,6 +10,8 @@ add_executable(Honey_Editor
         src/editor_layer.h
         src/editor_paths.h
         src/editor_paths.cpp
+        src/editor_prefs.h
+        src/editor_prefs.cpp
         src/panels/scene_hierarchy_panel.h
         src/panels/scene_hierarchy_panel.cpp
         src/panels/content_browser_panel.h

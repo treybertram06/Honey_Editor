@@ -18,6 +18,8 @@ namespace Honey {
         }
     };
 
+    AssetPaths::Mode asset_paths_mode() { return AssetPaths::Mode::player; }
+
     Application* create_application() {
         if (!GameManifest::load(AssetPaths::manifest_path())) {
             HN_ERROR("Honey_Runtime requires a valid project (--project <folder|file.honeyproj>); manifest: {}", AssetPaths::manifest_path().string());

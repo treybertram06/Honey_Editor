@@ -1,5 +1,8 @@
 #include "editor_layer.h"
 #include "editor_paths.h"
+#include "editor_prefs.h"
+#include "Honey/core/game_manifest.h"
+#include "Honey/core/project_template.h"
 #include "Honey/core/asset_paths.h"
 
 #include <glm/glm/gtc/type_ptr.hpp>
@@ -53,6 +56,239 @@ namespace Honey {
         m_editor_camera.set_exposure(Settings::get().renderer.editor_camera_exposure);
         m_scene_viewport_renderer.initialize();
         m_scene_viewport_renderer.resize((std::uint32_t)m_viewport_size.x, (std::uint32_t)m_viewport_size.y);
+
+        // Startup project: --project (already applied by AssetPaths::init) -> last-opened project -> welcome.
+        EditorPrefs::load();
+        if (AssetPaths::has_project()) {
+            if (GameManifest::load(AssetPaths::manifest_path())) {
+                enter_project();
+            } else {
+                m_notification_center.push_toast(UI::ToastType::Error, "Couldn't open project",
+                                                 "Invalid project file. See console for details.", 8.0f);
+                AssetPaths::close_project();
+            }
+        } else if (!AssetPaths::has_asset_root() && !EditorPrefs::last_project().empty()) {
+            const std::filesystem::path last = EditorPrefs::last_project();
+            std::error_code ec;
+            if (std::filesystem::exists(last, ec))
+                load_project(last);
+            else
+                EditorPrefs::set_last_project("");
+        }
+        update_window_title();
+    }
+
+    void EditorLayer::update_window_title() {
+        std::string title = "Honey Editor";
+        if (!m_project_name.empty())
+            title += " - " + m_project_name;
+        else if (AssetPaths::has_asset_root())
+            title += " - " + AssetPaths::asset_root().string() + " (legacy assets)";
+        Application::get().get_window().set_title(title);
+    }
+
+    bool EditorLayer::load_project(const std::filesystem::path& project) {
+        const std::filesystem::path previous = AssetPaths::has_project() ? AssetPaths::manifest_path() : std::filesystem::path();
+        std::string error;
+        if (!AssetPaths::open_project(project, error)) {
+            HN_ERROR("Couldn't open project '{}': {}", project.string(), error);
+            m_notification_center.push_toast(UI::ToastType::Error, "Couldn't open project", error, 8.0f);
+            return false;
+        }
+        if (!GameManifest::load(AssetPaths::manifest_path())) {
+            // Valid folder, bad manifest (parse error, missing start scene...). Put the old project back.
+            HN_ERROR("Project file for '{}' is invalid; staying on the previous project", project.string());
+            m_notification_center.push_toast(UI::ToastType::Error, "Couldn't open project",
+                                             "Invalid project file. See console for details.", 8.0f);
+            std::string ignored;
+            if (!previous.empty() && AssetPaths::open_project(previous, ignored))
+                GameManifest::load(AssetPaths::manifest_path());
+            else
+                AssetPaths::close_project();
+            return false;
+        }
+        enter_project();
+        return true;
+    }
+
+    // The editor-side half of opening a project; assumes AssetPaths and GameManifest already point at it.
+    void EditorLayer::enter_project() {
+        if (m_scene_state != SceneState::edit)
+            on_scene_stop();
+        m_pending_gltf_loads.clear();
+        m_scene_hierarchy_panel.set_selected_entity({});
+
+        const GameManifest* manifest = GameManifest::get();
+        m_project_name = manifest ? manifest->name : std::string();
+        if (m_project_name.empty())
+            m_project_name = AssetPaths::project_root().filename().string();
+
+        // Scripts: point the script engine at this project and rebuild if its dll is missing/stale
+        // (older than its sources or than HoneyEngine.dll, which is what causes MissingMethodException).
+        CSharpScriptEngine::on_project_changed();
+        if (CSharpScriptEngine::scripts_are_stale()) {
+            m_notification_center.push_toast(UI::ToastType::Info, "Building scripts", "Compiling " + m_project_name + " scripts...");
+            if (CSharpScriptEngine::build_and_reload())
+                m_notification_center.push_toast(UI::ToastType::Success, "C# Scripts Built", "Scripts compiled and loaded.");
+            else
+                m_notification_center.push_toast(UI::ToastType::Error, "C# Build Failed", "dotnet build failed. See console for details.", 8.0f);
+        }
+
+        new_scene();
+        if (manifest && !manifest->start_scene.empty()) {
+            const std::filesystem::path start = AssetPaths::resolve(manifest->start_scene);
+            if (!start.empty())
+                open_scene(start);
+        }
+
+        const std::string manifest_path = AssetPaths::manifest_path().string();
+        EditorPrefs::add_recent(manifest_path);
+        EditorPrefs::set_last_project(manifest_path);
+        update_window_title();
+        HN_INFO("Opened project '{}'", m_project_name);
+    }
+
+    void EditorLayer::close_project() {
+        if (m_scene_state != SceneState::edit)
+            on_scene_stop();
+        m_pending_gltf_loads.clear();
+        m_scene_hierarchy_panel.set_selected_entity({});
+        AssetPaths::close_project();
+        CSharpScriptEngine::on_project_changed();
+        m_project_name.clear();
+        new_scene();
+        EditorPrefs::set_last_project("");
+        update_window_title();
+    }
+
+    void EditorLayer::open_project(const std::filesystem::path& project) {
+        request_project_switch([this, project]() { load_project(project); });
+    }
+
+    void EditorLayer::open_project_dialog() {
+        const std::string path = FileDialogs::open_file("Honey Project (*.honeyproj)\0*.honeyproj\0");
+        if (!path.empty())
+            open_project(path);
+    }
+
+    // Project switches replace the scene, so unsaved edits get a confirmation. The action itself runs at
+    // the top of the next on_update (not mid-ImGui-frame) so no panel sees half-switched state.
+    void EditorLayer::request_project_switch(std::function<void()> action) {
+        if (has_scene_changed()) {
+            m_notification_center.open_confirm("switch_project",
+                "Switch project?",
+                "You have unsaved changes in the current scene. Switching projects will discard them.",
+                true,
+                [this, action]() { m_deferred_action = action; },
+                nullptr,
+                "Discard and Continue",
+                "Cancel");
+        } else {
+            m_deferred_action = std::move(action);
+        }
+    }
+
+    void EditorLayer::draw_welcome_window() {
+        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowSizeConstraints(ImVec2(420.0f, 0.0f), ImVec2(640.0f, 520.0f));
+        const ImGuiWindowFlags flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoCollapse |
+                                       ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize |
+                                       ImGuiWindowFlags_NoSavedSettings;
+        if (!ImGui::Begin("Welcome to Honey", nullptr, flags)) {
+            ImGui::End();
+            return;
+        }
+
+        ImGui::TextUnformatted("Open a project to start editing.");
+        ImGui::Spacing();
+        if (ImGui::Button("Open Project...", ImVec2(160.0f, 0.0f)))
+            open_project_dialog();
+        ImGui::SameLine();
+        if (ImGui::Button("New Project...", ImVec2(160.0f, 0.0f)))
+            m_new_project_open = true;
+
+        const auto& recent = EditorPrefs::recent_projects();
+        if (!recent.empty()) {
+            ImGui::Spacing();
+            ImGui::SeparatorText("Recent");
+            std::string to_remove;
+            for (const std::string& file : recent) {
+                const std::filesystem::path p(file);
+                std::error_code ec;
+                const bool exists = std::filesystem::exists(p, ec);
+                const std::string label = p.stem().string() + "##" + file;
+                ImGui::BeginDisabled(!exists);
+                if (ImGui::Selectable(label.c_str()))
+                    open_project(p);
+                ImGui::EndDisabled();
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                    ImGui::SetTooltip("%s%s", file.c_str(), exists ? "" : "\n(missing - right-click to remove)");
+                if (ImGui::BeginPopupContextItem()) {
+                    if (ImGui::MenuItem("Remove from list"))
+                        to_remove = file;
+                    ImGui::EndPopup();
+                }
+            }
+            if (!to_remove.empty())
+                EditorPrefs::remove_recent(to_remove);
+        }
+        ImGui::End();
+    }
+
+    void EditorLayer::draw_new_project_popup() {
+        if (m_new_project_open) {
+            m_new_project_open = false;
+            m_new_project_error.clear();
+            m_new_project_name[0] = '\0';
+            if (m_new_project_location[0] == '\0') {
+                // Default location: beside the most recent project, else the home directory.
+                std::filesystem::path location;
+                if (!EditorPrefs::recent_projects().empty())
+                    location = std::filesystem::path(EditorPrefs::recent_projects().front()).parent_path().parent_path();
+                else if (const char* home = std::getenv("HOME"))
+                    location = home;
+                else if (const char* profile = std::getenv("USERPROFILE"))
+                    location = profile;
+                std::snprintf(m_new_project_location, sizeof(m_new_project_location), "%s", location.string().c_str());
+            }
+            ImGui::OpenPopup("New Project");
+        }
+
+        ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+        if (!ImGui::BeginPopupModal("New Project", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+            return;
+
+        ImGui::SetNextItemWidth(420.0f);
+        ImGui::InputText("Name", m_new_project_name, sizeof(m_new_project_name));
+        ImGui::SetNextItemWidth(420.0f);
+        ImGui::InputText("Location", m_new_project_location, sizeof(m_new_project_location));
+        ImGui::TextDisabled("A folder named after the project is created inside Location.");
+
+        std::string name_problem;
+        const bool name_ok = ProjectTemplate::is_valid_name(m_new_project_name, name_problem);
+        if (m_new_project_name[0] != '\0' && !name_ok)
+            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", name_problem.c_str());
+        if (!m_new_project_error.empty())
+            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", m_new_project_error.c_str());
+
+        ImGui::Spacing();
+        ImGui::BeginDisabled(!name_ok || m_new_project_location[0] == '\0');
+        if (ImGui::Button("Create", ImVec2(120.0f, 0.0f))) {
+            std::string error;
+            auto file = ProjectTemplate::create(m_new_project_location, m_new_project_name, error);
+            if (file) {
+                ImGui::CloseCurrentPopup();
+                open_project(*file);
+            } else {
+                m_new_project_error = error;
+            }
+        }
+        ImGui::EndDisabled();
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel", ImVec2(120.0f, 0.0f)))
+            ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
     }
 
     bool EditorLayer::update_scene_for_current_state(Timestep ts) {
@@ -144,6 +380,12 @@ namespace Honey {
 
     void EditorLayer::on_update(Timestep ts) {
         HN_PROFILE_FUNCTION();
+
+        if (m_deferred_action) {
+            auto action = std::move(m_deferred_action);
+            m_deferred_action = nullptr;
+            action();
+        }
 
         // Poll pending async glTF loads and spawn entities when ready.
         {
@@ -252,6 +494,10 @@ namespace Honey {
             }
         }
 
+        if (!has_project())
+            draw_welcome_window();
+        draw_new_project_popup();
+
         m_notification_center.render(ImGui::GetIO().DeltaTime);
         if (m_show_notification_history)
             m_notification_center.show_history_window(&m_show_notification_history);
@@ -279,7 +525,8 @@ namespace Honey {
         ImGui::SetCursorPosX((ImGui::GetWindowContentRegionMax().x * 0.5f) - (size * 1.5f));
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
 
-        // Play / Stop
+        // Play / Stop (needs a project: scripts, assets and the start scene all come from it)
+        ImGui::BeginDisabled(!has_project());
         if (UI::ImageButton("play_stop_button", play_stop_icon->get_imgui_texture_id(), ImVec2(size, size))) {
             if (m_scene_state == SceneState::edit)
                 on_scene_play();
@@ -305,6 +552,7 @@ namespace Honey {
                 on_scene_stop();
         }
         ImGui::SetItemTooltip(m_scene_state == SceneState::simulate ? "Stop Simulation" : "Simulate");
+        ImGui::EndDisabled();
 
         ImGui::PopStyleVar(3);
         ImGui::PopStyleColor(3);
@@ -314,6 +562,26 @@ namespace Honey {
     void EditorLayer::draw_menu_bar() {
         if (ImGui::BeginMainMenuBar()) {
             if (ImGui::BeginMenu("File")) {
+                if (ImGui::MenuItem("Open Project..."))
+                    open_project_dialog();
+                if (ImGui::MenuItem("New Project..."))
+                    m_new_project_open = true;
+                if (ImGui::BeginMenu("Recent Projects", !EditorPrefs::recent_projects().empty())) {
+                    std::string to_open;
+                    for (const std::string& file : EditorPrefs::recent_projects()) {
+                        const std::filesystem::path p(file);
+                        if (ImGui::MenuItem((p.stem().string() + "##" + file).c_str()))
+                            to_open = file;
+                    }
+                    if (!to_open.empty())
+                        open_project(to_open);
+                    ImGui::EndMenu();
+                }
+                if (ImGui::MenuItem("Close Project", nullptr, false, has_project()))
+                    request_project_switch([this]() { close_project(); });
+                ImGui::Separator();
+
+                ImGui::BeginDisabled(!has_project());
                 if (ImGui::MenuItem("New", "Ctrl+N")) {
                     if (has_scene_changed()) {
                         m_notification_center.open_confirm("new_scene",
@@ -342,6 +610,7 @@ namespace Honey {
                 if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S")) {
                     save_scene_as();
                 }
+                ImGui::EndDisabled();
                 ImGui::Separator();
                 if (ImGui::MenuItem("Exit")) {
                     m_quit_requested = true;
@@ -779,6 +1048,7 @@ namespace Honey {
     }
 
     void EditorLayer::open_scene() {
+        if (!has_project()) return;
         std::string path = FileDialogs::open_file("Honey Scene (*.hns)\0*.hns\0");
         if (!path.empty())
             open_scene(path);
@@ -845,6 +1115,7 @@ namespace Honey {
     }
 
     void EditorLayer::save_scene_as(std::filesystem::path path) {
+        if (!has_project()) return;
         if (path.empty())
             path = FileDialogs::save_file("Honey Scene (*.hns)\0");
         else
@@ -879,6 +1150,7 @@ namespace Honey {
     }
 
     void EditorLayer::on_scene_play() {
+        if (!has_project()) return;
         m_scene_state = SceneState::play;
         SceneManager::clear_pending();
 
@@ -889,6 +1161,7 @@ namespace Honey {
     }
 
     void EditorLayer::on_scene_simulate() {
+        if (!has_project()) return;
         m_scene_state = SceneState::simulate;
         SceneManager::clear_pending();
 

@@ -245,9 +245,11 @@ namespace Honey {
                 m_selected_entity = child;
             }
 
-            if (ImGui::MenuItem("Create Prefab")) {
+            if (ImGui::MenuItem("Create Prefab", nullptr, false, AssetPaths::has_project())) {
                 std::string default_path =
                     (AssetPaths::asset_root() / "prefabs" / (tag.tag + ".hnp")).string();
+                std::error_code prefab_ec;
+                std::filesystem::create_directories(AssetPaths::asset_root() / "prefabs", prefab_ec);
                 if (!default_path.empty()) {
                     SceneSerializer serializer(m_context);
                     serializer.serialize_entity_prefab(entity, default_path);
@@ -945,7 +947,7 @@ void SceneHierarchyPanel::draw_components(Entity entity) {
             }
 
             if (ImGui::BeginCombo("Available Scripts", display_name.c_str())) {
-                const std::filesystem::path cs_dir = AssetPaths::asset_root() / "scripts";
+                const std::filesystem::path cs_dir = AssetPaths::scripts_dir();
                 if (std::filesystem::exists(cs_dir)) {
                     for (auto& entry : std::filesystem::directory_iterator(cs_dir)) {
                         if (entry.path().extension() == ".cs") {

@@ -15,6 +15,8 @@
 #include "panels/viewport_panel.h"
 #include "panels/console_panel.h"
 #include <vector>
+#include <functional>
+#include "Honey/core/asset_paths.h"
 
 
 namespace Honey {
@@ -40,6 +42,19 @@ namespace Honey {
 
         bool can_mousepick() { return (m_viewport_hovered && !ImGuizmo::IsOver() && !Input::is_key_pressed(KeyCode::LeftAlt)); }
         Entity pick_entity_at_mouse() const;
+
+        // --- Projects (phase 1.5 step 3) ---
+        // All of these run on the main thread between frames of work; each stops play mode first.
+        void open_project(const std::filesystem::path& project);   // folder or .honeyproj
+        void open_project_dialog();
+        void close_project();
+        void request_project_switch(std::function<void()> action);  // confirms if the scene has unsaved changes
+        bool load_project(const std::filesystem::path& project);   // switch; false (state unchanged) on failure
+        void enter_project();                                      // AssetPaths + manifest already point at the project
+        void update_window_title();
+        void draw_welcome_window();
+        void draw_new_project_popup();
+        bool has_project() const { return AssetPaths::has_asset_root(); }
 
         void new_scene();
         void open_scene();
@@ -84,6 +99,16 @@ namespace Honey {
 
         UI::NotificationCenter m_notification_center;
         bool m_quit_requested = false;
+
+        // New Project popup state
+        bool m_new_project_open = false;
+        char m_new_project_name[64] = "";
+        char m_new_project_location[512] = "";
+        std::string m_new_project_error;
+
+        std::function<void()> m_deferred_action;   // run at the top of the next on_update, before any rendering
+
+        std::string m_project_name;   // from the .honeyproj; empty when no project is open
 
         FramerateCounter m_framerate_counter;
         int m_framerate = 0;

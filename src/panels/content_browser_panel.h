@@ -20,7 +20,8 @@ namespace Honey {
             List = 1
         };
 
-        std::filesystem::path m_current_directory = "/";
+        std::filesystem::path m_root;               // asset root this view was last synced to
+        std::filesystem::path m_current_directory;
         std::filesystem::path m_selected_path;   // currently selected item (for highlight / context menu)
 
         Ref<Texture2D> m_directory_icon;

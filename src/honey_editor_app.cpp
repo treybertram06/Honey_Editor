@@ -15,6 +15,8 @@ namespace Honey {
         }
     };
 
+    AssetPaths::Mode asset_paths_mode() { return AssetPaths::Mode::editor; }
+
     Application* create_application() {
         return new HoneyEditor();
     }
