@@ -122,8 +122,10 @@ namespace Honey {
 
         // Scene swaps happen in on_update, so the scene is stable here. UI covers the full window,
         // independent of the letterboxed scene rect.
-        const ImVec2 display = ImGui::GetIO().DisplaySize;
-        GameUI::begin_frame({0.0f, 0.0f}, {display.x, display.y});
+        // With ImGui viewports enabled, window positions are in OS screen space, so the rect must start at
+        // the main viewport's position (not 0,0) or panels land outside the game window when windowed.
+        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+        GameUI::begin_frame({viewport->Pos.x, viewport->Pos.y}, {viewport->Size.x, viewport->Size.y});
         m_active_scene->on_gui();
         GameUI::end_frame();
     }
