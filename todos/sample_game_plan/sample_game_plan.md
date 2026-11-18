@@ -76,7 +76,7 @@ Needs: a UI, mouse/cursor control, quit, and scene loading.
 - The editor currently captures/uncaptures the cursor in `editor_layer.cpp` (~L472, L605, L886). Keep it working.
 - Done when: a script can show the cursor, and quit the player.
 
-### 1.3 Screen-space UI
+### 1.3 Screen-space UI (DONE — see `phase_1_3_ui.md`)
 - Recommended sample approach: expose an ImGui-backed immediate-mode UI to scripts (`UI.Begin/Button/Text/End`) drawn in the swapchain pass after the present. It's ImGui-backed, so it uses ImGui's own descriptors (the allowed third-party exception), and script UI also works in editor Play under Lite. The menu then doesn't have to wait for a full retained-mode UI system. Keep the API narrow so it can later be re-backed by UI components.
 - Alternative (later): `UICanvas` / `UIText` / `UIButton` components. Out of scope for the sample.
 - Done when: a menu scene shows a title and Play / Quit buttons, with working mouse clicks, at different window sizes.
