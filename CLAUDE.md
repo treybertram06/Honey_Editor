@@ -15,7 +15,7 @@ Can run from any working directory — `AssetPaths` (`Honey/engine/src/Honey/cor
 ./cmake-build-debug/Honey_Editor
 ./cmake-build-debug/Honey_Runtime
 ```
-Never add `ASSET_ROOT`/`"../assets"`-style paths: use `AssetPaths::asset_root()` / `resolve()`, and `to_portable`/`from_portable` when writing/reading paths in scene/prefab files (asset-relative on disk, absolute in memory). Editor-only icons go through `EditorPaths::resource()`.
+Engine content (shaders, frame graphs, default fonts/textures) lives in `engine_content/` (`AssetPaths::engine_content_root()`, `--engine-content`, `HONEY_ENGINE_CONTENT`; `engine:` path prefix). Never add `ASSET_ROOT`/`"../assets"`-style paths: use `AssetPaths::asset_root()` / `engine_content_root()` / `resolve()`, and `to_portable`/`from_portable` when writing/reading paths in scene/prefab files (asset-relative on disk, absolute in memory). Editor-only icons go through `EditorPaths::resource()`.
 
 ### Windows
 ```bat
@@ -73,8 +73,8 @@ Honey/managed/HoneyEngine/     ← Managed C# engine assembly (HoneyEngine.dll, 
 - **`RendererAPI`** — Strategy interface for Vulkan vs OpenGL; selected at startup via `config/settings.yaml`
 - **`Layer` / `LayerStack`** — Composable update/render pipeline; `EditorLayer` is the primary layer
 - **`Scene` + `Entity`** — Thin wrapper around EnTT's `entt::registry`; entities are just IDs + components
-- **`FrameGraph`** — DAG-based render pass management and the **primary per-frame render driver**: every 3D pass (g-buffer, lighting, shadows, SSAO, path tracer) registers as a frame-graph executor and runs through `frame_graph.cpp` each frame. Data-driven — graphs load from `assets/frame_graphs/`. Supports compute passes.
-- **`ShaderCache`** — Compiles GLSL → SPIR-V via shaderc (incl. mesh/task stages), caches to `assets/cache/shaders/`
+- **`FrameGraph`** — DAG-based render pass management and the **primary per-frame render driver**: every 3D pass (g-buffer, lighting, shadows, SSAO, path tracer) registers as a frame-graph executor and runs through `frame_graph.cpp` each frame. Data-driven — graphs load from `engine_content/frame_graphs/`. Supports compute passes.
+- **`ShaderCache`** — Compiles GLSL → SPIR-V via shaderc (incl. mesh/task stages), caches to `config/cache/shaders/` (`AssetPaths::cache_dir()`)
 
 ### Renderer Backends
 

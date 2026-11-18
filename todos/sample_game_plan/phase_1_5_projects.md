@@ -41,7 +41,8 @@ Per-user data (settings, shader/pipeline caches, `imgui.ini`, recent-projects li
 ## Step 0 — Inventory (read-only, ~1 hr)
 Classify every `AssetPaths::asset_root()` / `resolve()` / hardcoded `"shaders/"`, `"fonts/"`, `"frame_graphs/"`, `"cache/"`, `"scripts/"`, `"scenes/"` use as engine content, project, or user data. Output: a table at the bottom of this file. Also list what in `assets/` is needed by the engine itself to run (default environment/HDRI, BRDF LUT, fonts, icon discs) so step 1 moves exactly that. Check `config/settings.yaml` key by key (per user vs per project) and what `game.yaml` / `resources/defaults/game.yaml` become. Done when: no call site is unclassified.
 
-## Step 1 — Split out engine content
+## Step 1 — Split out engine content ✅ implemented, awaiting hand-test
+Implemented: `engine_content/{shaders,frame_graphs,fonts/JetBrains_Mono,textures/missing.png}` (git mv); `AssetPaths::engine_content_root()` (`--engine-content` → `HONEY_ENGINE_CONTENT` → `<exe>/engine_content` → dev source tree; marker = `shaders/`+`frame_graphs/`); `engine:` prefix handled by `resolve`/`from_portable`/`to_portable`; all shader/frame-graph/font call sites switched; `cache_dir()` = `user_data_dir()/cache` (`config/cache`); asset-root marker relaxed to "is a directory". Not done: `config/cache` is not gitignored (repo has no .gitignore); no default sky needed.
 - Create `engine_content/` and move shaders, frame graphs, default fonts, and the small default textures/environment the renderer requires. Large sample HDRIs/textures are **not** engine content (they go to Sandbox in step 5); the engine gets a tiny default sky if it needs one.
 - `AssetPaths::engine_content_root()` (located like today's asset root: `--engine-content`/env/`<exe>/engine_content`/dev source tree) plus `resolve("engine:...")`. Shader compiler, frame-graph loader, `imgui_layer.cpp` fonts, BRDF LUT, `renderer_*` switch to it.
 - Shipped layout: `<exe>/engine_content/`. Shader/pipeline caches move to `user_data_dir()/cache` (engine shaders compile identically for every project).
@@ -83,6 +84,38 @@ Classify every `AssetPaths::asset_root()` / `resolve()` / hardcoded `"shaders/"`
 - **Shader overrides:** project `Assets/shaders/` searched before engine content *for custom shaders only*; engine shaders are not overridable by projects (a broken override must not break the editor).
 - **Large-file hygiene:** the Sandbox repo should use Git LFS or stay unversioned; not the engine repo's problem anymore.
 
-## Step 0 inventory (fill in)
+## Step 0 inventory ✅ (read-only grep of `src/`, `Honey/engine/src`, `Honey/managed`, CMake; 2026-11-17)
+Tier key: **E** = engine content (`engine_content/`), **P** = project, **U** = user data, **R** = editor resource (`resources/`, already correct).
+
 | Call site | Tier | Notes |
 |---|---|---|
+| `assets/shaders/**` (~25 `asset_root()/"shaders"/…` sites: renderer_2d, renderer_3d_{meshlet,deferred,ssao,shadow,bloom,postprocess,lite,debug,vector_icon,pathtracer}, present_pass, vk_cloth_{sim,renderer}, vk_brdf_lut, vk_texture_cube) | E | Mechanical swap to one `engine_content_root()/"shaders"` helper. Pathtracer has 3 local `assets_dir` aliases (lines ~1563/1655/1840). |
+| `shader_cache.cpp:87`, `shader_compiler.cpp:251` (include resolution from `shaders/`) | E | Includer must search engine shaders; project custom-shader dir searched first only for project shaders. |
+| `scene_viewport_renderer.cpp:343` → `frame_graphs/*.hnfg` | E | All 5 graphs (main/deferred/forward/lite/pathtracing). |
+| `imgui_layer.cpp:46-48` → `fonts/JetBrains_Mono/…` | E | Editor/engine UI font. Move that one folder to `engine_content/fonts/`; `Forum` is project (Sandbox/FirstGame). |
+| `texture.cpp:28` → `textures/missing.png` | E | Fallback must survive with no project open. |
+| `game_ui.cpp:229` (`UI.LoadFont`) | P (+`engine:`) | Relative paths resolve in project; `engine:fonts/...` for engine fonts. |
+| `AssetPaths::cache_dir()` users: `renderer.cpp:39` (shader cache), `vk_backend.cpp:1825` (pipeline cache) | U | `assets/cache/` today (untracked). Move to `user_data_dir()/cache`; keyed by engine version/GPU. |
+| `AssetPaths::settings_path()` (`engine.cpp:43,121`, `editor_layer.cpp:401`, `renderer_debug_panel.cpp:277`) | U now, split in Step 4 | Hardware keys stay U; look keys (GeometryPath, DirShadowDistance, Physics, …) move to project. |
+| `AssetPaths::manifest_path()` (`honey_editor_app.cpp:20`, `honey_runtime_app.cpp:22`, `game_manifest.cpp`), `<asset_root>/../game.yaml` | P | Becomes `.honeyproj`. `resources/defaults/game.yaml` becomes the New Project template. `honey_editor_app.cpp:20` auto-copies a default manifest when missing; must go (editor starts with no project). |
+| `runtime_layer.cpp:48`, `game_manifest.cpp:99,106`, `scene_manager.h:13` (`AssetPaths::resolve(scene)`) | P | Start scene / scene list / `Scene::Load`. |
+| `scene_serializer.cpp` (14 `to_portable`/`from_portable` sites: sprite, mesh, gltf source, texture, font, icon, audio, script) + `scene.cpp:526,542` (prefab) | P (+`engine:`) | Make project-relative; pass `engine:` through; keep legacy `../assets/…` reader until Step 5. |
+| `csharp_script_engine.cpp:73-76` (runtimeconfig, dotnet root, `HoneyEngine.dll`) | E | Already engine-side, not project paths. |
+| `csharp_script_engine.cpp:76` `user_scripts_assembly_path()` and `:243` (`asset_root()/"scripts"` as build dir) | P | `Scripts/` + its `bin/` in the project; `-p:HoneyEngineDll=`. |
+| `assets/scripts/UserScripts.csproj` HintPath into `Honey/managed/.../HoneyEngine.dll` | P | Replace with `$(HoneyEngineDll)`. |
+| `editor_layer.cpp:416,423` (`scripts/libHoneyScripts.so`, native-DLL path) | P | Experimental path; resolve in project `Scripts/`. |
+| `scene_hierarchy_panel.cpp` (≈10 sites: 80, 250 `prefabs/`, 696, 754, 788, 814, 848, 870, 948 `scripts/` combo, 1174, 1224) | P | All drag/drop and pickers; route through project root. 250 saves prefabs to `prefabs/<tag>.hnp`. |
+| `viewport_panel.cpp:47-52` (drop scene/prefab/gltf) | P | Same. |
+| `content_browser_panel.cpp:59,73,80,84,157` | P | Rooted at `Assets/`; icons (60-61) already R. |
+| `editor_layer.cpp:40-47` icons via `EditorPaths::resource` | R | Already correct. |
+| `CMakeLists.txt:53` `imgui.ini` copied from `resources/defaults/` | U | Editor layout; should live in `user_data_dir()` (per user), default seeded from `resources/defaults/`. |
+| `Honey/engine/CMakeLists.txt:425` dev-only source-tree fallback | E | Update to `engine_content/` (+ drop `assets/`). |
+| `assets/hdris/skybox*.hdr` | P (Sandbox) | **No code references a specific HDRI** (grep clean); scene files/environment components only. Engine default sky not yet required; re-check in Step 1 by running with no HDRI. |
+| `assets/models`, `audio`, `prefabs`, `scenes`, `test_game`, `textures/{bung,seal,flappyBird,flask}` | P (Sandbox) | Pure content; no code refs besides `missing.png`. |
+| `assets/imgui.ini` | U | Stale copy; delete. |
+
+**Findings**
+1. Engine content is a small, well-bounded set: `shaders/`, `frame_graphs/`, `fonts/JetBrains_Mono/`, `textures/missing.png`. Everything else under `assets/` is Sandbox content.
+2. The shader swap is ~25 mechanical sites; shader/pipeline caches are the only things that must move to U.
+3. Biggest risks are the editor panels (≈20 `asset_root()` sites, all P) and `honey_editor_app.cpp:20` auto-creating a manifest (violates "editor starts with no project").
+4. The engine never hardcodes an HDRI, so no default-sky dependency yet. Recheck in Step 1.
