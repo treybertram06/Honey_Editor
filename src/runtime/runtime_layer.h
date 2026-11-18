@@ -14,6 +14,7 @@ namespace Honey {
         void on_detach() override;
 
         void on_update(Timestep ts) override;
+        void on_imgui_render() override;
         void on_window_render() override;
         void on_event(Event& event) override;
 

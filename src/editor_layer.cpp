@@ -24,6 +24,7 @@
 #include <glm/gtc/constants.hpp>
 
 #include "Honey/scene/scene_manager.h"
+#include "Honey/ui/game_ui.h"
 #include "Honey/scripting/csharp_script_glue.h"
 
 
@@ -236,6 +237,19 @@ namespace Honey {
                     panel->on_imgui_render(*this);
             m_viewport_panel.on_imgui_render(*this);
             draw_ui_toolbar();
+        }
+
+        // Game UI (script OnGUI) over the scene image, only while playing. After the panels so its
+        // windows are submitted last. Windows not submitted (Stop, hidden viewport) simply disappear.
+        if (m_scene_state == SceneState::play && m_active_scene && m_viewport_visible) {
+            const glm::vec2 origin = { m_viewport_img_min.x, m_viewport_img_min.y };
+            const glm::vec2 size   = { m_viewport_img_max.x - m_viewport_img_min.x,
+                                       m_viewport_img_max.y - m_viewport_img_min.y };
+            if (size.x > 1.0f && size.y > 1.0f) {
+                GameUI::begin_frame(origin, size);
+                m_active_scene->on_gui();
+                GameUI::end_frame();
+            }
         }
 
         m_notification_center.render(ImGui::GetIO().DeltaTime);

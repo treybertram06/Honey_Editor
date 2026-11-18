@@ -64,6 +64,7 @@ namespace Honey {
         bool m_log_frame_graph_pass_timings = false;
         glm::vec2 m_viewport_size = {1680.0f, 720.0f};
         bool m_viewport_focused = false, m_viewport_hovered = false;
+        bool m_viewport_visible = false; // Viewport window is on screen this frame (not collapsed / hidden behind another dock tab)
         bool m_viewport_maximized = false;
 
         bool      m_viewport_resize_pending = false;

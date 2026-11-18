@@ -7,6 +7,8 @@
 #include "Honey/scene/scene_manager.h"
 #include "Honey/scene/scene_serializer.h"
 #include "Honey/scripting/csharp_script_engine.h"
+#include "Honey/ui/game_ui.h"
+#include <imgui.h>
 
 namespace Honey {
     RuntimeLayer::RuntimeLayer()
@@ -112,6 +114,18 @@ namespace Honey {
             m_scene_viewport_renderer.render(render_context);
             m_scene_rendered_this_frame = true;
         }
+    }
+
+    void RuntimeLayer::on_imgui_render() {
+        HN_PROFILE_FUNCTION();
+        if (!m_active_scene) return;
+
+        // Scene swaps happen in on_update, so the scene is stable here. UI covers the full window,
+        // independent of the letterboxed scene rect.
+        const ImVec2 display = ImGui::GetIO().DisplaySize;
+        GameUI::begin_frame({0.0f, 0.0f}, {display.x, display.y});
+        m_active_scene->on_gui();
+        GameUI::end_frame();
     }
 
     void RuntimeLayer::on_window_render() {

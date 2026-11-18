@@ -17,7 +17,7 @@ namespace Honey {
 
     void ViewportPanel::on_imgui_render(EditorLayer& editor) {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-        ImGui::Begin("Viewport");
+        editor.m_viewport_visible = ImGui::Begin("Viewport");
         auto viewport_offset = ImGui::GetCursorPos();
 
         editor.m_viewport_focused = ImGui::IsWindowFocused();
