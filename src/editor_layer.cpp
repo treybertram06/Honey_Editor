@@ -619,10 +619,9 @@ namespace Honey {
     bool EditorLayer::on_mouse_button_pressed(MouseButtonPressedEvent& e) {
         if (e.get_mouse_button() == MouseButton::Left) {
 
-            if (m_scene_state == SceneState::play && m_viewport_hovered) {
-                Application::get().get_window().set_cursor_captured(true);
+            // No mouse picking while playing; cursor locking is up to scripts (Cursor.Locked).
+            if (m_scene_state == SceneState::play)
                 return false;
-            }
 
             if (can_mousepick()) {
                 // Click should be authoritative: pick right now.
