@@ -50,12 +50,26 @@ Feature-specific:
 
 Needs: a UI, mouse/cursor control, quit, and scene loading.
 
-### 1.1 Scene-transition service (`Scene.Load`)
+### 1.1 Scene-transition service (`Scene.Load`) — DONE
 - Engine-side `SceneManager::request_load(path)`; processed at end of frame by the player/editor-play loop: `on_runtime_stop()` → deserialize via `SceneSerializer` → `on_runtime_start()`.
 - Handle the CLR: `on_runtime_stop()` unloads the user-scripts assembly (`csharp_script_engine.cpp`); make sure reload per scene works or avoid unloading on a transition.
 - C#: `Scene.Load(string path)` via the 3-place binding.
 - Editor Play: transitions work inside play mode and restore the original editor scene on Stop.
 - Done when: a test script calls `Scene.Load` on key press and swaps between two scenes repeatedly without leaks or crashes.
+
+**Implemented** (`scene/scene_manager.{h,cpp}`):
+- `request_load` resolves the asset-relative path via `AssetPaths::resolve` and stores it in a single pending slot (last request wins, with a warning). `take_pending` / `clear_pending` / `has_pending` manage it.
+- `load_scene(path)` is the one shared `.hns` loader (the player's old `open_scene` now delegates to it) and logs the serializer's load report.
+- `perform_pending_load(current, w, h)` does the swap: load new scene first (on failure the old scene keeps running) → `on_runtime_stop` → `wait_idle` → `on_viewport_resize` → `on_runtime_start`. Called by `RuntimeLayer::on_update` (after the quit check; skips rendering that frame) and by `EditorLayer` in `SceneState::play` only. The editor swaps only `m_active_scene`, so Stop restores `m_editor_scene` untouched.
+- Stale requests are cleared at the start of the player, at the start of editor play/simulate, and after `on_runtime_stop` in `on_scene_stop` (so a `Scene.Load` made from `OnDestroy` can't leak into the next session).
+- Binding: `Scene_Load` appended to the end of the C++ `NativeFunctionTable` struct, the C++ initializer, and the C# struct, plus `NativeBindings.Scene_Load` and `Scene.Load`. Note that this is really four places (the C++ side declares its own mirror struct).
+- Decision: the CLR assembly is **reloaded per scene** (stop → start already does this); no keep-loaded path.
+
+**Known caveats / follow-ups:**
+- `AudioSystem::init/shutdown` run per scene, so audio is cut at every transition. Revisit in 3.2 (music across scenes).
+- The cursor reset after a transition is duplicated in `EditorLayer` and `RuntimeLayer`; it would be safer inside `perform_pending_load`.
+- `Scene.Load` in `simulate` mode is not consumed (the request is cleared on Stop). Fine for now.
+- Test script `assets/scripts/SceneLoadTest.cs` only loads one way; a ping-pong pair is needed for a long repeated-swap leak check (watch RSS and Jolt body count).
 
 ### 1.2 Cursor, quit, time bindings - DONE
 - C#: `Cursor.Visible/Locked` (maps to `Window::set_cursor_captured`), `Application.Quit()` (maps to `Application::quit()`), `Time.DeltaTime`/`Time.Elapsed`.
