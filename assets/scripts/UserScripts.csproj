@@ -6,9 +6,13 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Optimize>false</Optimize>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(HoneyEngineDll)' == ''">
+    <!-- Stop-gap default for building by hand from the engine checkout. The editor always passes -p:HoneyEngineDll. -->
+    <HoneyEngineDll>$(MSBuildThisFileDirectory)../../Honey/managed/HoneyEngine/bin/Release/net10.0/HoneyEngine.dll</HoneyEngineDll>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="HoneyEngine">
-      <HintPath>../../Honey/managed/HoneyEngine/bin/Release/net10.0/HoneyEngine.dll</HintPath>
+      <HintPath>$(HoneyEngineDll)</HintPath>
     </Reference>
   </ItemGroup>
 </Project>

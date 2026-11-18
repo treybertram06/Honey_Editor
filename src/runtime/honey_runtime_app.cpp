@@ -20,7 +20,7 @@ namespace Honey {
 
     Application* create_application() {
         if (!GameManifest::load(AssetPaths::manifest_path())) {
-            HN_ERROR("Honey_Runtime requires a valid game manifest ({})", AssetPaths::manifest_path().string());
+            HN_ERROR("Honey_Runtime requires a valid project (--project <folder|file.honeyproj>); manifest: {}", AssetPaths::manifest_path().string());
             return nullptr;
         }
         return new HoneyRuntime();
