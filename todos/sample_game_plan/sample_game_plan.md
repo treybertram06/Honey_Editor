@@ -14,7 +14,7 @@ Inherited from CLAUDE.md — a step that would violate one must stop and flag it
 Feature-specific:
 1. **Editor and player share one runtime path.** Editor "Play" and `Honey_Runtime` must drive the same scene lifecycle code (`Scene::on_runtime_start` / `on_update_runtime` / `on_runtime_stop` + the new scene-transition service). No behaviour that only works in one of them.
 2. **Scene transitions are deferred.** `Scene.Load` only records a request; the swap happens at a safe point between frames, never inside a script callback or physics step.
-3. **Game code never uses absolute or source-tree paths.** All new code resolves assets through the runtime asset root (Step 0.3). No new `ASSET_ROOT` / `"../assets"` uses.
+3. **Game code never uses absolute or source-tree paths.** All new code resolves assets through `AssetPaths` (Step 0.3; from Phase 1.5 on, project-relative paths plus the `engine:` prefix for engine content). No new `ASSET_ROOT` / `"../assets"` uses.
 4. **The editor must keep working at every step.** The editor remains the primary dev tool; the player is additive.
 5. **Native↔managed API additions follow the existing 3-place pattern:** `NativeFunctionTable` (C# `InternalCalls.cs`), `NativeBindings.cs` wrapper, `csharp_script_glue.cpp` table fill. Append to the end of the table so struct layout stays in sync on both sides.
 6. **Every step has a "done when" check** exercised by hand in a test scene, since there are no automated tests.
@@ -80,6 +80,11 @@ Needs: a UI, mouse/cursor control, quit, and scene loading.
 - Recommended sample approach: expose an ImGui-backed immediate-mode UI to scripts (`UI.Begin/Button/Text/End`) drawn in the swapchain pass after the present. It's ImGui-backed, so it uses ImGui's own descriptors (the allowed third-party exception), and script UI also works in editor Play under Lite. The menu then doesn't have to wait for a full retained-mode UI system. Keep the API narrow so it can later be re-backed by UI components.
 - Alternative (later): `UICanvas` / `UIText` / `UIButton` components. Out of scope for the sample.
 - Done when: a menu scene shows a title and Play / Quit buttons, with working mouse clicks, at different window sizes.
+
+### 1.5 Projects — separate engine content, editor resources and game projects (do before 1.4's scene and Phase 2)
+- Today everything lives in the global `assets/`. Introduce three tiers: **engine content** (`engine_content/`: shaders, frame graphs, default fonts/textures), **editor resources** (`resources/`), and portable **projects** (`<anywhere>/<Name>/{<Name>.honeyproj, Assets/, Scripts/, Cache/}`) opened via `--project` or the editor. The 4.6 GB model corpus, HDRIs and test scenes move to a separate `Sandbox` project outside the repo; the real game is `FirstGame`.
+- Full plan, invariants and steps: `phase_1_5_projects.md`.
+- Done when: `assets/` is gone from the engine repo, the editor opens Sandbox and FirstGame by path (and starts with no project), and `Honey_Runtime --project <path>` runs a project copied to another folder.
 
 ### 1.4 Menu scene
 - `assets/scenes/menu.hns`: background (camera + simple 3D backdrop or skybox), `MenuController.cs` (Play → `Scene.Load("scenes/lobby.hns")`, Quit → `Application.Quit()`).
@@ -173,4 +178,4 @@ Do this last: the sample game defines what must ship.
 - **`Honey_Runtime` on a Lite-only device:** refuses to start with a clear error and a non-zero exit code.
 - **macOS as an export target:** not for now. Revisit only after a game has shipped and macOS support is a real need (which would also require the Full tier on macOS).
 - **Executable name:** `Honey_Runtime` (this doc originally said `Honey_Player`).
-
+- **Project organization (2026-11-17):** three tiers — engine content / editor resources / project. Projects are portable folders anywhere on disk, opened by path; the model/HDRI corpus moves to a `Sandbox` project outside the engine repo; hardware settings stay per user, look-and-feel settings are per project. Done as Phase 1.5, before the menu scene and Phase 2.
