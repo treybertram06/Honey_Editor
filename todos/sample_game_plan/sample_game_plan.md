@@ -95,9 +95,13 @@ Needs: a UI, mouse/cursor control, quit, and scene loading.
 
 Needs: a character that collides with the world, a trigger door, entity identification, and a persistent state between scenes.
 
-### 2.1 Entity identification API
+### 2.1 Entity identification API - DONE (code-complete; collision half pending 2.3)
 - C#: `Entity.Name` (TagComponent), `Entity.HasTag/Tag` (or just name for now), `Scene.FindEntityByName` already exists. Add `Entity.IsValid` checks on destroyed entities.
 - Done when: `OnCollisionBegin(Entity other)` can tell whether `other` is "Player".
+- Implemented: `Entity.IsValid`, `Entity.Name` get/set, `Entity.HasName(string)`, `==`/`!=`/`IEquatable`, `ToString()`. New native table entries `Entity_IsValid`, `Entity_GetName`, `Entity_SetName` (appended after `Scene_Load`). Transform glue is guarded against destroyed entities (getters return zeros, setters no-op). Details: `step_2_1_entity_identification.md`.
+- Verified: `assets/scenes/EntityIdentityTest.hns` + `assets/scripts/EntityIdentityTest.cs`, 16/16 checks PASS (invalid handle, lookup/name, equality, rename round trip, 400-char name, destroyed-entity validity/name/transform).
+- Not yet verified: `OnCollisionBegin` with `other.HasName("Player")` in a real collision. The test scene has no rigidbodies, and 3D contact dispatch to scripts is checked in 2.3. Re-run the test with two rigidbodies once 2.3 lands.
+- Decision: `HasTag`/`Tag` skipped; name only, for now.
 
 ### 2.2 Character controller
 - Wire Jolt `CharacterVirtual` (or a locked-rotation capsule rigidbody as the minimum) in `physics_engine_3d.cpp`; new `CharacterControllerComponent` (+ serializer, scene copy, inspector UI in `scene_hierarchy_panel`/entity properties panel).

@@ -261,8 +261,16 @@ namespace Honey {
 
         ImGui::SetNextItemWidth(420.0f);
         ImGui::InputText("Name", m_new_project_name, sizeof(m_new_project_name));
-        ImGui::SetNextItemWidth(420.0f);
-        ImGui::InputText("Location", m_new_project_location, sizeof(m_new_project_location));
+        ImGui::SetNextItemWidth(420.0f - ImGui::GetFrameHeight() * 2.0f);
+        ImGui::InputText("##Location", m_new_project_location, sizeof(m_new_project_location), ImGuiInputTextFlags_ReadOnly);
+        ImGui::SameLine();
+        if (ImGui::Button("Browse...")) {
+            const std::string folder = FileDialogs::open_folder();
+            if (!folder.empty())
+                std::snprintf(m_new_project_location, sizeof(m_new_project_location), "%s", folder.c_str());
+        }
+        ImGui::SameLine();
+        ImGui::TextUnformatted("Location");
         ImGui::TextDisabled("A folder named after the project is created inside Location.");
 
         std::string name_problem;
