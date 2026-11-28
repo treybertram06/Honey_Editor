@@ -17,7 +17,7 @@ namespace Honey {
             return;
         }
 
-        if (ImGui::CollapsingHeader("Physics Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::CollapsingHeader("Physics Settings (Project)###PhysicsSettings", ImGuiTreeNodeFlags_DefaultOpen)) {
             auto& physics = Settings::get().physics;
             ImGui::Checkbox("Enable Physics", &physics.enabled);
             ImGui::DragInt("Substeps", &physics.substeps, 1, 1, 20);

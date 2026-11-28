@@ -8,25 +8,14 @@ Renderer:
   Blending: true
   VSync: false
   ShowPhysicsDebugDraw: false
-  GeometryPath: Meshlet
   ParallelMeshSubmission: false
   RendererType: Deferred
   AnisotropicFilteringLevel: 16
   TextureFilter: Anisotropic
   CullMode: None
-  DirShadowDistance: 250
   EditorCameraExposure: 1
-  IBLIntensity: 1
-  BloomStrength: 0.5
-  BloomThreshold: 0.7
-  BloomSoftKnee: 0.5
-  AASubpix: 0.75
-  AAEdgeThreshold: 0.125
-  AAEdgeThresholdMin: 0.0625
-  AAType: FXAA
 Physics:
-  Enabled: true
-  Substeps: 6
+  {}
 Window:
   Title: Honey Engine
   Width: 1728

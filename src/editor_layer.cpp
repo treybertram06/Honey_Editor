@@ -65,6 +65,7 @@ namespace Honey {
             } else {
                 m_notification_center.push_toast(UI::ToastType::Error, "Couldn't open project",
                                                  "Invalid project file. See console for details.", 8.0f);
+                GameManifest::unload();
                 AssetPaths::close_project();
             }
         } else if (!AssetPaths::has_asset_root() && !EditorPrefs::last_project().empty()) {
@@ -101,10 +102,13 @@ namespace Honey {
             m_notification_center.push_toast(UI::ToastType::Error, "Couldn't open project",
                                              "Invalid project file. See console for details.", 8.0f);
             std::string ignored;
-            if (!previous.empty() && AssetPaths::open_project(previous, ignored))
-                GameManifest::load(AssetPaths::manifest_path());
-            else
+            if (!previous.empty() && AssetPaths::open_project(previous, ignored) &&
+                GameManifest::load(AssetPaths::manifest_path())) {
+                // Previous project (and its settings) restored
+            } else {
+                GameManifest::unload();
                 AssetPaths::close_project();
+            }
             return false;
         }
         enter_project();
@@ -153,6 +157,7 @@ namespace Honey {
             on_scene_stop();
         m_pending_gltf_loads.clear();
         m_scene_hierarchy_panel.set_selected_entity({});
+        GameManifest::unload();
         AssetPaths::close_project();
         CSharpScriptEngine::on_project_changed();
         m_project_name.clear();
@@ -174,10 +179,15 @@ namespace Honey {
     // Project switches replace the scene, so unsaved edits get a confirmation. The action itself runs at
     // the top of the next on_update (not mid-ImGui-frame) so no panel sees half-switched state.
     void EditorLayer::request_project_switch(std::function<void()> action) {
-        if (has_scene_changed()) {
+        const bool scene_dirty    = has_scene_changed();
+        const bool settings_dirty = AssetPaths::has_project() && Settings::project_dirty();
+        if (scene_dirty || settings_dirty) {
+            const std::string what = scene_dirty && settings_dirty ? "the current scene and project settings"
+                                   : scene_dirty                   ? "the current scene"
+                                                                   : "project settings";
             m_notification_center.open_confirm("switch_project",
                 "Switch project?",
-                "You have unsaved changes in the current scene. Switching projects will discard them.",
+                "You have unsaved changes in " + what + ". Switching projects will discard them.",
                 true,
                 [this, action]() { m_deferred_action = action; },
                 nullptr,
@@ -674,8 +684,16 @@ namespace Honey {
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Preferences")) {
-                if (ImGui::MenuItem("Save settings to file")) {
-                    Settings::save_to_file(AssetPaths::settings_path());
+                if (ImGui::MenuItem("Save user settings")) {
+                    Settings::save_user(AssetPaths::settings_path());
+                }
+                // Explicit only (never on exit): the .honeyproj lives in the game's repo.
+                if (ImGui::MenuItem("Save project settings", nullptr, false, AssetPaths::has_project())) {
+                    if (Settings::save_project(AssetPaths::manifest_path()))
+                        m_notification_center.push_toast(UI::ToastType::Success, "Project settings saved", m_project_name);
+                    else
+                        m_notification_center.push_toast(UI::ToastType::Error, "Couldn't save project settings",
+                                                         "See console for details.", 8.0f);
                 }
                 ImGui::EndMenu();
             }

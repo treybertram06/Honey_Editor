@@ -227,7 +227,7 @@ namespace Honey {
                 static const char* geometry_path_names[] = { "Classic", "Meshlet" };
                 int current_index = static_cast<int>(renderer.geometry_path);
                 ImGui::BeginDisabled(true);
-                if (ImGui::Combo("Geometry Path", &current_index, geometry_path_names, IM_ARRAYSIZE(geometry_path_names))) {
+                if (ImGui::Combo("Geometry Path (Project)", &current_index, geometry_path_names, IM_ARRAYSIZE(geometry_path_names))) {
                     renderer.geometry_path = static_cast<GeometryPath>(current_index);
                     //Renderer3D::set_geometry_render_path(renderer.geometry_path);
                 }
@@ -288,7 +288,7 @@ namespace Honey {
                 }
             }
 
-            if (ImGui::CollapsingHeader("Shadows", ImGuiTreeNodeFlags_DefaultOpen)) {
+            if (ImGui::CollapsingHeader("Shadows (Project)###Shadows", ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::DragFloat("Directional shadow draw distance", &renderer.dir_shadow_distance, 5.0f, 0.0f, 1000.0f);
 
             }
@@ -333,14 +333,14 @@ namespace Honey {
         }
 
         ImGui::Separator();
-        ImGui::Text("Scene Lighting");
+        ImGui::Text("Scene Lighting (Project)");
         float& ibl_intensity = Settings::get().renderer.ibl_intensity;
         if (ImGui::DragFloat("Ibl Intensity##SceneLighting", &ibl_intensity, 0.01f, 0.0f, 1.0f, "%.2f")) {
             // Value is read directly in Scene::on_update_render()
         }
 
         ImGui::Separator();
-        ImGui::Text("Post Processing");
+        ImGui::Text("Post Processing (Project)");
         if (ImGui::CollapsingHeader("Bloom")) {
             auto& bloom_settings = Settings::get().renderer.bloom;
             ImGui::DragFloat("Bloom Strength##PostProcessing", &bloom_settings.strength, 0.01f, 0.0f, 3.0f, "%.2f");
