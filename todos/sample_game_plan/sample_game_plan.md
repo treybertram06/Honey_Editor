@@ -40,6 +40,7 @@ Feature-specific:
 - Done when: both executables run with the asset folder moved, and no `ASSET_ROOT` remains in engine runtime code.
 
 ### 0.4 Game manifest — DONE (code-complete; needs a build + hand test)
+- *Superseded in 1.5:* the manifest is now the project's `<Name>.honeyproj` (same Game/Window schema plus `Project:` and `Settings:`); `game.yaml`, `--manifest` and `resources/defaults/game.yaml` are gone. Text below is historical.
 - `game.yaml` (start scene, scene list, window title/size/mode, vsync). Loaded by the player. Editor reads the same file for a "Build Settings" view later.
 - Lives at `<asset root>/../game.yaml`, or `--manifest <file>`. `AssetPaths` only *locates* it (`manifest_path()`); `GameManifest::load` parses/validates. Player loads it in `create_application()` (null → exit 1); the editor never loads it, it only copies `resources/defaults/game.yaml` into place if missing.
 - `GameManifest::apply_to` runs in `Application`'s ctor before window creation, overriding window/vsync. `Application::set_persist_settings(false)` in the player so it never writes `settings.yaml`.
@@ -69,7 +70,7 @@ Needs: a UI, mouse/cursor control, quit, and scene loading.
 - `AudioSystem::init/shutdown` run per scene, so audio is cut at every transition. Revisit in 3.2 (music across scenes).
 - The cursor reset after a transition is duplicated in `EditorLayer` and `RuntimeLayer`; it would be safer inside `perform_pending_load`.
 - `Scene.Load` in `simulate` mode is not consumed (the request is cleared on Stop). Fine for now.
-- Test script `assets/scripts/SceneLoadTest.cs` only loads one way; a ping-pong pair is needed for a long repeated-swap leak check (watch RSS and Jolt body count).
+- Test script `SceneLoadTest.cs` (Sandbox project, `Scripts/`) only loads one way; a ping-pong pair is needed for a long repeated-swap leak check (watch RSS and Jolt body count).
 
 ### 1.2 Cursor, quit, time bindings - DONE
 - C#: `Cursor.Visible/Locked` (maps to `Window::set_cursor_captured`), `Application.Quit()` (maps to `Application::quit()`), `Time.DeltaTime`/`Time.Elapsed`.
@@ -81,13 +82,13 @@ Needs: a UI, mouse/cursor control, quit, and scene loading.
 - Alternative (later): `UICanvas` / `UIText` / `UIButton` components. Out of scope for the sample.
 - Done when: a menu scene shows a title and Play / Quit buttons, with working mouse clicks, at different window sizes.
 
-### 1.5 Projects — separate engine content, editor resources and game projects (do before 1.4's scene and Phase 2)
-- Today everything lives in the global `assets/`. Introduce three tiers: **engine content** (`engine_content/`: shaders, frame graphs, default fonts/textures), **editor resources** (`resources/`), and portable **projects** (`<anywhere>/<Name>/{<Name>.honeyproj, Assets/, Scripts/, Cache/}`) opened via `--project` or the editor. The 4.6 GB model corpus, HDRIs and test scenes move to a separate `Sandbox` project outside the repo; the real game is `FirstGame`.
+### 1.5 Projects — separate engine content, editor resources and game projects — DONE
+- Introduced three tiers: **engine content** (`engine_content/`: shaders, frame graphs, default fonts/textures), **editor resources** (`resources/`), and portable **projects** (`<anywhere>/<Name>/{<Name>.honeyproj, Assets/, Scripts/, Cache/}`) opened via `--project` or the editor. The 4.6 GB model corpus, HDRIs and test scenes moved to the `Sandbox` project (`~/Desktop/Sandbox`); the real game is `FirstGame` (`~/Desktop/FirstGame`). **From here on, every scene/script path in this plan is relative to the FirstGame project** (`Assets/…` for content, `Scripts/` for C#) unless it says Sandbox.
 - Full plan, invariants and steps: `phase_1_5_projects.md`.
 - Done when: `assets/` is gone from the engine repo, the editor opens Sandbox and FirstGame by path (and starts with no project), and `Honey_Runtime --project <path>` runs a project copied to another folder.
 
 ### 1.4 Menu scene
-- `assets/scenes/menu.hns`: background (camera + simple 3D backdrop or skybox), `MenuController.cs` (Play → `Scene.Load("scenes/lobby.hns")`, Quit → `Application.Quit()`).
+- FirstGame `scenes/menu.hns`: background (camera + simple 3D backdrop or skybox), `Scripts/MenuController.cs` (Play → `Scene.Load("scenes/lobby.hns")`, Quit → `Application.Quit()`).
 - Manifest start scene = menu.
 - Done when: launching the player lands on the menu; Play loads the (placeholder) lobby; Quit exits.
 
@@ -99,14 +100,14 @@ Needs: a character that collides with the world, a trigger door, entity identifi
 - C#: `Entity.Name` (TagComponent), `Entity.HasTag/Tag` (or just name for now), `Scene.FindEntityByName` already exists. Add `Entity.IsValid` checks on destroyed entities.
 - Done when: `OnCollisionBegin(Entity other)` can tell whether `other` is "Player".
 - Implemented: `Entity.IsValid`, `Entity.Name` get/set, `Entity.HasName(string)`, `==`/`!=`/`IEquatable`, `ToString()`. New native table entries `Entity_IsValid`, `Entity_GetName`, `Entity_SetName` (appended after `Scene_Load`). Transform glue is guarded against destroyed entities (getters return zeros, setters no-op). Details: `step_2_1_entity_identification.md`.
-- Verified: `assets/scenes/EntityIdentityTest.hns` + `assets/scripts/EntityIdentityTest.cs`, 16/16 checks PASS (invalid handle, lookup/name, equality, rename round trip, 400-char name, destroyed-entity validity/name/transform).
+- Verified: `EntityIdentityTest.hns` + `EntityIdentityTest.cs` (throwaway test files in the old stop-gap `assets/`; no longer present), 16/16 checks PASS (invalid handle, lookup/name, equality, rename round trip, 400-char name, destroyed-entity validity/name/transform).
 - Not yet verified: `OnCollisionBegin` with `other.HasName("Player")` in a real collision. The test scene has no rigidbodies, and 3D contact dispatch to scripts is checked in 2.3. Re-run the test with two rigidbodies once 2.3 lands.
 - Decision: `HasTag`/`Tag` skipped; name only, for now.
 
 ### 2.2 Character controller
 - Wire Jolt `CharacterVirtual` (or a locked-rotation capsule rigidbody as the minimum) in `physics_engine_3d.cpp`; new `CharacterControllerComponent` (+ serializer, scene copy, inspector UI in `scene_hierarchy_panel`/entity properties panel).
 - C#: `CharacterController.Move(Vector3 desiredVelocity)`, `IsGrounded`, jump.
-- Replace direct-transform writes in `assets/scripts/FirstPersonController.cs` with the controller.
+- Replace direct-transform writes in `FirstPersonController.cs` (Sandbox `Scripts/`; copy into FirstGame when the lobby needs it) with the controller.
 - Done when: the player walks the lobby, collides with walls and floor, cannot clip through the door while closed.
 
 ### 2.3 Trigger volume verification
@@ -118,7 +119,7 @@ Needs: a character that collides with the world, a trigger door, entity identifi
 - Done when: a value set in the lobby is readable in the gameplay scene, and reset when returning to the menu via `Game.State.Clear()`.
 
 ### 2.5 Lobby scene and door
-- `assets/scenes/lobby.hns`: level geometry (glTF), colliders, light, player prefab + camera, door with sensor trigger.
+- FirstGame `scenes/lobby.hns`: level geometry (glTF), colliders, light, player prefab + camera, door with sensor trigger.
 - `DoorTrigger.cs`: on player enter, show a prompt (UI from 1.3), on interact key `Scene.Load("scenes/arena.hns")`. Optionally animate the door via transform.
 - Done when: menu → lobby → walk to door → press key → gameplay scene loads; Esc returns to the menu.
 
@@ -144,7 +145,7 @@ Needs: gameplay interaction, feedback (audio, text), and win/lose flow. The exac
 - Done when: `DoorTrigger.TargetScene` is set in the inspector and honoured by the player.
 
 ### 3.5 Gameplay scene and loop
-- `assets/scenes/arena.hns`: spawn pickups/targets (prefab instantiation), `GameManager.cs` (score, timer, win/lose using `Game.State`), result UI with Return-to-Lobby and Quit.
+- FirstGame `scenes/arena.hns`: spawn pickups/targets (prefab instantiation), `Scripts/GameManager.cs` (score, timer, win/lose using `Game.State`), result UI with Return-to-Lobby and Quit.
 - Done when: full loop menu → lobby → arena → win/lose → lobby, repeatable without restarting, with no leaks across loads (watch memory, physics bodies, CLR instances).
 
 ## Phase 4 — Export / shipping
@@ -152,11 +153,11 @@ Needs: gameplay interaction, feedback (audio, text), and win/lose flow. The exac
 Do this last: the sample game defines what must ship.
 
 ### 4.1 Precompiled shaders
-- Ship SPIR-V (offline compile step or pre-warmed cache) instead of runtime shaderc + `assets/cache/shaders/`; keep shaderc for the editor and dev fallback.
-- Done when: the player runs from a clean folder with no shader compile step and no write access to the assets dir.
+- Ship SPIR-V (offline compile step or pre-warmed cache) instead of runtime shaderc + the per-user shader cache (`user_data_dir()/cache/shaders/`); keep shaderc for the editor and dev fallback.
+- Done when: the player runs from a clean folder with no shader compile step and no write access to the install or project folder.
 
 ### 4.2 Writable data separation
-- Settings, pipeline cache, logs, and profiler output go to a per-user data dir for the player, not the asset dir or source tree (`engine.cpp` saves `settings.yaml` into `ASSET_ROOT/../config`).
+- Settings, pipeline cache, logs, and profiler output go to a per-user data dir for the player, not the install folder or source tree. Since 1.5 everything per-user already goes through `AssetPaths::user_data_dir()` (`config/` next to the executable or source tree); what's left is pointing it at a real OS per-user location (`$XDG_DATA_HOME`/`%APPDATA%`) for shipped builds. Project-owned settings already live in the `.honeyproj`, so the player only writes user settings (and `set_persist_settings(false)` keeps it from writing at all).
 - Done when: the player works from a read-only install folder.
 
 ### 4.3 Script build for export
@@ -164,7 +165,7 @@ Do this last: the sample game defines what must ship.
 - Done when: the exported folder runs on a machine without the .NET SDK.
 
 ### 4.4 Package target / Export button
-- CMake `install`/`package` target and/or an editor "Export Game" menu action that produces `Game/{Honey_Runtime, assets (only referenced), managed, runtime, game.yaml}`. Use the manifest's scene list plus a dependency walk over scene/prefab references (reuse the serializer's missing-asset reporting from the recent notification work).
+- CMake `install`/`package` target and/or an editor "Export Game" menu action that produces `<Out>/{Honey_Runtime, engine_content/, managed/ (HoneyEngine.dll + the project's Release UserScripts.dll), runtime/, game/<Name>.honeyproj + game/Assets/ (only referenced assets)}`, the shipped layout `AssetPaths` already resolves. Use the project's scene list plus a dependency walk over scene/prefab references (reuse the serializer's missing-asset reporting from the recent notification work).
 - Done when: the exported folder runs the full sample game on Linux, then Windows. macOS is not an export target for this plan: Lite never ships, and macOS export only becomes relevant once it supports the Full tier and there's a real need, well after a game has shipped.
 
 ### 4.5 Retrospective

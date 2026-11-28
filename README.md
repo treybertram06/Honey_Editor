@@ -161,7 +161,7 @@ If opening the solution in Visual Studio:
 
 ## Running the Editor
 
-Run the editor from the project root so assets are located correctly.
+The editor can be run from any working directory. It opens the project passed with `--project <folder>`, else the last-opened project, else a welcome window where you can create or open one.
 
 ### Linux
 ```bash
@@ -220,7 +220,7 @@ cmake --build build --config Release --target Honey_Editor
 
 ## Running the Editor
 
-Once the build is complete, you can launch the editor from the project root to ensure assets are correctly located:
+Once the build is complete, launch the editor from any directory (optionally with `--project <folder>`):
 
 ```bash
 # Linux/macOS
@@ -240,7 +240,10 @@ Once the build is complete, you can launch the editor from the project root to e
   - `engine/`: Main framework including Renderer, ECS, and Platform abstraction.
   - `vendor/`: Core engine dependencies (Box2D, yaml-cpp, etc.).
 - `src/`: Source code for the Honey Editor application.
-- `assets/`: Default shaders, textures, and scene files used by the engine.
+- `engine_content/`: Engine content every game needs (shaders, frame graphs, default fonts/textures).
+- `resources/`: Editor-only resources (icons, default layouts).
+
+Games are **projects** kept outside this repo: a portable folder with a `<Name>.honeyproj` file, `Assets/` (scenes, prefabs, models, textures, audio) and `Scripts/` (C# `UserScripts.csproj`). Create one with *File → New Project* in the editor; run one with `Honey_Runtime --project <folder>`.
 
 ---
 <sub>README assisted by ChatGPT 🤖 (because writing docs is harder than writing engines)</sub>

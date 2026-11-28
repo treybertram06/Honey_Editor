@@ -54,7 +54,7 @@ namespace Honey {
         void update_window_title();
         void draw_welcome_window();
         void draw_new_project_popup();
-        bool has_project() const { return AssetPaths::has_asset_root(); }
+        bool has_project() const { return AssetPaths::has_project(); }
 
         void new_scene();
         void open_scene();

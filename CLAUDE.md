@@ -10,12 +10,17 @@ Use CLion MCP or ask user to build with CMake
 ```
 
 ### Running
-Can run from any working directory — `AssetPaths` (`Honey/engine/src/Honey/core/asset_paths.*`) finds the asset root at startup (`--assets <dir>` → `HONEY_ASSET_ROOT` → `<exe dir>/assets` → source tree in dev builds) and logs which rule matched:
+Can run from any working directory. Games are **projects**: portable folders anywhere on disk (`<Name>/{<Name>.honeyproj, Assets/, Scripts/, Cache/}`), never inside this repo. `AssetPaths` (`Honey/engine/src/Honey/core/asset_paths.*`) locates everything at startup and logs which rule matched:
 ```bash
-./cmake-build-debug/Honey_Editor
-./cmake-build-debug/Honey_Runtime
+./cmake-build-debug/Honey_Editor                                # --project <dir> → last-opened project → welcome window
+./cmake-build-debug/Honey_Runtime --project ~/Desktop/Sandbox   # or a shipped <exe dir>/game/<Name>.honeyproj; refuses to start without one
 ```
-Engine content (shaders, frame graphs, default fonts/textures) lives in `engine_content/` (`AssetPaths::engine_content_root()`, `--engine-content`, `HONEY_ENGINE_CONTENT`; `engine:` path prefix). Never add `ASSET_ROOT`/`"../assets"`-style paths: use `AssetPaths::asset_root()` / `engine_content_root()` / `resolve()`, and `to_portable`/`from_portable` when writing/reading paths in scene/prefab files (asset-relative on disk, absolute in memory). Editor-only icons go through `EditorPaths::resource()`.
+Three tiers of content, never mixed:
+- **Engine content** (shaders, frame graphs, default fonts/textures) in `engine_content/`: `AssetPaths::engine_content_root()` (`--engine-content` → `HONEY_ENGINE_CONTENT` → `<exe dir>/engine_content` → source tree in dev builds), addressed in data with the `engine:` prefix (`engine:fonts/JetBrains_Mono/...`).
+- **Editor resources** (icons, editor defaults) in `resources/`, only through `EditorPaths::resource()`.
+- **Project assets** under the open project's `Assets/` (`AssetPaths::asset_root()`, empty when no project is open), stored asset-relative (`models/Box/Box.gltf`).
+
+Never hardcode an asset location (no `ASSET_ROOT`, `"../assets"` or absolute paths): use `AssetPaths::resolve()`, and `to_portable`/`from_portable` when writing/reading paths in scene/prefab files (asset-relative or `engine:` on disk, absolute in memory). Per-user data (`settings.yaml`, shader/pipeline caches, `editor_prefs.txt`) lives in `AssetPaths::user_data_dir()` (`config/` in dev builds).
 
 ### Windows
 ```bat
@@ -24,7 +29,7 @@ cmake --build build --config Debug --target Honey_Editor
 .\build\Debug\Honey_Editor.exe
 ```
 
-There are no automated tests — validation is done via test scenes in `assets/scenes/` and the sandbox `application` target.
+There are no automated tests — validation is done via the test scenes in the **Sandbox** project (`~/Desktop/Sandbox`: glTF corpus, HDRIs, test scenes/prefabs/scripts; unversioned, outside this repo). The sample game is the **FirstGame** project (`~/Desktop/FirstGame`, its own git repo).
 
 **Build prerequisite (C# scripting):** the managed engine assembly is rebuilt via `dotnet build` on every engine build (the `HoneyManaged` CMake target), so a **.NET 10 SDK (`dotnet`) must be on `PATH`**. The .NET *runtime* is vendored/bundled by `Honey/cmake/VendorDotnet.cmake` (pins .NET 10.0.8), so no system runtime install is needed.
 
@@ -70,7 +75,7 @@ Honey/managed/HoneyEngine/     ← Managed C# engine assembly (HoneyEngine.dll, 
 ### Key Abstractions
 
 - **`Ref<T>` / `Scope<T>`** — `shared_ptr` / `unique_ptr` aliases used throughout the engine
-- **`RendererAPI`** — Strategy interface for Vulkan vs OpenGL; selected at startup via `config/settings.yaml`
+- **`RendererAPI`** — Strategy interface for Vulkan vs OpenGL; selected at startup via the per-user `config/settings.yaml`
 - **`Layer` / `LayerStack`** — Composable update/render pipeline; `EditorLayer` is the primary layer
 - **`Scene` + `Entity`** — Thin wrapper around EnTT's `entt::registry`; entities are just IDs + components
 - **`FrameGraph`** — DAG-based render pass management and the **primary per-frame render driver**: every 3D pass (g-buffer, lighting, shadows, SSAO, path tracer) registers as a frame-graph executor and runs through `frame_graph.cpp` each frame. Data-driven — graphs load from `engine_content/frame_graphs/`. Supports compute passes.
@@ -85,16 +90,16 @@ Honey/managed/HoneyEngine/     ← Managed C# engine assembly (HoneyEngine.dll, 
 
 ### Scene File Format
 
-Scenes are YAML files (`.hns`) serialized by `SceneSerializer`. Prefabs use `.hnp`. Both live in `assets/scenes/` and `assets/prefabs/`.
+Scenes are YAML files (`.hns`) serialized by `SceneSerializer`. Prefabs use `.hnp`. Both live in a project's `Assets/scenes/` and `Assets/prefabs/`. The project file (`.honeyproj`, YAML, parsed by `GameManifest`) holds the name, engine version, start scene, scene list, window settings and the project-owned `Settings:` block.
 
 ### Scripting
 
-- **C# / .NET** (primary): The CLR is hosted in-process via nethost/hostfxr (`scripting/dotnet_host.*`), with native↔managed glue in `csharp_script_engine.*` / `csharp_script_glue.*`. The managed engine assembly lives in `Honey/managed/HoneyEngine/` (`HoneyEngine.dll`, `net10.0`). User scripts are **`.cs` files** in `assets/scripts/` (`UserScripts.csproj` → `UserScripts.dll`) that subclass **`EntityScript`**. Callbacks: `OnCreate()`, `OnUpdate(float dt)`, `OnDestroy()`, `OnCollisionBegin(Entity)`, `OnCollisionEnd(Entity)`. (Lua/Sol2 was fully removed — do not reach for `sol::`.)
+- **C# / .NET** (primary): The CLR is hosted in-process via nethost/hostfxr (`scripting/dotnet_host.*`), with native↔managed glue in `csharp_script_engine.*` / `csharp_script_glue.*`. The managed engine assembly lives in `Honey/managed/HoneyEngine/` (`HoneyEngine.dll`, `net10.0`). User scripts are **`.cs` files** in the project's `Scripts/` (`UserScripts.csproj` → `UserScripts.dll`; the editor builds it with `-p:HoneyEngineDll=<engine dll>` so the csproj stays portable) that subclass **`EntityScript`**. Callbacks: `OnCreate()`, `OnUpdate(float dt)`, `OnDestroy()`, `OnCollisionBegin(Entity)`, `OnCollisionEnd(Entity)`. (Lua/Sol2 was fully removed — do not reach for `sol::`.)
 - **C++ native-DLL scripts**: Experimental, separate path. Editor loads a compiled `.so`/`.dll` (`libHoneyScripts.so`) via `src/scripting/ScriptLoader` and calls its exported `register_all_scripts()`.
 
 ### Physics
 
-- **Jolt** (3D): `Honey/engine/src/Honey/physics/` — `physics_engine_3d`, `jolt_contact_listener`, `jolt_debug_renderer`, `jolt_job_system` (vendored `vendor/JoltPhysics`). Drives `RigidbodyComponent` / `ClothComponent`; the editor exposes a `PhysicsDebugPanel`, and `settings.yaml` has a `Physics:` block.
+- **Jolt** (3D): `Honey/engine/src/Honey/physics/` — `physics_engine_3d`, `jolt_contact_listener`, `jolt_debug_renderer`, `jolt_job_system` (vendored `vendor/JoltPhysics`). Drives `RigidbodyComponent` / `ClothComponent`; the editor exposes a `PhysicsDebugPanel`, and physics settings live in the project's `.honeyproj` `Settings: Physics:` block.
 - **Box2D** (2D): vendored `vendor/box2d`, linked into the engine.
 
 ### Logging
@@ -112,6 +117,9 @@ Standing rules that hold across **all** work, not just one feature. If a plan or
 
 Feature-specific invariants are the durable, project-wide list's counterpart at the plan level: **every large, multi-step plan doc under `todos/` opens with an `## Invariants (hold across every step)` block** stating the cross-cutting rules for that feature, and any sub-plan restates the inherited invariants it must not break. (Sub-plans that drift from a buried invariant are the exact failure this guards against.)
 
+- **Three content tiers, one dependency direction.** Engine content (`engine_content/`) is needed by editor, player and every project; editor resources (`resources/`) are editor-only and never ship; project assets belong to one game. A project may reference engine content (`engine:`); **engine content and engine code never reference a project, and nothing but the editor references editor resources.** *Fitness check:* delete the file and see what breaks — the editor can't start → engine content; only one game breaks → project.
+- **The editor must start with no project open** (welcome state). If a change makes that impossible, an engine feature has leaked into project territory.
+- **Projects are portable.** Nothing absolute and nothing relative to the engine checkout is ever written into a project (`.honeyproj`, scenes, prefabs, `.csproj`). A project copied to another machine opens in any copy of the editor. Engine-checkout game/test content does not exist: it goes in a project (Sandbox).
 - **`VulkanContext` is a renderer-agnostic interface.** It owns only device, queues, swapchain, and synchronization primitives. Renderer-owned resources — the descriptor heap, and anything belonging to the SSAO / deferred / meshlet / shadow / bindless paths — live on `VulkanBackend` or the renderer, **never** as `VulkanContext` members.
 - **Descriptor heap mode is the only descriptor model.** All new Vulkan code binds resources through `VK_EXT_descriptor_heap` (`Pipeline::create_heap_mode`, frame-graph descriptor automation, or bindless indices). No new `VkDescriptorSetLayout` / `VkDescriptorPool` / `vkCmdBindDescriptorSets` / `Pipeline::create_layout_mode` code, ever, outside the two allowed exceptions:
   1. **Code inside the Lite tier** (`Renderer3DLite` and what it draws), because Lite exists for hardware without the heap.
@@ -138,7 +146,10 @@ Feature-specific invariants are the durable, project-wide list's counterpart at 
 | `Honey/engine/src/Honey/physics/physics_engine_3d.cpp` | Jolt 3D physics integration |
 | `Honey/engine/src/platform/vulkan/vk_context.cpp` | Vulkan queues, swapchain, timeline sync, per-frame submit (~130 KB) |
 | `Honey/engine/src/platform/vulkan/vk_backend.cpp` | Vulkan instance/device/extension bring-up + swapchain + render loop (~88 KB) |
-| `config/settings.yaml` | Runtime config — renderer backend + knobs (`RendererType`, `GeometryPath`, `DirShadowDistance`, anisotropy…), `Physics:` block, window settings |
+| `Honey/engine/src/Honey/core/asset_paths.cpp` | Locates engine content, the open project and per-user data; `resolve`/`to_portable`/`from_portable` |
+| `Honey/engine/src/Honey/core/settings.cpp` | Settings persistence; `schema()` is the one table saying which key is per user and which is per project |
+| `Honey/engine/src/Honey/core/project_template.cpp` | New Project skeleton (`.honeyproj`, `Assets/`, `Scripts/UserScripts.csproj`, `.gitignore`) |
+| `config/settings.yaml` | **Per-user** settings only (renderer backend, `RendererType`, vsync, debug toggles, window placement). Project-owned keys (`GeometryPath`, `DirShadowDistance`, bloom, AA, `Physics:`) live in the `.honeyproj` `Settings:` block |
 
 ## Code Conventions
 

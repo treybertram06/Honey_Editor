@@ -68,7 +68,7 @@ namespace Honey {
                 GameManifest::unload();
                 AssetPaths::close_project();
             }
-        } else if (!AssetPaths::has_asset_root() && !EditorPrefs::last_project().empty()) {
+        } else if (!EditorPrefs::last_project().empty()) {
             const std::filesystem::path last = EditorPrefs::last_project();
             std::error_code ec;
             if (std::filesystem::exists(last, ec))
@@ -83,8 +83,6 @@ namespace Honey {
         std::string title = "Honey Editor";
         if (!m_project_name.empty())
             title += " - " + m_project_name;
-        else if (AssetPaths::has_asset_root())
-            title += " - " + AssetPaths::asset_root().string() + " (legacy assets)";
         Application::get().get_window().set_title(title);
     }
 
